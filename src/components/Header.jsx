@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+
 
 const navItems = [
   { label: 'Home', id: 'home', active: true },
@@ -25,7 +27,9 @@ const navItems = [
   { label: 'Contact Us', id: 'contact' },
 ];
 
-export default function Header({ scrolled, currentPage, setCurrentPage }) {
+export default function Header({ scrolled, currentPage, setCurrentPage, onOpenLogin }) {
+  const { user, logout } = useAuth();
+
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -36,10 +40,21 @@ export default function Header({ scrolled, currentPage, setCurrentPage }) {
           <a href="#" id="top-bar-search" className="search-icon" onClick={(e) => e.preventDefault()}>
             <i className="fas fa-search"></i>
           </a>
-          <a href="#" id="top-bar-login" onClick={(e) => { e.preventDefault(); setCurrentPage('membership'); }}>
-            <i className="fas fa-user"></i>
-            Member Login
-          </a>
+          {user ? (
+            <div className="user-profile-topbar" id="user-profile-menu">
+              <img src={user.picture} alt={user.name} className="user-avatar" />
+              <span className="user-name">Welcome, {user.given_name || user.name}</span>
+              <button onClick={logout} className="btn-signout-topbar" id="top-bar-signout-btn">
+                <i className="fas fa-sign-out-alt"></i> Sign Out
+              </button>
+            </div>
+          ) : (
+            <a href="#" id="top-bar-login" onClick={(e) => { e.preventDefault(); onOpenLogin(); }}>
+              <i className="fas fa-user"></i>
+              Member Login
+            </a>
+          )}
+
           <button className="btn-join-topbar" id="top-bar-join-btn" onClick={() => setCurrentPage('membership')}>Join ATOP</button>
         </div>
       </div>
@@ -136,7 +151,49 @@ export default function Header({ scrolled, currentPage, setCurrentPage }) {
         }
         .mobile-menu-link:last-child { border-bottom: none; }
         .mobile-menu-link:hover, .mobile-menu-link.active { color: var(--gold); background: var(--off-white); }
+
+        /* User profile top bar styling */
+        .user-profile-topbar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: var(--white);
+        }
+        .user-avatar {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 1px solid var(--gold-light);
+          object-fit: cover;
+        }
+        .user-name {
+          font-weight: 600;
+          color: var(--gold-light);
+          font-family: var(--font-body);
+        }
+        .btn-signout-topbar {
+          background: transparent;
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 0.7rem;
+          font-family: var(--font-heading);
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 2px 8px;
+          border-radius: 4px;
+          transition: var(--transition-fast);
+        }
+        .btn-signout-topbar:hover {
+          color: var(--white);
+          background: rgba(255, 255, 255, 0.1);
+        }
       `}</style>
+
     </>
   );
 }
