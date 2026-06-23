@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/auth/AuthContext';
 
 const navItems = [
   { label: 'Home', id: 'home', active: true },
@@ -31,6 +31,8 @@ export default function Header({ scrolled, currentPage, setCurrentPage, onOpenLo
   const { user, logout } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   return (
     <>
@@ -41,21 +43,22 @@ export default function Header({ scrolled, currentPage, setCurrentPage, onOpenLo
             <i className="fas fa-search"></i>
           </a>
           {user ? (
-            <div className="user-profile-topbar" id="user-profile-menu">
-              <img src={user.picture} alt={user.name} className="user-avatar" />
-              <span className="user-name">Welcome, {user.given_name || user.name}</span>
-              <button onClick={logout} className="btn-signout-topbar" id="top-bar-signout-btn">
-                <i className="fas fa-sign-out-alt"></i> Sign Out
-              </button>
-            </div>
+            <>
+              <span className="top-bar-user">
+                <i className="fas fa-circle-user"></i>
+                {user.firstName || user.fullName || user.email}
+              </span>
+              <button className="btn-join-topbar" id="top-bar-logout-btn" onClick={logout}>Logout</button>
+            </>
           ) : (
-            <a href="#" id="top-bar-login" onClick={(e) => { e.preventDefault(); onOpenLogin(); }}>
-              <i className="fas fa-user"></i>
-              Member Login
-            </a>
+            <>
+              <a href="#" id="top-bar-login" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>
+                <i className="fas fa-user"></i>
+                Member Login
+              </a>
+              <button className="btn-join-topbar" id="top-bar-join-btn" onClick={() => navigate('/register')}>Join ATOP</button>
+            </>
           )}
-
-          <button className="btn-join-topbar" id="top-bar-join-btn" onClick={() => setCurrentPage('membership')}>Join ATOP</button>
         </div>
       </div>
 
@@ -131,6 +134,15 @@ export default function Header({ scrolled, currentPage, setCurrentPage, onOpenLo
       </header>
 
       <style>{`
+        .top-bar-user {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: rgba(255, 255, 255, 0.85);
+          font-family: var(--font-heading);
+          font-weight: 600;
+        }
+        .top-bar-user i { color: var(--gold-light); font-size: 0.95rem; }
         .mobile-menu {
           background: var(--white);
           border-top: 2px solid var(--gold);
