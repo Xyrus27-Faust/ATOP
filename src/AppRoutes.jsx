@@ -11,6 +11,8 @@ import NewEntryPage from './dashboard/pages/NewEntryPage'
 import EntryEditorPage from './dashboard/pages/EntryEditorPage'
 import AwardCategoriesPage from './dashboard/pages/AwardCategoriesPage'
 import ProfilePage from './dashboard/pages/ProfilePage'
+import ReviewQueuePage from './dashboard/pages/ReviewQueuePage'
+import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -29,6 +31,8 @@ export default function AppRoutes() {
           <Route path="entries" element={<EntriesListPage />} />
           <Route path="entries/new" element={<NewEntryPage />} />
           <Route path="entries/:id" element={<EntryEditorPage />} />
+          <Route path="review" element={<ReviewQueuePage />} />
+          <Route path="review/:id" element={<ReviewEntryPage />} />
           <Route path="awards" element={<AwardCategoriesPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>

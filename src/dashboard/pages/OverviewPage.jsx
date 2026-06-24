@@ -1,7 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
+import { isReviewer } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
 import Readiness from '../components/Readiness'
@@ -28,6 +29,11 @@ export default function OverviewPage() {
     }
     return { entries, catalog, focus }
   }, [])
+
+  // Reviewer-only users (no applicant role) belong in the review queue, not the
+  // applicant overview.
+  const roles = user?.roles || []
+  if (isReviewer(roles) && !roles.includes('Applicant')) return <Navigate to="/dashboard/review" replace />
 
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />

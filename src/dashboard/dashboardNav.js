@@ -1,6 +1,6 @@
-// Role-driven dashboard navigation. The Applicant experience is wired today;
-// every member has the Applicant role by default. As staff/curation modules
-// land, give those roles their own nav sets here — the shell already adapts.
+// Role-driven dashboard navigation. Applicants compose and submit entries;
+// reviewers (Secretariat / Validator / Admin) work the review queue. A user with
+// both kinds of role sees both sets.
 
 export const ROLE_LABELS = {
   Applicant: 'Applicant',
@@ -11,6 +11,10 @@ export const ROLE_LABELS = {
   Judge: 'Judge',
   Admin: 'Administrator',
 }
+
+// Roles that may review submitted entries (mirrors the backend's reviewer roles).
+export const REVIEWER_ROLES = ['Admin', 'Secretariat', 'Validator']
+export const isReviewer = (roles = []) => roles.some((r) => REVIEWER_ROLES.includes(r))
 
 // Highest-privilege role wins for the badge shown in the shell.
 const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Judge', 'Applicant']
@@ -24,15 +28,18 @@ export function roleLabel(role) {
   return ROLE_LABELS[role] || role
 }
 
-const APPLICANT_NAV = [
-  { to: '/dashboard', end: true, label: 'Overview', icon: 'fa-gauge-high' },
-  { to: '/dashboard/entries', label: 'My Entries', icon: 'fa-folder-open' },
-  { to: '/dashboard/awards', label: 'Award Categories', icon: 'fa-award' },
-  { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge' },
-]
+const OVERVIEW = { to: '/dashboard', end: true, label: 'Overview', icon: 'fa-gauge-high' }
+const MY_ENTRIES = { to: '/dashboard/entries', label: 'My Entries', icon: 'fa-folder-open' }
+const REVIEW = { to: '/dashboard/review', label: 'Review Queue', icon: 'fa-clipboard-check' }
+const AWARDS = { to: '/dashboard/awards', label: 'Award Categories', icon: 'fa-award' }
+const PROFILE = { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge' }
 
-// The nav items for a user's roles. Applicant is the base experience everyone
-// shares; this is where role-specific sections get composed in later.
-export function navForRoles() {
-  return APPLICANT_NAV
+export function navForRoles(roles = []) {
+  const reviewer = isReviewer(roles)
+  const applicant = roles.includes('Applicant') || !reviewer // default to the applicant view
+  const nav = []
+  if (applicant) nav.push(OVERVIEW, MY_ENTRIES)
+  if (reviewer) nav.push(REVIEW)
+  nav.push(AWARDS, PROFILE)
+  return nav
 }
