@@ -16,14 +16,10 @@ import NewsPage from './components/NewsPage';
 import ResourcesPage from './components/ResourcesPage';
 import ContactPage from './components/ContactPage';
 
-// Login Modal
-import LoginModal from './components/LoginModal';
-
 function App() {
   const [scrolled, setScrolled] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentPage, setCurrentPage] = useState('home');
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => {
@@ -67,18 +63,11 @@ function App() {
 
   return (
     <>
-      <Header 
-        scrolled={scrolled} 
-        currentPage={currentPage} 
-        setCurrentPage={setCurrentPage} 
-        onOpenLogin={() => setIsLoginOpen(true)}
-      />
+      <Header scrolled={scrolled} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       <main>
         {renderContent()}
       </main>
       <Footer setCurrentPage={setCurrentPage} />
-
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
 
       <button
         className={`scroll-top ${showScrollTop ? 'visible' : ''}`}
@@ -93,4 +82,3 @@ function App() {
 }
 
 export default App;
-
