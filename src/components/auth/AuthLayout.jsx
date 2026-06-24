@@ -340,6 +340,33 @@ export default function AuthLayout({
           box-shadow: 0 4px 15px rgba(200,168,75,0.25);
         }
 
+        /* ---------- Divider + Google sign-in ---------- */
+        .auth-divider {
+          display: flex; align-items: center; gap: 14px;
+          margin: 22px 0 18px;
+          font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700;
+          letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray-400);
+        }
+        .auth-divider::before, .auth-divider::after {
+          content: ''; flex: 1; height: 1px; background: var(--gray-200);
+        }
+        .auth-google { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 44px; }
+        .auth-google-btn { width: 100%; display: flex; justify-content: center; color-scheme: light; }
+        .auth-google-pending {
+          display: flex; align-items: center; gap: 8px;
+          font-family: var(--font-body); font-size: 0.84rem; color: var(--gray-600);
+        }
+        .auth-google-setup {
+          display: flex; align-items: flex-start; gap: 12px;
+          background: var(--gray-100); border: 1px dashed var(--gray-200);
+          padding: 13px 16px; border-radius: var(--radius-sm);
+          font-family: var(--font-body); font-size: 0.8rem; color: var(--gray-600); text-align: left;
+        }
+        .auth-google-setup > i { font-size: 1.15rem; color: var(--gold-dark); margin-top: 1px; }
+        .auth-google-setup strong { display: block; color: var(--navy); font-family: var(--font-heading); font-size: 0.82rem; margin-bottom: 3px; }
+        .auth-google-setup p { margin: 0; line-height: 1.5; }
+        .auth-google-setup code { font-family: monospace; font-size: 0.74rem; background: var(--gray-200); padding: 1px 5px; border-radius: 3px; color: var(--navy); word-break: break-all; }
+
         /* ---------- Banners ---------- */
         .auth-banner {
           display: flex;

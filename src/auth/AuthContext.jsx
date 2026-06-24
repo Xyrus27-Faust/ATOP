@@ -66,6 +66,19 @@ export function AuthProvider({ children }) {
     return me
   }
 
+  // Exchange a Google ID token (from Google Identity Services) for our own
+  // session. The backend validates the token's audience server-side and
+  // provisions/links the account; a Google account is already email-verified,
+  // so this signs the user straight in.
+  async function googleSignIn(idToken) {
+    const tokens = await api.post('/auth/google', { idToken })
+    setTokens(tokens)
+    const me = await api.get('/auth/me', { auth: true })
+    setUser(me)
+    setStatus('authenticated')
+    return me
+  }
+
   function register({ email, password, firstName, lastName }) {
     return api.post('/auth/register', { email, password, firstName, lastName })
   }
@@ -102,6 +115,7 @@ export function AuthProvider({ children }) {
     user,
     status,
     login,
+    googleSignIn,
     register,
     updateProfile,
     verifyEmail,

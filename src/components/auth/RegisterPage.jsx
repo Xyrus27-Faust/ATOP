@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from './AuthLayout'
 import AuthField from './AuthField'
+import GoogleButton from './GoogleButton'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/lib/apiClient'
 import {
@@ -29,6 +30,7 @@ const REGISTER_BRAND = {
 
 export default function RegisterPage() {
   const { register, resendVerification } = useAuth()
+  const navigate = useNavigate()
 
   const [form, setForm] = useState({
     firstName: '',
@@ -240,6 +242,18 @@ export default function RegisterPage() {
           )}
         </button>
       </form>
+
+      <div className="auth-divider">or</div>
+      <GoogleButton
+        text="signup_with"
+        onSuccess={() => navigate('/', { replace: true })}
+        onError={(err) =>
+          setBanner({
+            kind: 'error',
+            message: err instanceof ApiError ? err.message : 'Google sign-up didn’t work. Please try again.',
+          })
+        }
+      />
     </AuthLayout>
   )
 }

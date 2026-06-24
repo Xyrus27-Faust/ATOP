@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthLayout from './AuthLayout'
 import AuthField from './AuthField'
+import GoogleButton from './GoogleButton'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/lib/apiClient'
 import { validateEmail, validateRequired } from '@/lib/validation'
@@ -140,6 +141,18 @@ export default function LoginPage() {
           )}
         </button>
       </form>
+
+      <div className="auth-divider">or</div>
+      <GoogleButton
+        text="signin_with"
+        onSuccess={() => navigate(redirectTo, { replace: true })}
+        onError={(err) =>
+          setBanner({
+            kind: 'error',
+            message: err instanceof ApiError ? err.message : 'Google sign-in didn’t work. Please try again.',
+          })
+        }
+      />
     </AuthLayout>
   )
 }
