@@ -70,6 +70,13 @@ export function AuthProvider({ children }) {
     return api.post('/auth/register', { email, password, firstName, lastName })
   }
 
+  // Update the signed-in user's profile and keep the cached user in sync.
+  async function updateProfile({ firstName, lastName, designation, office }) {
+    const me = await api.put('/auth/me', { firstName, lastName, designation, office }, { auth: true })
+    setUser(me)
+    return me
+  }
+
   function verifyEmail(userId, token) {
     return api.post('/auth/verify-email', { userId, token })
   }
@@ -96,6 +103,7 @@ export function AuthProvider({ children }) {
     status,
     login,
     register,
+    updateProfile,
     verifyEmail,
     resendVerification,
     logout,

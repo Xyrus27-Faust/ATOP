@@ -44,6 +44,10 @@ export default function Header({ scrolled, currentPage, setCurrentPage, onOpenLo
           </a>
           {user ? (
             <>
+              <a href="#" id="top-bar-dashboard" className="top-bar-dash" onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }}>
+                <i className="fas fa-gauge-high"></i>
+                Dashboard
+              </a>
               <span className="top-bar-user">
                 <i className="fas fa-circle-user"></i>
                 {user.firstName || user.fullName || user.email}
@@ -143,6 +147,9 @@ export default function Header({ scrolled, currentPage, setCurrentPage, onOpenLo
           font-weight: 600;
         }
         .top-bar-user i { color: var(--gold-light); font-size: 0.95rem; }
+        .top-bar-dash { display: flex; align-items: center; gap: 7px; color: rgba(255,255,255,0.78); font-family: var(--font-heading); font-weight: 600; }
+        .top-bar-dash i { color: var(--gold-light); }
+        .top-bar-dash:hover { color: var(--white); }
         .mobile-menu {
           background: var(--white);
           border-top: 2px solid var(--gold);

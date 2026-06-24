@@ -1,0 +1,304 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api, ApiError } from '@/lib/apiClient'
+import { validateEmail } from '@/lib/validation'
+import { useAsync } from '../useAsync'
+import { Loading, ErrorState } from '../components/states'
+import { Field, ctl } from '../components/form'
+import {
+  COVERAGE_OPTIONS,
+  LGU_LEVELS,
+  REGIONS,
+  ENTRANT_TYPE_LABELS,
+  NOMINATOR_RULE_LABELS,
+} from '@/lib/pearlAwards'
+
+const EMPTY = {
+  categoryNumber: '',
+  title: '',
+  coverage: '',
+  'lgu.name': '',
+  'lgu.level': '',
+  'lgu.region': '',
+  'nominator.name': '',
+  'nominator.designation': '',
+  'nominator.office': '',
+  'nominator.email': '',
+  'nominator.mobile': '',
+  'nominator.officialAddress': '',
+  'nominator.alternateContact': '',
+  'nominator.officialLguEmail': '',
+  'nominator.isThirdParty': false,
+}
+
+export default function NewEntryPage() {
+  const navigate = useNavigate()
+  const { loading, error, data, reload } = useAsync(() => api.get('/award-categories/'), [])
+
+  const [form, setForm] = useState(EMPTY)
+  const [errors, setErrors] = useState({})
+  const [banner, setBanner] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  if (loading) return <Loading />
+  if (error) return <ErrorState error={error} onRetry={reload} />
+
+  const catalog = data
+  const category = catalog.categories.find((c) => c.number === Number(form.categoryNumber))
+  const levelOptions =
+    category && category.eligibleLguLevels?.length
+      ? LGU_LEVELS.filter((l) => category.eligibleLguLevels.includes(l.value))
+      : LGU_LEVELS
+
+  const set = (key) => (e) =>
+    setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+
+  function onCategoryChange(e) {
+    const number = e.target.value
+    const cat = catalog.categories.find((c) => c.number === Number(number))
+    setForm((f) => ({
+      ...f,
+      categoryNumber: number,
+      'lgu.level': '', // eligible levels differ per category
+      'nominator.isThirdParty': cat?.nominatorRule === 'ThirdPartyOnly' ? true : f['nominator.isThirdParty'],
+    }))
+    setErrors((p) => ({ ...p, categoryNumber: undefined }))
+  }
+
+  function validate() {
+    const e = {}
+    if (!form.categoryNumber) e.categoryNumber = 'Choose a category.'
+    if (!form.title.trim()) e.title = 'Give your entry a title.'
+    if (!form.coverage) e.coverage = 'Select how the program maps to the coverage year.'
+    if (!form['lgu.name'].trim()) e['lgu.name'] = 'LGU name is required.'
+    if (!form['lgu.level']) e['lgu.level'] = 'Select an LGU level.'
+    if (!form['lgu.region']) e['lgu.region'] = 'Select a region.'
+    if (!form['nominator.name'].trim()) e['nominator.name'] = 'Nominator name is required.'
+    if (!form['nominator.designation'].trim()) e['nominator.designation'] = 'Designation is required.'
+    if (!form['nominator.office'].trim()) e['nominator.office'] = 'Office is required.'
+    const emailErr = validateEmail(form['nominator.email'])
+    if (emailErr) e['nominator.email'] = emailErr
+    if (!form['nominator.mobile'].trim()) e['nominator.mobile'] = 'Mobile number is required.'
+    if (!form['nominator.officialAddress'].trim()) e['nominator.officialAddress'] = 'Official address is required.'
+    const lguEmailErr = validateEmail(form['nominator.officialLguEmail'])
+    if (lguEmailErr) e['nominator.officialLguEmail'] = lguEmailErr
+    if (category?.nominatorRule === 'ThirdPartyOnly' && !form['nominator.isThirdParty'])
+      e['nominator.isThirdParty'] = 'This category requires a third-party nominator.'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  async function handleSubmit(ev) {
+    ev.preventDefault()
+    setBanner(null)
+    if (!validate()) {
+      setBanner({ tone: 'error', message: 'Please fix the highlighted fields before continuing.' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      const payload = {
+        categoryNumber: Number(form.categoryNumber),
+        title: form.title.trim(),
+        coverage: form.coverage,
+        lgu: { name: form['lgu.name'].trim(), level: form['lgu.level'], region: form['lgu.region'] },
+        nominator: {
+          name: form['nominator.name'].trim(),
+          designation: form['nominator.designation'].trim(),
+          office: form['nominator.office'].trim(),
+          email: form['nominator.email'].trim(),
+          mobile: form['nominator.mobile'].trim(),
+          officialAddress: form['nominator.officialAddress'].trim(),
+          alternateContact: form['nominator.alternateContact'].trim() || null,
+          officialLguEmail: form['nominator.officialLguEmail'].trim(),
+          isThirdParty: form['nominator.isThirdParty'],
+        },
+      }
+      const created = await api.post('/entries/', payload, { auth: true })
+      navigate(`/dashboard/entries/${created.id}`)
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors) {
+        const mapped = {}
+        for (const [k, msgs] of Object.entries(err.fieldErrors)) mapped[k] = msgs[0]
+        setErrors((p) => ({ ...p, ...mapped }))
+        setBanner({ tone: 'error', message: 'Please fix the highlighted fields.' })
+      } else {
+        setBanner({
+          tone: 'error',
+          message: err instanceof ApiError ? err.message : 'We couldn’t create the entry. Please try again.',
+        })
+      }
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="dash-page-head">
+        <div>
+          <button type="button" className="dash-btn is-ghost is-sm ne-back" onClick={() => navigate('/dashboard/entries')}>
+            <i className="fas fa-arrow-left" aria-hidden="true" /> My entries
+          </button>
+          <h1 className="dash-h1">Create an entry</h1>
+          <p className="dash-sub">Start with the essentials. You’ll compose the bidbook, declaration, and endorsement next.</p>
+        </div>
+      </div>
+
+      {banner && (
+        <div className={`dash-banner tone-${banner.tone}`} style={{ marginBottom: 18 }}>
+          <i className="fas fa-circle-exclamation" aria-hidden="true" />
+          <span>{banner.message}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} noValidate className="ne-grid">
+        <div className="ne-col">
+          {/* Category & program */}
+          <section className="dash-card dash-card-pad ne-section">
+            <div className="dash-card-title"><i className="fas fa-award" aria-hidden="true" /> Category &amp; program</div>
+            <Field label="Award category" htmlFor="categoryNumber" required error={errors.categoryNumber}>
+              <select id="categoryNumber" className={ctl('dash-select', errors.categoryNumber)} value={form.categoryNumber} onChange={onCategoryChange}>
+                <option value="">Select a category…</option>
+                {catalog.categories.map((c) => (
+                  <option key={c.number} value={c.number}>#{c.number} — {c.name}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Entry title" htmlFor="title" required error={errors.title} hint="Name the program or initiative you’re entering.">
+              <input id="title" className={ctl('dash-input', errors.title)} value={form.title} onChange={set('title')} placeholder="e.g. Bohol Heritage Trails Revitalization" />
+            </Field>
+
+            <Field label="Program coverage" htmlFor="coverage" required error={errors.coverage}>
+              <select id="coverage" className={ctl('dash-select', errors.coverage)} value={form.coverage} onChange={set('coverage')}>
+                <option value="">Select coverage…</option>
+                {COVERAGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </Field>
+          </section>
+
+          {/* LGU */}
+          <section className="dash-card dash-card-pad ne-section">
+            <div className="dash-card-title"><i className="fas fa-building-columns" aria-hidden="true" /> Local government unit</div>
+            <Field label="LGU name" htmlFor="lguName" required error={errors['lgu.name']}>
+              <input id="lguName" className={ctl('dash-input', errors['lgu.name'])} value={form['lgu.name']} onChange={set('lgu.name')} placeholder="e.g. Province of Bohol" />
+            </Field>
+            <div className="dash-form-row">
+              <Field label="Level" htmlFor="lguLevel" required error={errors['lgu.level']}>
+                <select id="lguLevel" className={ctl('dash-select', errors['lgu.level'])} value={form['lgu.level']} onChange={set('lgu.level')}>
+                  <option value="">Select level…</option>
+                  {levelOptions.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Region" htmlFor="lguRegion" required error={errors['lgu.region']}>
+                <select id="lguRegion" className={ctl('dash-select', errors['lgu.region'])} value={form['lgu.region']} onChange={set('lgu.region')}>
+                  <option value="">Select region…</option>
+                  {REGIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </Field>
+            </div>
+          </section>
+
+          {/* Nominator */}
+          <section className="dash-card dash-card-pad ne-section">
+            <div className="dash-card-title"><i className="fas fa-user-tie" aria-hidden="true" /> Nominator</div>
+            <p className="dash-help" style={{ marginTop: -4, marginBottom: 4 }}>The person submitting this nomination and the contact for it.</p>
+            <div className="dash-form-row">
+              <Field label="Full name" htmlFor="nomName" required error={errors['nominator.name']}>
+                <input id="nomName" className={ctl('dash-input', errors['nominator.name'])} value={form['nominator.name']} onChange={set('nominator.name')} />
+              </Field>
+              <Field label="Designation" htmlFor="nomDesig" required error={errors['nominator.designation']}>
+                <input id="nomDesig" className={ctl('dash-input', errors['nominator.designation'])} value={form['nominator.designation']} onChange={set('nominator.designation')} />
+              </Field>
+            </div>
+            <Field label="Office" htmlFor="nomOffice" required error={errors['nominator.office']}>
+              <input id="nomOffice" className={ctl('dash-input', errors['nominator.office'])} value={form['nominator.office']} onChange={set('nominator.office')} />
+            </Field>
+            <div className="dash-form-row">
+              <Field label="Email" htmlFor="nomEmail" required error={errors['nominator.email']}>
+                <input id="nomEmail" type="email" className={ctl('dash-input', errors['nominator.email'])} value={form['nominator.email']} onChange={set('nominator.email')} />
+              </Field>
+              <Field label="Mobile" htmlFor="nomMobile" required error={errors['nominator.mobile']}>
+                <input id="nomMobile" className={ctl('dash-input', errors['nominator.mobile'])} value={form['nominator.mobile']} onChange={set('nominator.mobile')} placeholder="+63…" />
+              </Field>
+            </div>
+            <Field label="Official address" htmlFor="nomAddr" required error={errors['nominator.officialAddress']}>
+              <input id="nomAddr" className={ctl('dash-input', errors['nominator.officialAddress'])} value={form['nominator.officialAddress']} onChange={set('nominator.officialAddress')} />
+            </Field>
+            <div className="dash-form-row">
+              <Field label="Official LGU email" htmlFor="nomLguEmail" required error={errors['nominator.officialLguEmail']}>
+                <input id="nomLguEmail" type="email" className={ctl('dash-input', errors['nominator.officialLguEmail'])} value={form['nominator.officialLguEmail']} onChange={set('nominator.officialLguEmail')} />
+              </Field>
+              <Field label="Alternate contact" htmlFor="nomAlt" hint="Optional">
+                <input id="nomAlt" className="dash-input" value={form['nominator.alternateContact']} onChange={set('nominator.alternateContact')} />
+              </Field>
+            </div>
+            <Field error={errors['nominator.isThirdParty']}>
+              <label className="dash-check">
+                <input type="checkbox" checked={form['nominator.isThirdParty']} onChange={set('nominator.isThirdParty')} />
+                <span>This is a third-party nomination (the nominator is not the entrant themselves).</span>
+              </label>
+            </Field>
+          </section>
+
+          <div className="ne-actions">
+            <button type="button" className="dash-btn" onClick={() => navigate('/dashboard/entries')}>Cancel</button>
+            <button type="submit" className="dash-btn is-primary" disabled={submitting}>
+              {submitting ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Creating…</> : <>Create &amp; continue <i className="fas fa-arrow-right" aria-hidden="true" /></>}
+            </button>
+          </div>
+        </div>
+
+        {/* Guidance rail */}
+        <aside className="ne-aside">
+          <div className="dash-card dash-card-pad ne-guide">
+            {category ? (
+              <>
+                <span className="dash-badge tone-progress" style={{ marginBottom: 10 }}>Category #{category.number}</span>
+                <h3 className="ne-guide-title">{category.name}</h3>
+                <p className="ne-guide-def">{category.definition}</p>
+                <dl className="ne-facts">
+                  <div><dt>Entrant</dt><dd>{ENTRANT_TYPE_LABELS[category.entrantType] || category.entrantType}</dd></div>
+                  <div><dt>Nomination</dt><dd>{NOMINATOR_RULE_LABELS[category.nominatorRule] || category.nominatorRule}</dd></div>
+                  <div><dt>Criteria</dt><dd>{category.criteria.length} · {category.criteria.reduce((s, c) => s + c.points, 0)} pts</dd></div>
+                </dl>
+                {category.eligibilityText && (
+                  <p className="ne-guide-elig"><strong>Eligibility.</strong> {category.eligibilityText}</p>
+                )}
+              </>
+            ) : (
+              <div className="ne-guide-empty">
+                <i className="fas fa-hand-pointer" aria-hidden="true" />
+                <p>Select a category to see its definition, eligibility, and what assessors look for.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </form>
+
+      <style>{`
+        .ne-back { padding-left: 0; margin-bottom: 4px; }
+        .ne-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+        .ne-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .ne-section { display: flex; flex-direction: column; gap: 15px; }
+        .ne-actions { display: flex; justify-content: flex-end; gap: 12px; }
+        .ne-aside { position: sticky; top: 84px; }
+        .ne-guide-title { font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; color: var(--navy); line-height: 1.25; margin-bottom: 10px; }
+        .ne-guide-def { color: var(--gray-600); font-size: 0.88rem; line-height: 1.6; margin-bottom: 16px; }
+        .ne-facts { display: flex; flex-direction: column; gap: 0; margin-bottom: 14px; }
+        .ne-facts > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--gray-100); }
+        .ne-facts dt { font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray-600); }
+        .ne-facts dd { font-size: 0.84rem; color: var(--navy); text-align: right; font-weight: 600; }
+        .ne-guide-elig { font-size: 0.82rem; color: var(--gray-600); line-height: 1.55; }
+        .ne-guide-elig strong { color: var(--navy); }
+        .ne-guide-empty { text-align: center; color: var(--gray-400); padding: 16px 8px; }
+        .ne-guide-empty i { font-size: 1.8rem; color: var(--gold); margin-bottom: 12px; }
+        .ne-guide-empty p { font-size: 0.86rem; line-height: 1.55; }
+        @media (max-width: 900px) {
+          .ne-grid { grid-template-columns: 1fr; }
+          .ne-aside { position: static; order: -1; }
+        }
+      `}</style>
+    </>
+  )
+}
