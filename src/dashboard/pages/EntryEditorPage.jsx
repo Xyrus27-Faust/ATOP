@@ -164,14 +164,59 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
   })
   const [docs, setDocs] = useState(() => {
     const seed = {}
-    ;(entry.bidbook?.supportingDocuments || []).forEach((d) => { seed[d.label] = d.link || '' })
+    ;(entry.bidbook?.supportingDocuments || []).forEach((d) => {
+      seed[d.label] = { link: d.link || '', fileKey: d.fileKey || null, fileName: d.fileName || null, contentType: d.contentType || null }
+    })
     return seed
   })
+  const [uploading, setUploading] = useState(null) // label currently uploading
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [banner, setBanner] = useState(null)
 
   const touch = () => { setSaved(false); setBanner(null) }
+
+  // ---- supporting-document files ----
+  const docOf = (label) => docs[label] || { link: '', fileKey: null, fileName: null, contentType: null }
+  const savedDocByLabel = new Map((entry.bidbook?.supportingDocuments || []).map((d) => [d.label, d]))
+  // A file can be viewed once it's saved to the entry (the URL endpoint reads the stored doc).
+  const isSaved = (label) => {
+    const saved = savedDocByLabel.get(label)
+    return !!(saved?.fileKey && saved.fileKey === docOf(label).fileKey)
+  }
+  async function uploadFile(label, file) {
+    if (!file) return
+    setUploading(label); setBanner(null)
+    try {
+      const contentType = file.type || 'application/octet-stream'
+      const pres = await api.post(`/entries/${entry.id}/documents/presign`, { label, fileName: file.name, contentType }, { auth: true })
+      const res = await fetch(pres.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file })
+      if (!res.ok) throw new Error(`Upload failed (${res.status}).`)
+      setDocs((d) => ({ ...d, [label]: { link: '', fileKey: pres.fileKey, fileName: file.name, contentType } }))
+      touch()
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : 'We couldn’t upload that file. Please try again.')
+    } finally {
+      setUploading(null)
+    }
+  }
+  function removeFile(label) {
+    setDocs((d) => ({ ...d, [label]: { link: '', fileKey: null, fileName: null, contentType: null } }))
+    touch()
+  }
+  function setLink(label, link) {
+    setDocs((d) => ({ ...d, [label]: { ...(d[label] || { fileKey: null, fileName: null, contentType: null }), link } }))
+    touch()
+  }
+  async function viewDoc(label) {
+    try {
+      const { url } = await api.get(`/entries/${entry.id}/documents/url?label=${encodeURIComponent(label)}`, { auth: true })
+      window.open(url, '_blank', 'noopener')
+    } catch {
+      setBanner('Save your changes first, then you can view the file.')
+    }
+  }
+
   const summaryOver = summary.length > EXEC_SUMMARY_MAX
   const narrativeOver = Object.values(narratives).some((t) => (t || '').length > NARRATIVE_MAX)
   const blocked = summaryOver || narrativeOver
@@ -186,8 +231,15 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
           .filter((c) => (narratives[c.id] || '').trim())
           .map((c) => ({ criterionId: c.id, text: narratives[c.id].trim() })),
         supportingDocuments: submissions
-          .filter((s) => (docs[s.label] || '').trim())
-          .map((s) => ({ label: s.label, link: docs[s.label].trim() })),
+          .map((s) => ({ label: s.label, d: docOf(s.label) }))
+          .filter(({ d }) => (d.link || '').trim() || d.fileKey)
+          .map(({ label, d }) => ({
+            label,
+            link: (d.link || '').trim() || null,
+            fileKey: d.fileKey || null,
+            fileName: d.fileName || null,
+            contentType: d.contentType || null,
+          })),
       }
       const updated = await api.put(`/entries/${entry.id}/bidbook`, payload, { auth: true })
       onSaved(updated)
@@ -256,26 +308,61 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
 
       <section className="dash-card dash-card-pad ed-block">
         <div className="dash-card-title" style={{ marginBottom: 4 }}><i className="fas fa-paperclip" aria-hidden="true" /> Supporting documents</div>
-        <p className="dash-help" style={{ marginBottom: 6 }}>Paste a shareable link for each item. Mandatory items are required to submit.</p>
-        {submissions.map((s) => (
-          <div key={s.label} className="ed-doc">
-            <div className="ed-doc-head">
-              <span className="ed-doc-label">{s.label}</span>
-              <span className={`dash-badge ${s.mandatory ? 'tone-warn' : 'tone-neutral'}`}>
-                {s.mandatory ? 'Required' : 'Optional'}
-              </span>
+        <p className="dash-help" style={{ marginBottom: 6 }}>Upload a file or paste a shareable link for each item. Mandatory items are required to submit.</p>
+        {submissions.map((s) => {
+          const d = docOf(s.label)
+          const busy = uploading === s.label
+          return (
+            <div key={s.label} className="ed-doc">
+              <div className="ed-doc-head">
+                <span className="ed-doc-label">{s.label}</span>
+                <span className={`dash-badge ${s.mandatory ? 'tone-warn' : 'tone-neutral'}`}>
+                  {s.mandatory ? 'Required' : 'Optional'}
+                </span>
+              </div>
+              <div className="ed-doc-kind">{SUBMISSION_KIND_LABELS[s.kind] || s.kind}{s.specs ? ` · ${s.specs}` : ''}</div>
+
+              {d.fileKey ? (
+                <div className="ed-file">
+                  <i className="fas fa-file-lines" aria-hidden="true" />
+                  <span className="ed-file-name">{d.fileName || 'Uploaded file'}</span>
+                  {isSaved(s.label) ? (
+                    <button type="button" className="dash-btn is-ghost is-sm" onClick={() => viewDoc(s.label)}>
+                      <i className="fas fa-arrow-up-right-from-square" aria-hidden="true" /> View
+                    </button>
+                  ) : (
+                    <span className="ed-file-note">uploaded · save to view</span>
+                  )}
+                  {!readOnly && (
+                    <button type="button" className="dash-btn is-ghost is-sm" onClick={() => removeFile(s.label)}>
+                      <i className="fas fa-xmark" aria-hidden="true" /> Remove
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="ed-doc-upload">
+                  {!readOnly && (
+                    <label className={`dash-btn is-sm ed-upload-btn${busy ? ' is-busy' : ''}`}>
+                      {busy
+                        ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Uploading…</>
+                        : <><i className="fas fa-upload" aria-hidden="true" /> Upload file</>}
+                      <input type="file" hidden disabled={busy} onChange={(e) => uploadFile(s.label, e.target.files?.[0])} />
+                    </label>
+                  )}
+                  <span className="ed-doc-or">or</span>
+                  <input
+                    className="dash-input ed-doc-link"
+                    type="url"
+                    value={d.link}
+                    disabled={readOnly || busy}
+                    onChange={(e) => setLink(s.label, e.target.value)}
+                    placeholder="paste a shareable link…"
+                  />
+                </div>
+              )}
             </div>
-            <div className="ed-doc-kind">{SUBMISSION_KIND_LABELS[s.kind] || s.kind}{s.specs ? ` · ${s.specs}` : ''}</div>
-            <input
-              className="dash-input"
-              type="url"
-              value={docs[s.label] || ''}
-              disabled={readOnly}
-              onChange={(e) => { setDocs((d) => ({ ...d, [s.label]: e.target.value })); touch() }}
-              placeholder="https://…"
-            />
-          </div>
-        ))}
+          )
+        })}
         {submissions.length === 0 && <p className="dash-help">No documents are required for this category.</p>}
       </section>
 
@@ -593,6 +680,15 @@ const EDITOR_CSS = `
   .ed-doc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .ed-doc-label { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; }
   .ed-doc-kind { font-size: 0.78rem; color: var(--gray-400); }
+  .ed-doc-upload { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .ed-upload-btn { cursor: pointer; flex-shrink: 0; }
+  .ed-upload-btn.is-busy { opacity: 0.7; pointer-events: none; }
+  .ed-doc-or { color: var(--gray-400); font-size: 0.76rem; font-family: var(--font-heading); font-weight: 600; }
+  .ed-doc-link { flex: 1; min-width: 180px; }
+  .ed-file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; background: var(--off-white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+  .ed-file > i { color: var(--gold-dark); font-size: 1rem; }
+  .ed-file-name { font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.88rem; flex: 1; min-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-file-note { font-size: 0.74rem; color: var(--gray-400); font-family: var(--font-heading); font-weight: 600; }
   .ed-statements { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
   .ed-statements li { display: flex; gap: 10px; align-items: flex-start; color: var(--text-body); font-size: 0.9rem; line-height: 1.5; }
   .ed-statements i { color: #16A34A; margin-top: 3px; }

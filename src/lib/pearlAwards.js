@@ -135,7 +135,7 @@ export function computeReadiness(entry, category) {
     const mandatory = category.requiredSubmissions.filter((r) => r.mandatory)
     const provided = mandatory.filter((r) => {
       const d = docByLabel.get(r.label)
-      return d && (!!d.link?.trim() || d.fileAssetId)
+      return d && (!!d.link?.trim() || !!d.fileKey)
     }).length
     items.push({
       key: 'documents',
