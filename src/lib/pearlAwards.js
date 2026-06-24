@@ -84,6 +84,30 @@ export const SUBMISSION_KIND_LABELS = {
 export const EXEC_SUMMARY_MAX = 1800
 export const NARRATIVE_MAX = 1200
 
+// Max size for an uploaded supporting-document file. Videos stay as external
+// links (e.g. YouTube) — hosting/serving video is too costly.
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024 // 25 MB
+
+// What a required-submission slot accepts, driven by its `kind`.
+export function uploadRulesFor(kind) {
+  switch (kind) {
+    case 'VideoLink':
+      return { allowUpload: false, accept: undefined, linkPlaceholder: 'Paste the YouTube / video link…' }
+    case 'PhotoUpload':
+      return { allowUpload: true, accept: 'image/*', linkPlaceholder: 'or paste a shareable link…' }
+    case 'PdfUpload':
+      return { allowUpload: true, accept: '.pdf,application/pdf', linkPlaceholder: 'or paste a shareable link…' }
+    default: // Reference
+      return { allowUpload: true, accept: undefined, linkPlaceholder: 'Paste a link or upload a file…' }
+  }
+}
+
+export function formatBytes(n) {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
+
 // ---- Submission window ----------------------------------------------------
 
 export function submissionWindow(catalog, now = new Date()) {

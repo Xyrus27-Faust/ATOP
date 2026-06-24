@@ -246,7 +246,7 @@ export default function RegisterPage() {
       <div className="auth-divider">or</div>
       <GoogleButton
         text="signup_with"
-        onSuccess={() => navigate('/', { replace: true })}
+        onSuccess={() => navigate('/dashboard', { replace: true })}
         onError={(err) =>
           setBanner({
             kind: 'error',

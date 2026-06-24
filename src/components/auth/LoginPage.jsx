@@ -11,7 +11,7 @@ export default function LoginPage() {
   const { login, resendVerification } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const redirectTo = location.state?.from?.pathname || '/'
+  const redirectTo = location.state?.from?.pathname || '/dashboard'
 
   const [form, setForm] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})

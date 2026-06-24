@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
+import { useAutosave } from '../useAutosave'
 import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
 import StatusBadge from '../components/StatusBadge'
@@ -18,6 +19,9 @@ import {
   STATUS_FLOW,
   COVERAGE_OPTIONS,
   labelFor,
+  MAX_UPLOAD_BYTES,
+  uploadRulesFor,
+  formatBytes,
 } from '@/lib/pearlAwards'
 
 const TABS = [
@@ -171,10 +175,10 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
   })
   const [uploading, setUploading] = useState(null) // label currently uploading
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const [banner, setBanner] = useState(null)
 
-  const touch = () => { setSaved(false); setBanner(null) }
+  const touch = () => { setDirty(true); setBanner(null) }
 
   // ---- supporting-document files ----
   const docOf = (label) => docs[label] || { link: '', fileKey: null, fileName: null, contentType: null }
@@ -186,6 +190,10 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
   }
   async function uploadFile(label, file) {
     if (!file) return
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setBanner(`That file is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_UPLOAD_BYTES)}. Upload a smaller file or paste a link instead.`)
+      return
+    }
     setUploading(label); setBanner(null)
     try {
       const contentType = file.type || 'application/octet-stream'
@@ -221,35 +229,45 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
   const narrativeOver = Object.values(narratives).some((t) => (t || '').length > NARRATIVE_MAX)
   const blocked = summaryOver || narrativeOver
 
-  async function save() {
-    setSaving(true)
-    setBanner(null)
-    try {
-      const payload = {
-        executiveSummary: summary,
-        narratives: criteria
-          .filter((c) => (narratives[c.id] || '').trim())
-          .map((c) => ({ criterionId: c.id, text: narratives[c.id].trim() })),
-        supportingDocuments: submissions
-          .map((s) => ({ label: s.label, d: docOf(s.label) }))
-          .filter(({ d }) => (d.link || '').trim() || d.fileKey)
-          .map(({ label, d }) => ({
-            label,
-            link: (d.link || '').trim() || null,
-            fileKey: d.fileKey || null,
-            fileName: d.fileName || null,
-            contentType: d.contentType || null,
-          })),
-      }
-      const updated = await api.put(`/entries/${entry.id}/bidbook`, payload, { auth: true })
-      onSaved(updated)
-      setSaved(true)
-    } catch (err) {
-      setBanner(err instanceof ApiError ? err.message : 'We couldn’t save the bidbook. Please try again.')
-    } finally {
-      setSaving(false)
+  function buildPayload() {
+    return {
+      executiveSummary: summary,
+      narratives: criteria
+        .filter((c) => (narratives[c.id] || '').trim())
+        .map((c) => ({ criterionId: c.id, text: narratives[c.id].trim() })),
+      supportingDocuments: submissions
+        .map((s) => ({ label: s.label, d: docOf(s.label) }))
+        .filter(({ d }) => (d.link || '').trim() || d.fileKey)
+        .map(({ label, d }) => ({
+          label,
+          link: (d.link || '').trim() || null,
+          fileKey: d.fileKey || null,
+          fileName: d.fileName || null,
+          contentType: d.contentType || null,
+        })),
     }
   }
+
+  async function doSave(silent = false) {
+    if (!silent) { setSaving(true); setBanner(null) }
+    try {
+      const updated = await api.put(`/entries/${entry.id}/bidbook`, buildPayload(), { auth: true })
+      if (!silent) { onSaved(updated); setDirty(false) }
+    } catch (err) {
+      if (!silent) setBanner(err instanceof ApiError ? err.message : 'We couldn’t save the bidbook. Please try again.')
+    } finally {
+      if (!silent) setSaving(false)
+    }
+  }
+
+  // Autosave (debounced) while there are unsaved, within-limit changes; also
+  // warns on tab close and flushes when navigating away.
+  useAutosave({
+    signature: JSON.stringify([summary, narratives, docs]),
+    dirty,
+    canSave: !blocked,
+    onSave: doSave,
+  })
 
   return (
     <div className="ed-stack">
@@ -312,6 +330,7 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
         {submissions.map((s) => {
           const d = docOf(s.label)
           const busy = uploading === s.label
+          const rules = uploadRulesFor(s.kind)
           return (
             <div key={s.label} className="ed-doc">
               <div className="ed-doc-head">
@@ -341,22 +360,24 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
                 </div>
               ) : (
                 <div className="ed-doc-upload">
-                  {!readOnly && (
-                    <label className={`dash-btn is-sm ed-upload-btn${busy ? ' is-busy' : ''}`}>
-                      {busy
-                        ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Uploading…</>
-                        : <><i className="fas fa-upload" aria-hidden="true" /> Upload file</>}
-                      <input type="file" hidden disabled={busy} onChange={(e) => uploadFile(s.label, e.target.files?.[0])} />
-                    </label>
+                  {!readOnly && rules.allowUpload && (
+                    <>
+                      <label className={`dash-btn is-sm ed-upload-btn${busy ? ' is-busy' : ''}`}>
+                        {busy
+                          ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Uploading…</>
+                          : <><i className="fas fa-upload" aria-hidden="true" /> Upload file</>}
+                        <input type="file" hidden accept={rules.accept} disabled={busy} onChange={(e) => uploadFile(s.label, e.target.files?.[0])} />
+                      </label>
+                      <span className="ed-doc-or">or</span>
+                    </>
                   )}
-                  <span className="ed-doc-or">or</span>
                   <input
                     className="dash-input ed-doc-link"
                     type="url"
                     value={d.link}
                     disabled={readOnly || busy}
                     onChange={(e) => setLink(s.label, e.target.value)}
-                    placeholder="paste a shareable link…"
+                    placeholder={rules.linkPlaceholder}
                   />
                 </div>
               )}
@@ -367,7 +388,7 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
       </section>
 
       {!readOnly && (
-        <SaveBar saving={saving} saved={saved} blocked={blocked} banner={banner} onSave={save}
+        <SaveBar saving={saving} dirty={dirty} blocked={blocked} banner={banner} onSave={() => doSave(false)}
           blockedMsg="Some fields are over their character limit." />
       )}
     </div>
@@ -392,33 +413,36 @@ function DeclarationSection({ entry, readOnly, onSaved }) {
   const [designation, setDesignation] = useState(d?.signatoryDesignation || '')
   const [signature, setSignature] = useState(d?.eSignature || '')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const [banner, setBanner] = useState(null)
   const [errors, setErrors] = useState({})
 
-  const touch = () => { setSaved(false); setBanner(null) }
+  const touch = () => { setDirty(true); setBanner(null) }
+  const valid = !!(name.trim() && designation.trim() && signature.trim())
 
-  async function save() {
-    const e = {}
-    if (!name.trim()) e.name = 'Signatory name is required.'
-    if (!designation.trim()) e.designation = 'Designation is required.'
-    if (!signature.trim()) e.signature = 'Type your name to sign.'
-    setErrors(e)
-    if (Object.keys(e).length) return
-    setSaving(true)
-    setBanner(null)
+  async function doSave(silent = false) {
+    if (!valid) {
+      if (!silent) setErrors({
+        name: name.trim() ? undefined : 'Signatory name is required.',
+        designation: designation.trim() ? undefined : 'Designation is required.',
+        signature: signature.trim() ? undefined : 'Type your name to sign.',
+      })
+      return
+    }
+    if (!silent) { setSaving(true); setBanner(null); setErrors({}) }
     try {
       const res = await api.post(`/entries/${entry.id}/declaration`, {
         certified, signatoryName: name.trim(), signatoryDesignation: designation.trim(), eSignature: signature.trim(),
       }, { auth: true })
-      onSaved({ ...entry, declaration: res })
-      setSaved(true)
+      if (!silent) { onSaved({ ...entry, declaration: res }); setDirty(false) }
     } catch (err) {
-      setBanner(err instanceof ApiError ? err.message : 'We couldn’t save the declaration. Please try again.')
+      if (!silent) setBanner(err instanceof ApiError ? err.message : 'We couldn’t save the declaration. Please try again.')
     } finally {
-      setSaving(false)
+      if (!silent) setSaving(false)
     }
   }
+
+  useAutosave({ signature: JSON.stringify([certified, name, designation, signature]), dirty, canSave: valid, onSave: doSave })
 
   return (
     <div className="ed-stack">
@@ -450,7 +474,7 @@ function DeclarationSection({ entry, readOnly, onSaved }) {
         {d?.signedAt && <p className="dash-help" style={{ marginTop: 6 }}>Last signed {formatDate(d.signedAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>}
       </section>
 
-      {!readOnly && <SaveBar saving={saving} saved={saved} banner={banner} onSave={save} saveLabel="Save declaration" />}
+      {!readOnly && <SaveBar saving={saving} dirty={dirty} banner={banner} onSave={() => doSave(false)} saveLabel="Save declaration" />}
     </div>
   )
 }
@@ -465,33 +489,36 @@ function EndorsementSection({ entry, readOnly, onSaved }) {
   const [designation, setDesignation] = useState(l?.lceDesignation || '')
   const [signature, setSignature] = useState(l?.eSignature || '')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const [banner, setBanner] = useState(null)
   const [errors, setErrors] = useState({})
 
-  const touch = () => { setSaved(false); setBanner(null) }
+  const touch = () => { setDirty(true); setBanner(null) }
+  const valid = !!(name.trim() && designation.trim() && signature.trim())
 
-  async function save() {
-    const e = {}
-    if (!name.trim()) e.name = 'LCE name is required.'
-    if (!designation.trim()) e.designation = 'Designation is required.'
-    if (!signature.trim()) e.signature = 'Type the LCE’s name to sign.'
-    setErrors(e)
-    if (Object.keys(e).length) return
-    setSaving(true)
-    setBanner(null)
+  async function doSave(silent = false) {
+    if (!valid) {
+      if (!silent) setErrors({
+        name: name.trim() ? undefined : 'LCE name is required.',
+        designation: designation.trim() ? undefined : 'Designation is required.',
+        signature: signature.trim() ? undefined : 'Type the LCE’s name to sign.',
+      })
+      return
+    }
+    if (!silent) { setSaving(true); setBanner(null); setErrors({}) }
     try {
       const res = await api.post(`/entries/${entry.id}/lce-endorsement`, {
         endorsed, lceName: name.trim(), lceDesignation: designation.trim(), eSignature: signature.trim(),
       }, { auth: true })
-      onSaved({ ...entry, lceEndorsement: res })
-      setSaved(true)
+      if (!silent) { onSaved({ ...entry, lceEndorsement: res }); setDirty(false) }
     } catch (err) {
-      setBanner(err instanceof ApiError ? err.message : 'We couldn’t save the endorsement. Please try again.')
+      if (!silent) setBanner(err instanceof ApiError ? err.message : 'We couldn’t save the endorsement. Please try again.')
     } finally {
-      setSaving(false)
+      if (!silent) setSaving(false)
     }
   }
+
+  useAutosave({ signature: JSON.stringify([endorsed, name, designation, signature]), dirty, canSave: valid, onSave: doSave })
 
   return (
     <div className="ed-stack">
@@ -518,7 +545,7 @@ function EndorsementSection({ entry, readOnly, onSaved }) {
         {l?.signedAt && <p className="dash-help" style={{ marginTop: 6 }}>Last signed {formatDate(l.signedAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>}
       </section>
 
-      {!readOnly && <SaveBar saving={saving} saved={saved} banner={banner} onSave={save} saveLabel="Save endorsement" />}
+      {!readOnly && <SaveBar saving={saving} dirty={dirty} banner={banner} onSave={() => doSave(false)} saveLabel="Save endorsement" />}
     </div>
   )
 }
@@ -634,21 +661,23 @@ function SectionIntro({ icon, title, desc }) {
   )
 }
 
-function SaveBar({ saving, saved, blocked, banner, onSave, saveLabel = 'Save bidbook', blockedMsg }) {
+function SaveBar({ saving, dirty, blocked, banner, onSave, saveLabel = 'Save now', blockedMsg }) {
   return (
     <div className="ed-savebar">
       <div className="ed-savebar-status">
-        {banner ? (
+        {saving ? (
+          <span className="dash-help"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</span>
+        ) : banner ? (
           <span className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {banner}</span>
         ) : blocked ? (
           <span className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {blockedMsg}</span>
-        ) : saved ? (
-          <span className="ed-saved"><i className="fas fa-circle-check" aria-hidden="true" /> Saved</span>
+        ) : dirty ? (
+          <span className="dash-help"><i className="fas fa-cloud-arrow-up" aria-hidden="true" /> Unsaved changes — saving automatically…</span>
         ) : (
-          <span className="dash-help">Changes are saved per section.</span>
+          <span className="ed-saved"><i className="fas fa-circle-check" aria-hidden="true" /> All changes saved</span>
         )}
       </div>
-      <button type="button" className="dash-btn is-primary" disabled={saving || blocked} onClick={onSave}>
+      <button type="button" className="dash-btn is-primary" disabled={saving || blocked || !dirty} onClick={onSave}>
         {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : <><i className="fas fa-floppy-disk" aria-hidden="true" /> {saveLabel}</>}
       </button>
     </div>
