@@ -1,28 +1,49 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
+import { useFavorites } from '../useFavorites'
 import { Loading, ErrorState } from '../components/states'
-import {
-  ENTRANT_TYPE_LABELS,
-  NOMINATOR_RULE_LABELS,
-  SUBMISSION_KIND_LABELS,
-  submissionWindow,
-  formatDate,
-} from '@/lib/pearlAwards'
+import { ENTRANT_TYPE_LABELS, submissionWindow, formatDate } from '@/lib/pearlAwards'
+
+// Compact entrant labels for the small card badge (the full labels live in the
+// detail view, where there's room for them).
+const ENTRANT_SHORT = {
+  Lgu: 'LGU',
+  OfficersOrganization: 'Officers’ Org',
+  Individual: 'Individual',
+}
+
+// One filter per entrant type, plus "All". Built from the catalog so it only
+// ever offers types that actually have categories.
+const ENTRANT_ORDER = ['Lgu', 'OfficersOrganization', 'Individual']
 
 export default function AwardCategoriesPage() {
   const navigate = useNavigate()
   const { loading, error, data, reload } = useAsync(() => api.get('/award-categories/'), [])
-  const [selected, setSelected] = useState(0)
+  const { favorites, toggle } = useFavorites()
+  const [entrant, setEntrant] = useState('all')
+  const [query, setQuery] = useState('')
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
+
+  const categories = useMemo(() => data?.categories ?? [], [data])
+  const present = useMemo(
+    () => ENTRANT_ORDER.filter((t) => categories.some((c) => c.entrantType === t)),
+    [categories],
+  )
 
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
   const catalog = data
-  const category = catalog.categories[selected] || catalog.categories[0]
   const win = submissionWindow(catalog)
-  const totalPoints = category ? category.criteria.reduce((s, c) => s + c.points, 0) : 0
+  const q = query.trim().toLowerCase()
+  const shown = categories.filter((c) => {
+    if (favoritesOnly && !favorites.has(c.number)) return false
+    if (entrant !== 'all' && c.entrantType !== entrant) return false
+    if (q && !`#${c.number} ${c.name} ${c.definition}`.toLowerCase().includes(q)) return false
+    return true
+  })
 
   return (
     <>
@@ -36,7 +57,8 @@ export default function AwardCategoriesPage() {
               ? `Submissions close ${formatDate(win.closes)}.`
               : win?.state === 'upcoming'
               ? `Submissions open ${formatDate(win.opens)}.`
-              : `Submissions closed ${formatDate(win?.closes)}.`}
+              : `Submissions closed ${formatDate(win?.closes)}.`}{' '}
+            Pick a category to see its criteria and what you’ll need to submit.
           </p>
         </div>
         <button className="dash-btn is-primary" onClick={() => navigate('/dashboard/entries/new')}>
@@ -44,148 +66,187 @@ export default function AwardCategoriesPage() {
         </button>
       </div>
 
-      <div className="aw-grid">
-        <nav className="aw-list" aria-label="Categories">
-          {catalog.categories.map((c, i) => (
-            <button key={c.number} type="button" className={`aw-item${i === selected ? ' active' : ''}`} onClick={() => setSelected(i)}>
-              <span className="aw-item-num">#{c.number}</span>
-              <span className="aw-item-name">{c.name}</span>
-            </button>
-          ))}
-        </nav>
-
-        {category && (
-          <article className="dash-card dash-card-pad aw-detail">
-            <div className="aw-detail-head">
-              <span className="dash-badge tone-progress">Category #{category.number}</span>
-              <span className="dash-badge tone-neutral">{ENTRANT_TYPE_LABELS[category.entrantType] || category.entrantType}</span>
-            </div>
-            <h2 className="aw-name">{category.name}</h2>
-            <p className="aw-def">{category.definition}</p>
-
-            {category.whatAssessorsLookFor && (
-              <div className="aw-callout">
-                <div className="aw-callout-title"><i className="fas fa-magnifying-glass" aria-hidden="true" /> What assessors look for</div>
-                <p>{category.whatAssessorsLookFor}</p>
-              </div>
-            )}
-
-            <div className="aw-meta-grid">
-              <div><span className="aw-meta-label">Nomination</span><span className="aw-meta-value">{NOMINATOR_RULE_LABELS[category.nominatorRule] || category.nominatorRule}</span></div>
-              {category.eligibleLguLevels?.length > 0 && (
-                <div><span className="aw-meta-label">Eligible levels</span><span className="aw-meta-value">{category.eligibleLguLevels.join(', ')}</span></div>
-              )}
-            </div>
-
-            {category.eligibilityText && (
-              <p className="aw-elig"><strong>Eligibility.</strong> {category.eligibilityText}</p>
-            )}
-            {category.coverageNote && (
-              <p className="aw-elig"><strong>Coverage.</strong> {category.coverageNote}</p>
-            )}
-
-            {/* Criteria rubric */}
-            <h3 className="aw-section-title"><i className="fas fa-list-check" aria-hidden="true" /> Scoring criteria <span className="aw-points-total">{totalPoints} points</span></h3>
-            <div className="aw-criteria">
-              {[...category.criteria].sort((a, b) => a.order - b.order).map((c) => (
-                <div key={c.id} className="aw-criterion">
-                  <div className="aw-criterion-bar">
-                    <div className="aw-criterion-fill" style={{ width: `${Math.min(100, (c.points / Math.max(totalPoints, 1)) * 100)}%` }} />
-                  </div>
-                  <div className="aw-criterion-body">
-                    <div className="aw-criterion-head">
-                      <span className="aw-criterion-name">{c.name}</span>
-                      <span className="aw-criterion-pts">{c.points}</span>
-                    </div>
-                    {c.indicators && <p className="aw-criterion-ind">{c.indicators}</p>}
-                  </div>
-                </div>
+      <div className="awc-toolbar">
+        <div className="awc-search">
+          <i className="fas fa-magnifying-glass" aria-hidden="true" />
+          <input
+            type="search"
+            className="dash-input awc-search-input"
+            placeholder="Search categories…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search award categories"
+          />
+        </div>
+        <div className="awc-filters" role="group" aria-label="Filter categories">
+          <button
+            type="button"
+            className={`awc-chip awc-chip-fav${favoritesOnly ? ' active' : ''}`}
+            onClick={() => setFavoritesOnly((v) => !v)}
+            aria-pressed={favoritesOnly}
+          >
+            <i className={favoritesOnly ? 'fas fa-star' : 'far fa-star'} aria-hidden="true" /> Favorites
+            <span className="awc-chip-count">{favorites.size}</span>
+          </button>
+          {present.length > 1 && (
+            <>
+              <span className="awc-sep" aria-hidden="true" />
+              <FilterChip active={entrant === 'all'} onClick={() => setEntrant('all')} label="All" count={categories.length} />
+              {present.map((t) => (
+                <FilterChip
+                  key={t}
+                  active={entrant === t}
+                  onClick={() => setEntrant(t)}
+                  label={ENTRANT_TYPE_LABELS[t] || t}
+                  count={categories.filter((c) => c.entrantType === t).length}
+                />
               ))}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="awc-grid">
+        {shown.map((c) => {
+          const totalPoints = c.criteria.reduce((s, k) => s + k.points, 0)
+          const required = (c.requiredSubmissions || []).filter((s) => s.mandatory).length
+          const isFav = favorites.has(c.number)
+          return (
+            <div key={c.number} className="awc-cell">
+              <Link to={`/dashboard/awards/${c.number}`} className="dash-card awc-card">
+                <div className="awc-card-top">
+                  <span className="awc-num">{c.number}</span>
+                  <span className="dash-badge tone-neutral awc-type">{ENTRANT_SHORT[c.entrantType] || c.entrantType}</span>
+                </div>
+                <h2 className="awc-name">{c.name}</h2>
+                <p className="awc-def">{c.definition}</p>
+                <div className="awc-stats">
+                  <span><i className="fas fa-star" aria-hidden="true" /> {totalPoints} pts</span>
+                  <span aria-hidden="true">·</span>
+                  <span><i className="fas fa-list-check" aria-hidden="true" /> {c.criteria.length} criteria</span>
+                  {required > 0 && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span><i className="fas fa-paperclip" aria-hidden="true" /> {required} required</span>
+                    </>
+                  )}
+                </div>
+                <span className="awc-go" aria-hidden="true">
+                  View criteria <i className="fas fa-arrow-right" />
+                </span>
+              </Link>
+              <button
+                type="button"
+                className={`awc-fav${isFav ? ' is-on' : ''}`}
+                onClick={() => toggle(c.number)}
+                aria-pressed={isFav}
+                aria-label={isFav ? `Remove ${c.name} from favorites` : `Add ${c.name} to favorites`}
+                title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <i className={isFav ? 'fas fa-star' : 'far fa-star'} aria-hidden="true" />
+              </button>
             </div>
-
-            {/* Required submissions */}
-            {category.requiredSubmissions?.length > 0 && (
+          )
+        })}
+        {shown.length === 0 && (
+          <div className="dash-card dash-card-pad awc-none">
+            {favoritesOnly && favorites.size === 0 ? (
+              <>Nothing saved yet. Tap the <i className="far fa-star" aria-hidden="true" /> on any category to keep it here.</>
+            ) : (
               <>
-                <h3 className="aw-section-title"><i className="fas fa-paperclip" aria-hidden="true" /> Required submissions</h3>
-                <ul className="aw-docs">
-                  {[...category.requiredSubmissions].sort((a, b) => a.order - b.order).map((s) => (
-                    <li key={s.label}>
-                      <span className={`dash-badge ${s.mandatory ? 'tone-warn' : 'tone-neutral'}`}>{s.mandatory ? 'Required' : 'Optional'}</span>
-                      <span className="aw-doc-text">
-                        <strong>{s.label}</strong>
-                        <span className="aw-doc-kind">{SUBMISSION_KIND_LABELS[s.kind] || s.kind}{s.specs ? ` · ${s.specs}` : ''}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                No categories match{q ? ` “${query.trim()}”` : ' these filters'}.{' '}
+                <button type="button" className="awc-clear" onClick={() => { setQuery(''); setEntrant('all'); setFavoritesOnly(false) }}>
+                  Clear filters
+                </button>
               </>
             )}
-
-            {/* Recommended documents */}
-            {category.recommendedDocuments?.length > 0 && (
-              <>
-                <h3 className="aw-section-title"><i className="fas fa-folder-plus" aria-hidden="true" /> Recommended documents</h3>
-                <ul className="aw-recommend">
-                  {[...category.recommendedDocuments].sort((a, b) => a.order - b.order).map((d) => (
-                    <li key={d.label}><i className="fas fa-check" aria-hidden="true" /> {d.label}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            <button className="dash-btn is-primary aw-start" onClick={() => navigate('/dashboard/entries/new')}>
-              Start an entry in this category <i className="fas fa-arrow-right" aria-hidden="true" />
-            </button>
-          </article>
+          </div>
         )}
       </div>
 
       <style>{`
-        .aw-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
-        .aw-list { display: flex; flex-direction: column; gap: 4px; position: sticky; top: 84px; max-height: calc(100vh - 110px); overflow-y: auto; padding-right: 4px; }
-        .aw-item { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid transparent; background: transparent; cursor: pointer; transition: var(--transition-fast); }
-        .aw-item:hover { background: var(--white); border-color: var(--gray-200); }
-        .aw-item.active { background: var(--white); border-color: var(--gold); box-shadow: var(--shadow-sm); }
-        .aw-item-num { font-family: var(--font-heading); font-weight: 800; font-size: 0.8rem; color: var(--gold-dark); flex-shrink: 0; }
-        .aw-item-name { font-family: var(--font-heading); font-weight: 600; font-size: 0.86rem; color: var(--navy); line-height: 1.3; }
-        .aw-detail-head { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-        .aw-name { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--navy); line-height: 1.2; }
-        .aw-def { color: var(--gray-600); line-height: 1.7; margin-top: 12px; }
-        .aw-callout { margin-top: 18px; padding: 16px; border-radius: var(--radius-sm); background: rgba(200,168,75,0.08); border: 1px solid rgba(200,168,75,0.25); }
-        .aw-callout-title { font-family: var(--font-heading); font-weight: 800; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-dark); display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .aw-callout p { color: var(--text-body); font-size: 0.9rem; line-height: 1.6; }
-        .aw-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
-        .aw-meta-label { display: block; font-family: var(--font-heading); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gray-600); margin-bottom: 3px; }
-        .aw-meta-value { font-size: 0.88rem; color: var(--navy); font-weight: 600; }
-        .aw-elig { font-size: 0.86rem; color: var(--gray-600); line-height: 1.6; margin-top: 14px; }
-        .aw-elig strong { color: var(--navy); }
-        .aw-section-title { font-family: var(--font-heading); font-size: 0.95rem; font-weight: 800; color: var(--navy); margin: 26px 0 14px; display: flex; align-items: center; gap: 9px; padding-top: 20px; border-top: 1px solid var(--gray-100); }
-        .aw-section-title i { color: var(--gold-dark); }
-        .aw-points-total { margin-left: auto; font-size: 0.74rem; font-weight: 700; color: var(--gold-dark); background: rgba(200,168,75,0.12); padding: 3px 10px; border-radius: 999px; }
-        .aw-criteria { display: flex; flex-direction: column; gap: 14px; }
-        .aw-criterion { display: flex; gap: 14px; }
-        .aw-criterion-bar { width: 5px; flex-shrink: 0; border-radius: 999px; background: var(--gray-100); position: relative; }
-        .aw-criterion-fill { position: absolute; bottom: 0; left: 0; width: 100%; border-radius: 999px; background: linear-gradient(180deg, var(--gold-light), var(--gold)); height: 100%; }
-        .aw-criterion-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
-        .aw-criterion-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; }
-        .aw-criterion-pts { font-family: var(--font-heading); font-weight: 800; color: var(--gold-dark); font-size: 1rem; }
-        .aw-criterion-ind { color: var(--gray-600); font-size: 0.82rem; line-height: 1.55; margin-top: 4px; }
-        .aw-docs { display: flex; flex-direction: column; gap: 12px; }
-        .aw-docs li { display: flex; gap: 12px; align-items: flex-start; }
-        .aw-doc-text { display: flex; flex-direction: column; gap: 2px; }
-        .aw-doc-text strong { color: var(--navy); font-family: var(--font-heading); font-size: 0.9rem; }
-        .aw-doc-kind { color: var(--gray-400); font-size: 0.78rem; }
-        .aw-recommend { display: flex; flex-direction: column; gap: 8px; }
-        .aw-recommend li { display: flex; gap: 10px; align-items: center; color: var(--text-body); font-size: 0.88rem; }
-        .aw-recommend i { color: #16A34A; font-size: 0.78rem; }
-        .aw-start { margin-top: 26px; }
-        @media (max-width: 860px) {
-          .aw-grid { grid-template-columns: 1fr; }
-          .aw-list { position: static; flex-direction: row; overflow-x: auto; max-height: none; padding-bottom: 6px; }
-          .aw-item { flex-shrink: 0; }
-          .aw-meta-grid { grid-template-columns: 1fr; }
+        .awc-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+        .awc-search { position: relative; flex: 1 1 240px; max-width: 380px; }
+        .awc-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }
+        .awc-search-input { padding-left: 38px; }
+        .awc-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+        .awc-chip {
+          display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+          font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700;
+          padding: 8px 14px; border-radius: 999px; border: 1px solid var(--gray-200);
+          background: var(--white); color: var(--gray-600); transition: var(--transition-fast);
+        }
+        .awc-chip:hover { border-color: var(--gold); color: var(--navy); }
+        .awc-chip.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+        .awc-chip-count { font-size: 0.7rem; opacity: 0.7; }
+        .awc-chip-fav i { color: var(--gold-dark); font-size: 0.8rem; }
+        .awc-chip-fav.active { background: var(--gold); border-color: var(--gold); color: var(--white); }
+        .awc-chip-fav.active i { color: var(--white); }
+        .awc-sep { width: 1px; align-self: stretch; background: var(--gray-200); margin: 2px 4px; }
+
+        .awc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+
+        .awc-cell { position: relative; height: 100%; }
+        .awc-card { display: flex; flex-direction: column; gap: 10px; padding: 20px; text-decoration: none; height: 100%; }
+        .awc-card:hover { border-color: var(--gold); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .awc-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+        .awc-fav {
+          position: absolute; top: 12px; right: 12px; z-index: 2;
+          width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%;
+          border: 1px solid transparent; background: transparent; color: var(--gray-400);
+          cursor: pointer; font-size: 0.95rem; transition: var(--transition-fast);
+        }
+        .awc-fav:hover { background: rgba(200,168,75,0.14); color: var(--gold-dark); }
+        .awc-fav.is-on { color: var(--gold); }
+        .awc-fav:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+        .awc-card-top { display: flex; align-items: center; gap: 10px; padding-right: 34px; }
+        .awc-num {
+          font-family: var(--font-heading); font-weight: 800; font-size: 1rem; line-height: 1; color: var(--gold-dark);
+          width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; display: grid; place-items: center;
+          background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.22);
+        }
+        .awc-num::before { content: '#'; font-size: 0.68rem; margin-right: 1px; opacity: 0.7; }
+        .awc-type { flex-shrink: 0; }
+
+        .awc-name { font-family: var(--font-heading); font-size: 1.12rem; font-weight: 800; color: var(--navy); line-height: 1.25; }
+        .awc-def {
+          color: var(--gray-600); font-size: 0.86rem; line-height: 1.55; flex: 1;
+          display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .awc-stats {
+          display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+          font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; color: var(--navy);
+          padding-top: 12px; border-top: 1px solid var(--gray-100);
+        }
+        .awc-stats i { color: var(--gold-dark); margin-right: 4px; font-size: 0.72rem; }
+        .awc-stats span[aria-hidden] { color: var(--gray-300, #cbd5e1); font-weight: 400; }
+
+        .awc-go {
+          display: inline-flex; align-items: center; gap: 7px; margin-top: 2px;
+          font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em;
+          text-transform: uppercase; color: var(--gold-dark);
+        }
+        .awc-card:hover .awc-go { gap: 11px; }
+        .awc-go i { transition: var(--transition-fast); }
+
+        .awc-none { grid-column: 1 / -1; text-align: center; color: var(--gray-600); }
+        .awc-clear { background: none; border: none; cursor: pointer; color: var(--gold-dark); font-family: var(--font-heading); font-weight: 700; font-size: inherit; text-decoration: underline; padding: 0; }
+        .awc-clear:hover { color: var(--navy); }
+
+        @media (prefers-reduced-motion: reduce) {
+          .awc-card:hover { transform: none; }
         }
       `}</style>
     </>
+  )
+}
+
+function FilterChip({ active, onClick, label, count }) {
+  return (
+    <button type="button" className={`awc-chip${active ? ' active' : ''}`} onClick={onClick} aria-pressed={active}>
+      {label} <span className="awc-chip-count">{count}</span>
+    </button>
   )
 }

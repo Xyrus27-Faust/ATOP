@@ -10,6 +10,7 @@ import EntriesListPage from './dashboard/pages/EntriesListPage'
 import NewEntryPage from './dashboard/pages/NewEntryPage'
 import EntryEditorPage from './dashboard/pages/EntryEditorPage'
 import AwardCategoriesPage from './dashboard/pages/AwardCategoriesPage'
+import AwardCategoryDetailPage from './dashboard/pages/AwardCategoryDetailPage'
 import ProfilePage from './dashboard/pages/ProfilePage'
 import ReviewQueuePage from './dashboard/pages/ReviewQueuePage'
 import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
@@ -34,6 +35,7 @@ export default function AppRoutes() {
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
           <Route path="awards" element={<AwardCategoriesPage />} />
+          <Route path="awards/:number" element={<AwardCategoryDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Route>
