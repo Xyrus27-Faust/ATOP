@@ -162,14 +162,13 @@ const DASH_CSS = `
     padding: 11px 14px; border-radius: var(--radius-sm);
     font-family: var(--font-heading); font-size: 0.86rem; font-weight: 600;
     color: rgba(255,255,255,0.66); position: relative;
-    border-left: 3px solid transparent; transition: var(--transition-fast);
+    transition: var(--transition-fast);
   }
   .dash-nav-link i { width: 20px; text-align: center; font-size: 0.95rem; color: rgba(255,255,255,0.5); transition: var(--transition-fast); }
   .dash-nav-link:hover { background: rgba(255,255,255,0.06); color: var(--white); }
   .dash-nav-link:hover i { color: var(--gold-light); }
   .dash-nav-link.active {
-    background: rgba(200,168,75,0.14); color: var(--white);
-    border-left-color: var(--gold);
+    background: rgba(200,168,75,0.18); color: var(--white);
   }
   .dash-nav-link.active i { color: var(--gold); }
 
