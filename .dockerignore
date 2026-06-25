@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.git/
+.gitignore
+.dockerignore
+
+# Local env — secrets/overrides must not leak into the build context.
+.env
+.env.local
+.env.*.local
+
+# Tooling / editor
+.vscode/
+.idea/
+*.log
+npm-debug.log*
