@@ -3,26 +3,27 @@ import { api } from '@/lib/apiClient'
 
 /**
  * Loads and mutates the caller's favourited award-category numbers. Toggling is
- * optimistic — the star flips immediately and the change is rolled back if the
- * request fails. Favourites are a low-stakes convenience, so a load failure is
- * non-fatal: the catalog still renders, just without any saved stars.
+ * optimistic — the star flips immediately and rolls back if the request fails.
+ *
+ * Pass `enabled=false` for signed-out visitors so it never fires an
+ * authenticated request (a 401 there would trip the session-expiry flow). When
+ * `enabled` flips true (e.g. after sign-in), favourites are (re)loaded.
  */
-export function useFavorites() {
+export function useFavorites(enabled = true) {
   const [favorites, setFavorites] = useState(() => new Set())
 
   useEffect(() => {
+    if (!enabled) return
     let active = true
     api.get('/award-categories/favorites', { auth: true }).then(
       (res) => { if (active) setFavorites(new Set(res?.numbers || [])) },
       () => {},
     )
     return () => { active = false }
-  }, [])
+  }, [enabled])
 
-  // Depends on `favorites` so the closure always sees current membership; the
-  // request fires from the handler body (once), never from inside a setState
-  // updater (which React double-invokes in StrictMode).
   const toggle = useCallback((number) => {
+    if (!enabled) return
     const adding = !favorites.has(number)
 
     setFavorites((prev) => {
@@ -36,7 +37,6 @@ export function useFavorites() {
       ? api.post(`/award-categories/${number}/favorite`, undefined, { auth: true })
       : api.delete(`/award-categories/${number}/favorite`, { auth: true })
 
-    // Roll back to the pre-toggle membership if the server rejects the change.
     request.catch(() => {
       setFavorites((prev) => {
         const rb = new Set(prev)
@@ -45,7 +45,7 @@ export function useFavorites() {
         return rb
       })
     })
-  }, [favorites])
+  }, [favorites, enabled])
 
   return { favorites, toggle }
 }

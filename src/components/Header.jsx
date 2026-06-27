@@ -16,6 +16,7 @@ const navItems = [
     label: 'Programs', id: 'programs',
     children: ['Capacity Building', 'Conventions & Meetings', 'Research & Publications', 'Advocacy', 'Partnerships'],
   },
+  { label: 'Awards', id: 'awards' },
   {
     label: 'News & Events', id: 'news',
     children: ['Latest News', 'Upcoming Events', 'Press Releases', 'Gallery'],
@@ -71,13 +72,7 @@ export default function Header({ scrolled, currentPage, setCurrentPage }) {
             {/* Logo */}
             <a href="#" className="logo" id="nav-logo" onClick={(e) => { e.preventDefault(); setCurrentPage('home'); window.scrollTo(0,0); }}>
               <div className="logo-emblem">
-                <img src="/Untitled.png" alt="ATOP Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              </div>
-              <div className="logo-text">
-                <span className="atop-acronym">atop</span>
-                <span className="atop-full">
-                  Association of Tourism Officers<br />of the Philippines, Inc.
-                </span>
+                <img src="/Untitled.png" alt="ATOP" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             </a>
 

@@ -31,7 +31,9 @@ export function roleLabel(role) {
 const OVERVIEW = { to: '/dashboard', end: true, label: 'Overview', icon: 'fa-gauge-high' }
 const MY_ENTRIES = { to: '/dashboard/entries', label: 'My Entries', icon: 'fa-folder-open' }
 const REVIEW = { to: '/dashboard/review', label: 'Review Queue', icon: 'fa-clipboard-check' }
-const AWARDS = { to: '/dashboard/awards', label: 'Award Categories', icon: 'fa-award' }
+// Award categories now live on the public marketing page (ungated). The dashboard
+// nav links out to it rather than hosting its own copy.
+const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
 const PROFILE = { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge' }
 
 export function navForRoles(roles = []) {

@@ -15,11 +15,16 @@ import ProgramsPage from './components/ProgramsPage';
 import NewsPage from './components/NewsPage';
 import ResourcesPage from './components/ResourcesPage';
 import ContactPage from './components/ContactPage';
+import PublicAwardCategoriesPage from './components/PublicAwardCategoriesPage';
 
 function App() {
   const [scrolled, setScrolled] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [currentPage, setCurrentPage] = useState('home');
+  // Open the public Award Categories page directly when reached at /awards
+  // (e.g. linked from the dashboard) — the marketing nav is otherwise state-only.
+  const [currentPage, setCurrentPage] = useState(
+    () => (window.location.pathname === '/awards' ? 'awards' : 'home'),
+  );
 
   useEffect(() => {
     const onScroll = () => {
@@ -46,6 +51,8 @@ function App() {
         return <ResourcesPage />;
       case 'contact':
         return <ContactPage />;
+      case 'awards':
+        return <PublicAwardCategoriesPage />;
       case 'home':
       default:
         return (
@@ -53,7 +60,7 @@ function App() {
             <Hero setCurrentPage={setCurrentPage} />
             <Pillars />
             <About setCurrentPage={setCurrentPage} />
-            <PearlAwards />
+            <PearlAwards setCurrentPage={setCurrentPage} />
             <NewsEvents setCurrentPage={setCurrentPage} />
             <Membership setCurrentPage={setCurrentPage} />
           </>

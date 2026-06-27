@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function PearlAwards() {
+export default function PearlAwards({ setCurrentPage }) {
   const [activeTab, setActiveTab] = useState('overview');
 
   const photos = [
@@ -201,11 +201,19 @@ export default function PearlAwards() {
         </div>
 
         <div className="pearl-awards-cta">
-          <a 
-            href="/ATOP Pearl Awards Guidelines Manual 2026 (FINAL).pdf" 
-            target="_blank" 
-            rel="noopener noreferrer" 
+          <button
+            type="button"
             className="btn-gold"
+            id="browse-categories-btn"
+            onClick={() => { setCurrentPage?.('awards'); window.scrollTo(0, 0); }}
+          >
+            <i className="fas fa-trophy"></i> Browse Award Categories
+          </button>
+          <a
+            href="/ATOP Pearl Awards Guidelines Manual 2026 (FINAL).pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pearl-cta-outline"
             id="view-manual-btn"
           >
             <i className="fas fa-file-pdf"></i> View 2026 Guidelines Manual
@@ -519,7 +527,35 @@ export default function PearlAwards() {
         .pearl-awards-cta {
           display: flex;
           justify-content: center;
+          align-items: center;
+          gap: 16px;
+          flex-wrap: wrap;
           margin-top: 16px;
+        }
+
+        .pearl-cta-outline {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          font-family: var(--font-heading);
+          font-weight: 700;
+          font-size: 0.82rem;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          padding: 14px 30px;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--gray-300, #cbd5e1);
+          color: var(--navy);
+          background: var(--white);
+          text-decoration: none;
+          cursor: pointer;
+          transition: var(--transition);
+        }
+
+        .pearl-cta-outline:hover {
+          border-color: var(--navy);
+          background: var(--navy);
+          color: var(--white);
         }
 
         @media (max-width: 1024px) {
