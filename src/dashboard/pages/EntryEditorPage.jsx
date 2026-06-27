@@ -423,31 +423,14 @@ const DECLARATION_STATEMENTS = [
 function DeclarationSection({ entry, readOnly, onSaved }) {
   const d = entry.declaration
   const [certified, setCertified] = useState(!!d?.certified)
-  const [name, setName] = useState(d?.signatoryName || '')
-  const [designation, setDesignation] = useState(d?.signatoryDesignation || '')
-  const [signature, setSignature] = useState(d?.eSignature || '')
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [banner, setBanner] = useState(null)
-  const [errors, setErrors] = useState({})
-
-  const touch = () => { setDirty(true); setBanner(null) }
-  const valid = !!(name.trim() && designation.trim() && signature.trim())
 
   async function doSave(silent = false) {
-    if (!valid) {
-      if (!silent) setErrors({
-        name: name.trim() ? undefined : 'Signatory name is required.',
-        designation: designation.trim() ? undefined : 'Designation is required.',
-        signature: signature.trim() ? undefined : 'Type your name to sign.',
-      })
-      return
-    }
-    if (!silent) { setSaving(true); setBanner(null); setErrors({}) }
+    if (!silent) { setSaving(true); setBanner(null) }
     try {
-      const res = await api.post(`/entries/${entry.id}/declaration`, {
-        certified, signatoryName: name.trim(), signatoryDesignation: designation.trim(), eSignature: signature.trim(),
-      }, { auth: true })
+      const res = await api.post(`/entries/${entry.id}/declaration`, { certified }, { auth: true })
       if (!silent) { onSaved({ ...entry, declaration: res }); setDirty(false) }
     } catch (err) {
       if (!silent) setBanner(err instanceof ApiError ? err.message : 'We couldn’t save the declaration. Please try again.')
@@ -456,12 +439,12 @@ function DeclarationSection({ entry, readOnly, onSaved }) {
     }
   }
 
-  useAutosave({ signature: JSON.stringify([certified, name, designation, signature]), dirty, canSave: valid, onSave: doSave })
+  useAutosave({ signature: JSON.stringify([certified]), dirty, canSave: true, onSave: doSave })
 
   return (
     <div className="ed-stack">
       <SectionIntro icon="fa-file-signature" title="Declaration"
-        desc="The applicant certifies the entry. Read the statements, then sign." />
+        desc="The applicant certifies the entry. Read the statements, then check the box to certify — that is your signature." />
 
       <section className="dash-card dash-card-pad ed-block">
         <ul className="ed-statements">
@@ -470,22 +453,12 @@ function DeclarationSection({ entry, readOnly, onSaved }) {
           ))}
         </ul>
         <label className="dash-check ed-certify">
-          <input type="checkbox" checked={certified} disabled={readOnly} onChange={(e) => { setCertified(e.target.checked); touch() }} />
+          <input type="checkbox" checked={certified} disabled={readOnly} onChange={(e) => { setCertified(e.target.checked); setDirty(true); setBanner(null) }} />
           <span>I certify, on behalf of the LGU, that all statements above are true and this submission complies with the Pearl Awards rules.</span>
         </label>
-
-        <div className="dash-form-row" style={{ marginTop: 16 }}>
-          <Field label="Signatory name" required error={errors.name}>
-            <input className={ctl('dash-input', errors.name)} value={name} disabled={readOnly} onChange={(e) => { setName(e.target.value); touch() }} />
-          </Field>
-          <Field label="Designation" required error={errors.designation}>
-            <input className={ctl('dash-input', errors.designation)} value={designation} disabled={readOnly} onChange={(e) => { setDesignation(e.target.value); touch() }} />
-          </Field>
-        </div>
-        <Field label="E-signature" required error={errors.signature} hint="Type your full name to sign electronically.">
-          <input className={ctl('dash-input ed-signature', errors.signature)} value={signature} disabled={readOnly} onChange={(e) => { setSignature(e.target.value); touch() }} placeholder="Your full name" />
-        </Field>
-        {d?.signedAt && <p className="dash-help" style={{ marginTop: 6 }}>Last signed {formatDate(d.signedAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>}
+        {d?.signedAt && certified && (
+          <p className="dash-help" style={{ marginTop: 12 }}>Certified {formatDate(d.signedAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>
+        )}
       </section>
 
       {!readOnly && <SaveBar saving={saving} dirty={dirty} banner={banner} onSave={() => doSave(false)} saveLabel="Save declaration" />}
@@ -499,30 +472,59 @@ function DeclarationSection({ entry, readOnly, onSaved }) {
 function EndorsementSection({ entry, readOnly, onSaved }) {
   const l = entry.lceEndorsement
   const [endorsed, setEndorsed] = useState(!!l?.endorsed)
-  const [name, setName] = useState(l?.lceName || '')
-  const [designation, setDesignation] = useState(l?.lceDesignation || '')
-  const [signature, setSignature] = useState(l?.eSignature || '')
+  const [file, setFile] = useState(l?.fileKey ? { fileKey: l.fileKey, fileName: l.fileName, contentType: l.contentType } : null)
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [banner, setBanner] = useState(null)
   const [errors, setErrors] = useState({})
 
   const touch = () => { setDirty(true); setBanner(null) }
-  const valid = !!(name.trim() && designation.trim() && signature.trim())
+  const valid = !!(endorsed && file?.fileKey)
+
+  async function onPick(e) {
+    const f = e.target.files?.[0]
+    e.target.value = '' // allow re-picking the same file
+    if (!f) return
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setBanner(`That file is ${formatBytes(f.size)} — the limit is ${formatBytes(MAX_UPLOAD_BYTES)}. Upload a smaller file.`)
+      return
+    }
+    setUploading(true); setBanner(null); setErrors({})
+    try {
+      const contentType = f.type || 'application/octet-stream'
+      const pres = await api.post(`/entries/${entry.id}/endorsement/presign`, { fileName: f.name, contentType }, { auth: true })
+      const res = await fetch(pres.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: f })
+      if (!res.ok) throw new Error(`Upload failed (${res.status}).`)
+      setFile({ fileKey: pres.fileKey, fileName: f.name, contentType }); touch()
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : 'We couldn’t upload that file. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function viewDoc() {
+    try {
+      const { url } = await api.get(`/entries/${entry.id}/endorsement/url`, { auth: true })
+      window.open(url, '_blank', 'noopener')
+    } catch {
+      setBanner('Save your changes first, then you can view the document.')
+    }
+  }
 
   async function doSave(silent = false) {
     if (!valid) {
       if (!silent) setErrors({
-        name: name.trim() ? undefined : 'LCE name is required.',
-        designation: designation.trim() ? undefined : 'Designation is required.',
-        signature: signature.trim() ? undefined : 'Type the LCE’s name to sign.',
+        endorse: endorsed ? undefined : 'Tick the endorsement to confirm.',
+        file: file?.fileKey ? undefined : 'Upload the signed endorsement document.',
       })
       return
     }
     if (!silent) { setSaving(true); setBanner(null); setErrors({}) }
     try {
       const res = await api.post(`/entries/${entry.id}/lce-endorsement`, {
-        endorsed, lceName: name.trim(), lceDesignation: designation.trim(), eSignature: signature.trim(),
+        endorsed, fileKey: file.fileKey, fileName: file.fileName, contentType: file.contentType,
       }, { auth: true })
       if (!silent) { onSaved({ ...entry, lceEndorsement: res }); setDirty(false) }
     } catch (err) {
@@ -532,31 +534,45 @@ function EndorsementSection({ entry, readOnly, onSaved }) {
     }
   }
 
-  useAutosave({ signature: JSON.stringify([endorsed, name, designation, signature]), dirty, canSave: valid, onSave: doSave })
+  useAutosave({ signature: JSON.stringify([endorsed, file?.fileKey]), dirty, canSave: valid, onSave: doSave })
 
   return (
     <div className="ed-stack">
       <SectionIntro icon="fa-stamp" title="LCE endorsement"
-        desc="The Local Chief Executive (Governor or Mayor) endorses this entry." />
+        desc="The Local Chief Executive (Governor or Mayor) endorses this entry. Upload the signed endorsement as proof of their signature." />
 
       <section className="dash-card dash-card-pad ed-block">
         <label className="dash-check ed-certify" style={{ marginTop: 0 }}>
           <input type="checkbox" checked={endorsed} disabled={readOnly} onChange={(e) => { setEndorsed(e.target.checked); touch() }} />
           <span>The Local Chief Executive endorses this entry and supports the LGU’s participation in the Pearl Awards.</span>
         </label>
+        {errors.endorse && <p className="dash-error" style={{ marginTop: 6 }}><i className="fas fa-circle-exclamation" aria-hidden="true" /> {errors.endorse}</p>}
 
-        <div className="dash-form-row" style={{ marginTop: 16 }}>
-          <Field label="LCE name" required error={errors.name}>
-            <input className={ctl('dash-input', errors.name)} value={name} disabled={readOnly} onChange={(e) => { setName(e.target.value); touch() }} />
-          </Field>
-          <Field label="Designation" required error={errors.designation} hint="e.g. Provincial Governor">
-            <input className={ctl('dash-input', errors.designation)} value={designation} disabled={readOnly} onChange={(e) => { setDesignation(e.target.value); touch() }} />
+        <div style={{ marginTop: 18 }}>
+          <Field label="Signed endorsement document" required error={errors.file} hint="The LCE-signed endorsement letter — PDF or a clear photo.">
+            {file?.fileKey ? (
+              <div className="ed-endorse-file">
+                <i className="fas fa-file-circle-check" aria-hidden="true" />
+                <span className="ed-endorse-name">{file.fileName || 'Endorsement document'}</span>
+                <button type="button" className="dash-btn is-sm" onClick={viewDoc}>View</button>
+                {!readOnly && (
+                  <label className="dash-btn is-sm" style={{ cursor: 'pointer' }}>
+                    Replace<input type="file" accept=".pdf,image/*" hidden disabled={uploading} onChange={onPick} />
+                  </label>
+                )}
+              </div>
+            ) : !readOnly ? (
+              <label className="dash-btn" style={{ cursor: 'pointer', width: 'fit-content' }}>
+                {uploading ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Uploading…</> : <><i className="fas fa-upload" aria-hidden="true" /> Upload document</>}
+                <input type="file" accept=".pdf,image/*" hidden disabled={uploading} onChange={onPick} />
+              </label>
+            ) : (
+              <p className="dash-help">No endorsement document uploaded.</p>
+            )}
           </Field>
         </div>
-        <Field label="E-signature" required error={errors.signature} hint="Type the LCE’s full name to sign electronically.">
-          <input className={ctl('dash-input ed-signature', errors.signature)} value={signature} disabled={readOnly} onChange={(e) => { setSignature(e.target.value); touch() }} placeholder="LCE’s full name" />
-        </Field>
-        {l?.signedAt && <p className="dash-help" style={{ marginTop: 6 }}>Last signed {formatDate(l.signedAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>}
+
+        {l?.signedAt && valid && <p className="dash-help" style={{ marginTop: 12 }}>Endorsement recorded {formatDate(l.signedAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>}
       </section>
 
       {!readOnly && <SaveBar saving={saving} dirty={dirty} banner={banner} onSave={() => doSave(false)} saveLabel="Save endorsement" />}
@@ -894,7 +910,9 @@ const EDITOR_CSS = `
   .ed-statements li { display: flex; gap: 10px; align-items: flex-start; color: var(--text-body); font-size: 0.9rem; line-height: 1.5; }
   .ed-statements i { color: #16A34A; margin-top: 3px; }
   .ed-certify { margin-top: 12px; padding: 14px; background: var(--off-white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
-  .ed-signature { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 1.15rem; letter-spacing: 0.02em; }
+  .ed-endorse-file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--off-white); }
+  .ed-endorse-file > i { color: #16A34A; font-size: 1.1rem; flex-shrink: 0; }
+  .ed-endorse-name { flex: 1; min-width: 120px; font-family: var(--font-heading); font-weight: 700; font-size: 0.86rem; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Quiet save status — a small corner pill that follows scroll without covering content. */
   .ed-savestatus { position: sticky; bottom: 14px; display: flex; justify-content: flex-end; margin-top: 6px; pointer-events: none; }
   .ed-ss { pointer-events: auto; display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: var(--white); border: 1px solid var(--gray-200); box-shadow: var(--shadow-sm); font-family: var(--font-heading); font-weight: 700; font-size: 0.76rem; }

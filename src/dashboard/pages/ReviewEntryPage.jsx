@@ -60,6 +60,15 @@ export default function ReviewEntryPage() {
     }
   }
 
+  async function viewEndorsement() {
+    try {
+      const { url } = await api.get(`/review/entries/${id}/endorsement/url`, { auth: true })
+      window.open(url, '_blank', 'noopener')
+    } catch {
+      setBanner('We couldn’t open the endorsement document.')
+    }
+  }
+
   const m = statusMeta(status)
 
   return (
@@ -139,23 +148,27 @@ export default function ReviewEntryPage() {
           {entry.declaration ? (
             <Grid items={[
               ['Certified', entry.declaration.certified ? 'Yes' : 'No'],
-              ['Signatory', entry.declaration.signatoryName],
-              ['Designation', entry.declaration.signatoryDesignation],
-              ['E-signature', entry.declaration.eSignature],
-              ['Signed', formatDate(entry.declaration.signedAt, { dateStyle: 'medium', timeStyle: 'short' })],
+              ['Certified at', formatDate(entry.declaration.signedAt, { dateStyle: 'medium', timeStyle: 'short' })],
             ]} />
-          ) : <p className="rv-empty">Not signed.</p>}
+          ) : <p className="rv-empty">Not certified.</p>}
         </Section>
 
         <Section icon="fa-stamp" title="LCE endorsement">
           {entry.lceEndorsement ? (
-            <Grid items={[
-              ['Endorsed', entry.lceEndorsement.endorsed ? 'Yes' : 'No'],
-              ['LCE', entry.lceEndorsement.lceName],
-              ['Designation', entry.lceEndorsement.lceDesignation],
-              ['E-signature', entry.lceEndorsement.eSignature],
-              ['Signed', formatDate(entry.lceEndorsement.signedAt, { dateStyle: 'medium', timeStyle: 'short' })],
-            ]} />
+            <>
+              <Grid items={[
+                ['Endorsed', entry.lceEndorsement.endorsed ? 'Yes' : 'No'],
+                ['Recorded', formatDate(entry.lceEndorsement.signedAt, { dateStyle: 'medium', timeStyle: 'short' })],
+              ]} />
+              {entry.lceEndorsement.fileKey && (
+                <div className="rv-doc" style={{ marginTop: 10 }}>
+                  <span className="rv-doc-label">Signed endorsement</span>
+                  <button type="button" className="dash-btn is-ghost is-sm" onClick={viewEndorsement}>
+                    <i className="fas fa-file-lines" aria-hidden="true" /> {entry.lceEndorsement.fileName || 'View document'}
+                  </button>
+                </div>
+              )}
+            </>
           ) : <p className="rv-empty">Not endorsed.</p>}
         </Section>
 

@@ -181,15 +181,15 @@ export function computeReadiness(entry, category) {
   const d = entry?.declaration
   items.push({
     key: 'declaration',
-    label: 'Declaration signed',
-    done: !!(d && d.certified && d.signatoryName?.trim() && d.eSignature?.trim()),
+    label: 'Declaration certified',
+    done: !!(d && d.certified),
   })
 
   const e = entry?.lceEndorsement
   items.push({
     key: 'endorsement',
     label: 'LCE endorsement',
-    done: !!(e && e.endorsed && e.lceName?.trim() && e.eSignature?.trim()),
+    done: !!(e && e.endorsed && e.fileKey),
   })
 
   const completed = items.filter((i) => i.done).length
