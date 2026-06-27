@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
@@ -56,6 +56,7 @@ export default function EntryEditorPage() {
   if (error) return <ErrorState error={error} onRetry={reload} title="We couldn’t open this entry" />
 
   const readOnly = !isEditable(workingEntry.status)
+  const win = submissionWindow(catalog)
   const readiness = computeReadiness(workingEntry, category)
   const doneByKey = Object.fromEntries(readiness.items.map((i) => [i.key, i.done]))
 
@@ -128,6 +129,13 @@ export default function EntryEditorPage() {
           <SectionNav prev={TABS[2]} onGo={setTab} />
         </div>
       </div>
+
+      <EntryActions
+        entry={workingEntry}
+        win={win}
+        onWithdrawn={(res) => setEntry({ ...workingEntry, status: res.status, submittedAt: res.submittedAt })}
+        onDeleted={() => navigate('/dashboard/entries')}
+      />
 
       <style>{EDITOR_CSS}</style>
     </>
@@ -686,6 +694,119 @@ function SectionNav({ prev, next, onGo }) {
   )
 }
 
+// Owner self-service: withdraw a submission back to Draft (before a reviewer takes it,
+// while the window is open) or delete an entry that's still in the owner's hands.
+function EntryActions({ entry, win, onWithdrawn, onDeleted }) {
+  const [confirm, setConfirm] = useState(null) // 'withdraw' | 'delete'
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const canWithdraw = entry.status === 'Submitted' && win?.state === 'open'
+  const canDelete = isEditable(entry.status)
+  if (!canWithdraw && !canDelete) return null
+
+  async function withdraw() {
+    setBusy(true); setError(null)
+    try {
+      const res = await api.post(`/entries/${entry.id}/withdraw`, undefined, { auth: true })
+      setConfirm(null)
+      onWithdrawn(res)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'We couldn’t withdraw this entry. Please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove() {
+    setBusy(true); setError(null)
+    try {
+      await api.delete(`/entries/${entry.id}`, { auth: true })
+      onDeleted()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'We couldn’t delete this entry. Please try again.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="ed-danger" aria-label="Entry actions">
+      {canWithdraw && (
+        <div className="ed-danger-row">
+          <div>
+            <h3>Withdraw submission</h3>
+            <p>Pull this entry back to <strong>Draft</strong> so you can edit and resubmit before submissions close.</p>
+          </div>
+          <button type="button" className="dash-btn" disabled={busy} onClick={() => setConfirm('withdraw')}>
+            <i className="fas fa-rotate-left" aria-hidden="true" /> Withdraw
+          </button>
+        </div>
+      )}
+      {canDelete && (
+        <div className="ed-danger-row">
+          <div>
+            <h3>Delete this entry</h3>
+            <p>Permanently remove this entry and everything in it. This can’t be undone.</p>
+          </div>
+          <button type="button" className="dash-btn is-danger" disabled={busy} onClick={() => setConfirm('delete')}>
+            <i className="fas fa-trash-can" aria-hidden="true" /> Delete
+          </button>
+        </div>
+      )}
+      {error && (
+        <div className="dash-banner tone-error" style={{ margin: '0 20px 18px' }}>
+          <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{error}</span>
+        </div>
+      )}
+
+      {confirm === 'withdraw' && (
+        <ConfirmDialog
+          title="Withdraw this submission?"
+          body="It returns to Draft and leaves the review queue. You can edit and resubmit while submissions are open."
+          confirmLabel="Withdraw"
+          busy={busy}
+          onConfirm={withdraw}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+      {confirm === 'delete' && (
+        <ConfirmDialog
+          danger
+          title="Delete this entry?"
+          body="This permanently deletes the entry and its bidbook, declaration, and endorsement. This can’t be undone."
+          confirmLabel="Delete entry"
+          busy={busy}
+          onConfirm={remove}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+    </section>
+  )
+}
+
+function ConfirmDialog({ title, body, confirmLabel, danger, busy, onConfirm, onCancel }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy) onCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel, busy])
+
+  return (
+    <div className="ed-modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={() => { if (!busy) onCancel() }}>
+      <div className="ed-modal-card" onMouseDown={(e) => e.stopPropagation()}>
+        <h3 className="ed-modal-title">{title}</h3>
+        <p className="ed-modal-body">{body}</p>
+        <div className="ed-modal-actions">
+          <button type="button" className="dash-btn" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button type="button" className={`dash-btn ${danger ? 'is-danger' : 'is-primary'}`} onClick={onConfirm} disabled={busy}>
+            {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Working…</> : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Autosave persists in the background (useAutosave), so this is just status —
 // not a primary action. Quiet states (saving / saved) collapse to a small corner
 // pill that doesn't cover content; only a real problem expands to a visible alert
@@ -729,6 +850,21 @@ const EDITOR_CSS = `
   .ed-head-timeline { flex-basis: 100%; width: 100%; }
   .ed-panel { margin-top: 22px; padding-bottom: 60px; }
   .ed-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+
+  /* Owner actions (withdraw / delete) */
+  .ed-danger { margin-top: 30px; border: 1px solid var(--gray-200); border-radius: var(--radius-md); background: var(--white); overflow: hidden; }
+  .ed-danger-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px; }
+  .ed-danger-row + .ed-danger-row { border-top: 1px solid var(--gray-100); }
+  .ed-danger-row h3 { font-family: var(--font-heading); font-size: 0.95rem; font-weight: 800; color: var(--navy); }
+  .ed-danger-row p { font-size: 0.84rem; color: var(--gray-600); line-height: 1.5; margin-top: 3px; max-width: 62ch; }
+  .ed-danger-row .dash-btn { flex-shrink: 0; }
+
+  .ed-modal { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(15,25,46,0.55); backdrop-filter: blur(2px); animation: ed-modal-in 0.16s ease-out; }
+  .ed-modal-card { width: 100%; max-width: 440px; background: var(--white); border-radius: var(--radius-md); box-shadow: 0 30px 70px rgba(15,25,46,0.4); padding: 26px; }
+  .ed-modal-title { font-family: var(--font-heading); font-size: 1.2rem; font-weight: 800; color: var(--navy); margin-bottom: 10px; }
+  .ed-modal-body { color: var(--gray-600); font-size: 0.9rem; line-height: 1.6; margin-bottom: 22px; }
+  .ed-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+  @keyframes ed-modal-in { from { opacity: 0; } to { opacity: 1; } }
   .ed-stack { display: flex; flex-direction: column; gap: 18px; }
   .ed-intro { padding: 0 2px; }
   .ed-intro-title { font-family: var(--font-heading); font-size: 1.2rem; font-weight: 800; color: var(--navy); display: flex; align-items: center; gap: 10px; }
@@ -775,5 +911,7 @@ const EDITOR_CSS = `
     .ed-head-side { max-width: none; min-width: 0; width: 100%; }
     .ed-savealert { flex-direction: column; align-items: stretch; }
     .ed-savealert .dash-btn { width: 100%; }
+    .ed-danger-row { flex-direction: column; align-items: stretch; }
+    .ed-danger-row .dash-btn { width: 100%; }
   }
 `
