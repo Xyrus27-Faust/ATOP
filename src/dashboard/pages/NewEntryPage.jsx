@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
+import { useAuth } from '@/auth/AuthContext'
 import { validateEmail } from '@/lib/validation'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -20,7 +21,8 @@ const EMPTY = {
   'lgu.name': '',
   'lgu.level': '',
   'lgu.region': '',
-  'nominator.name': '',
+  'nominator.firstName': '',
+  'nominator.lastName': '',
   'nominator.designation': '',
   'nominator.office': '',
   'nominator.email': '',
@@ -46,13 +48,41 @@ function stepForKey(key) {
 
 export default function NewEntryPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const { user } = useAuth()
   const { loading, error, data, reload } = useAsync(() => api.get('/award-categories/'), [])
 
-  const [form, setForm] = useState(EMPTY)
+  // A category may be pre-selected via ?category=N (e.g. "Start an entry" on a
+  // category page). Seed the form so the wizard opens on that category. The
+  // nominator defaults to the signed-in user's profile — editable if they're
+  // nominating on someone else's behalf.
+  const presetCategory = params.get('category')
+  const [form, setForm] = useState(() => ({
+    ...EMPTY,
+    categoryNumber: presetCategory ?? '',
+    'nominator.firstName': user?.firstName ?? '',
+    'nominator.lastName': user?.lastName ?? '',
+    'nominator.email': user?.email ?? '',
+    'nominator.designation': user?.designation ?? '',
+    'nominator.office': user?.office ?? '',
+  }))
   const [errors, setErrors] = useState({})
   const [banner, setBanner] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [step, setStep] = useState(0)
+
+  // For a preset third-party-only category, default the nominator toggle on
+  // (mirrors onCategoryChange for a manual pick). Runs once when the catalog lands.
+  const presetApplied = useRef(false)
+  useEffect(() => {
+    if (presetApplied.current || !data || !presetCategory) return
+    presetApplied.current = true
+    const cat = data.categories.find((c) => c.number === Number(presetCategory))
+    if (cat?.nominatorRule === 'ThirdPartyOnly') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setForm((f) => ({ ...f, 'nominator.isThirdParty': true }))
+    }
+  }, [data, presetCategory])
 
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -90,7 +120,8 @@ export default function NewEntryPage() {
       if (!form['lgu.level']) e['lgu.level'] = 'Select an LGU level.'
       if (!form['lgu.region']) e['lgu.region'] = 'Select a region.'
     } else if (i === 2) {
-      if (!form['nominator.name'].trim()) e['nominator.name'] = 'Nominator name is required.'
+      if (!form['nominator.firstName'].trim()) e['nominator.firstName'] = 'First name is required.'
+      if (!form['nominator.lastName'].trim()) e['nominator.lastName'] = 'Last name is required.'
       if (!form['nominator.designation'].trim()) e['nominator.designation'] = 'Designation is required.'
       if (!form['nominator.office'].trim()) e['nominator.office'] = 'Office is required.'
       const emailErr = validateEmail(form['nominator.email'])
@@ -138,7 +169,8 @@ export default function NewEntryPage() {
         coverage: form.coverage,
         lgu: { name: form['lgu.name'].trim(), level: form['lgu.level'], region: form['lgu.region'] },
         nominator: {
-          name: form['nominator.name'].trim(),
+          firstName: form['nominator.firstName'].trim(),
+          lastName: form['nominator.lastName'].trim(),
           designation: form['nominator.designation'].trim(),
           office: form['nominator.office'].trim(),
           email: form['nominator.email'].trim(),
@@ -150,7 +182,7 @@ export default function NewEntryPage() {
         },
       }
       const created = await api.post('/entries/', payload, { auth: true })
-      navigate(`/dashboard/entries/${created.id}`)
+      navigate(`/entries/${created.id}`)
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
         const mapped = {}
@@ -259,18 +291,23 @@ export default function NewEntryPage() {
             {step === 2 && (
               <>
                 <div className="dash-card-title"><i className="fas fa-user-tie" aria-hidden="true" /> Nominator</div>
-                <p className="dash-help" style={{ marginTop: -4 }}>The person submitting this nomination and the contact for it.</p>
+                <p className="dash-help" style={{ marginTop: -4 }}>Pre-filled from your profile — edit it if you’re nominating on someone else’s behalf.</p>
                 <div className="dash-form-row">
-                  <Field label="Full name" htmlFor="nomName" required error={errors['nominator.name']}>
-                    <input id="nomName" className={ctl('dash-input', errors['nominator.name'])} value={form['nominator.name']} onChange={set('nominator.name')} />
+                  <Field label="First name" htmlFor="nomFirst" required error={errors['nominator.firstName']}>
+                    <input id="nomFirst" className={ctl('dash-input', errors['nominator.firstName'])} value={form['nominator.firstName']} onChange={set('nominator.firstName')} />
                   </Field>
+                  <Field label="Last name" htmlFor="nomLast" required error={errors['nominator.lastName']}>
+                    <input id="nomLast" className={ctl('dash-input', errors['nominator.lastName'])} value={form['nominator.lastName']} onChange={set('nominator.lastName')} />
+                  </Field>
+                </div>
+                <div className="dash-form-row">
                   <Field label="Designation" htmlFor="nomDesig" required error={errors['nominator.designation']}>
                     <input id="nomDesig" className={ctl('dash-input', errors['nominator.designation'])} value={form['nominator.designation']} onChange={set('nominator.designation')} />
                   </Field>
+                  <Field label="Office" htmlFor="nomOffice" required error={errors['nominator.office']}>
+                    <input id="nomOffice" className={ctl('dash-input', errors['nominator.office'])} value={form['nominator.office']} onChange={set('nominator.office')} />
+                  </Field>
                 </div>
-                <Field label="Office" htmlFor="nomOffice" required error={errors['nominator.office']}>
-                  <input id="nomOffice" className={ctl('dash-input', errors['nominator.office'])} value={form['nominator.office']} onChange={set('nominator.office')} />
-                </Field>
                 <div className="dash-form-row">
                   <Field label="Email" htmlFor="nomEmail" required error={errors['nominator.email']}>
                     <input id="nomEmail" type="email" className={ctl('dash-input', errors['nominator.email'])} value={form['nominator.email']} onChange={set('nominator.email')} />
@@ -353,7 +390,7 @@ export default function NewEntryPage() {
         .ne-aside { position: sticky; top: 84px; }
 
         /* Stepper */
-        .ne-steps { display: flex; gap: 8px; }
+        .ne-steps { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; }
         .ne-step { flex: 1; }
         .ne-step button {
           width: 100%; display: flex; align-items: center; gap: 10px; cursor: default;

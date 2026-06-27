@@ -34,7 +34,7 @@ export default function EntriesListPage() {
           <h1 className="dash-h1">My entries</h1>
           <p className="dash-sub">Every entry you’ve created, and where each one stands in the review.</p>
         </div>
-        <button className="dash-btn is-primary" onClick={() => navigate('/dashboard/entries/new')}>
+        <button className="dash-btn is-primary" onClick={() => navigate('/entries/new')}>
           <i className="fas fa-plus" aria-hidden="true" /> New entry
         </button>
       </div>
@@ -44,7 +44,7 @@ export default function EntriesListPage() {
           <div className="dash-empty-icon"><i className="fas fa-folder-open" aria-hidden="true" /></div>
           <h3>No entries yet</h3>
           <p>When you create an entry it appears here, with a readiness meter so you always know what’s left before you submit.</p>
-          <button className="dash-btn is-primary" onClick={() => navigate('/dashboard/entries/new')}>
+          <button className="dash-btn is-primary" onClick={() => navigate('/entries/new')}>
             <i className="fas fa-plus" aria-hidden="true" /> Create your first entry
           </button>
         </div>
@@ -65,7 +65,7 @@ export default function EntriesListPage() {
 
           <div className="el-list">
             {filtered.map((e) => (
-              <Link key={e.id} to={`/dashboard/entries/${e.id}`} className="dash-card el-row">
+              <Link key={e.id} to={`/entries/${e.id}`} className="dash-card el-row">
                 <span className="el-cat">#{e.categoryNumber}</span>
                 <span className="el-main">
                   <span className="el-title">{e.title}</span>

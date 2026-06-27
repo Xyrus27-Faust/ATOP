@@ -5,12 +5,11 @@ import RegisterPage from './components/auth/RegisterPage'
 import VerifyEmailPage from './components/auth/VerifyEmailPage'
 import ProtectedRoute from './auth/ProtectedRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
+import SubmissionLayout from './dashboard/SubmissionLayout'
 import OverviewPage from './dashboard/pages/OverviewPage'
 import EntriesListPage from './dashboard/pages/EntriesListPage'
 import NewEntryPage from './dashboard/pages/NewEntryPage'
 import EntryEditorPage from './dashboard/pages/EntryEditorPage'
-import AwardCategoriesPage from './dashboard/pages/AwardCategoriesPage'
-import AwardCategoryDetailPage from './dashboard/pages/AwardCategoryDetailPage'
 import ProfilePage from './dashboard/pages/ProfilePage'
 import ReviewQueuePage from './dashboard/pages/ReviewQueuePage'
 import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
@@ -27,15 +26,18 @@ export default function AppRoutes() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route element={<ProtectedRoute />}>
+        {/* The submission flow lives outside the dashboard in a focused shell —
+            composing an entry is an application, not a dashboard page. */}
+        <Route element={<SubmissionLayout />}>
+          <Route path="/entries/new" element={<NewEntryPage />} />
+          <Route path="/entries/:id" element={<EntryEditorPage />} />
+        </Route>
+
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="entries" element={<EntriesListPage />} />
-          <Route path="entries/new" element={<NewEntryPage />} />
-          <Route path="entries/:id" element={<EntryEditorPage />} />
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
-          <Route path="awards" element={<AwardCategoriesPage />} />
-          <Route path="awards/:number" element={<AwardCategoryDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Route>

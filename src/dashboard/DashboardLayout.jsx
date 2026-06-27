@@ -112,7 +112,8 @@ export default function DashboardLayout() {
 
 // Shared dashboard design system. Scoped via the `dash-` prefix so it never
 // collides with the marketing site (.section/.cta) or the auth pages (.auth-*).
-const DASH_CSS = `
+// Exported so the focused SubmissionLayout can reuse the same dash-* form controls.
+export const DASH_CSS = `
   .dash {
     --rail: 264px;
     min-height: 100vh;
@@ -280,9 +281,9 @@ const DASH_CSS = `
   .dash-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239CA3AF' d='M6 8 0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px; cursor: pointer; }
   .dash-input::placeholder, .dash-textarea::placeholder { color: var(--gray-400); }
   .dash-input:focus, .dash-textarea:focus, .dash-select:focus {
-    border-color: var(--gold); background: var(--white); box-shadow: 0 0 0 3px rgba(200,168,75,0.15);
+    border-color: var(--gold); background-color: var(--white); box-shadow: 0 0 0 3px rgba(200,168,75,0.15);
   }
-  .dash-input.has-error, .dash-textarea.has-error, .dash-select.has-error { border-color: #DC2626; background: #FEF2F2; }
+  .dash-input.has-error, .dash-textarea.has-error, .dash-select.has-error { border-color: #DC2626; background-color: #FEF2F2; }
   .dash-help { font-size: 0.78rem; color: var(--gray-400); font-family: var(--font-body); }
   .dash-error { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #DC2626; font-family: var(--font-body); }
   .dash-counter { font-size: 0.74rem; color: var(--gray-400); font-family: var(--font-heading); font-weight: 600; }
@@ -328,13 +329,13 @@ const DASH_CSS = `
   .dash-req-detail { font-family: var(--font-heading); font-size: 0.74rem; font-weight: 600; color: var(--gray-400); }
 
   /* ---------- Status stepper ---------- */
-  .dash-steps { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
-  .dash-step { display: flex; align-items: center; gap: 9px; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--gray-400); }
-  .dash-step-dot { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 0.66rem; background: var(--gray-100); color: var(--gray-400); border: 1.5px solid var(--gray-200); }
+  .dash-steps { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; overflow-x: auto; }
+  .dash-step { display: flex; align-items: center; gap: 9px; flex-shrink: 0; white-space: nowrap; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--gray-400); }
+  .dash-step-dot { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; font-size: 0.66rem; background: var(--gray-100); color: var(--gray-400); border: 1.5px solid var(--gray-200); }
   .dash-step.is-active .dash-step-dot { background: var(--gold); color: var(--white); border-color: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.18); }
   .dash-step.is-done .dash-step-dot { background: var(--navy); color: var(--gold-light); border-color: var(--navy); }
   .dash-step.is-active, .dash-step.is-done { color: var(--navy); }
-  .dash-step-line { width: 34px; height: 2px; background: var(--gray-200); margin: 0 6px; }
+  .dash-step-line { width: 34px; height: 2px; flex-shrink: 0; background: var(--gray-200); margin: 0 6px; }
   .dash-step-line.is-done { background: var(--navy); }
 
   /* ---------- Tabs ---------- */

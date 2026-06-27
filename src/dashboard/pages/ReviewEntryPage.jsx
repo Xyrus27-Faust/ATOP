@@ -95,7 +95,7 @@ export default function ReviewEntryPage() {
         {/* Nominator */}
         <Section icon="fa-user-tie" title="Nominator">
           <Grid items={[
-            ['Name', entry.nominator.name],
+            ['Name', `${entry.nominator.firstName} ${entry.nominator.lastName}`.trim()],
             ['Designation', entry.nominator.designation],
             ['Office', entry.nominator.office],
             ['Email', entry.nominator.email],

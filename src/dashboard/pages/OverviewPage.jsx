@@ -60,7 +60,7 @@ export default function OverviewPage() {
             Track your award entries, see what’s left before you submit, and explore this year’s categories.
           </p>
         </div>
-        <button className="dash-btn is-primary" onClick={() => navigate('/dashboard/entries/new')}>
+        <button className="dash-btn is-primary" onClick={() => navigate('/entries/new')}>
           <i className="fas fa-plus" aria-hidden="true" /> New entry
         </button>
       </div>
@@ -101,7 +101,7 @@ export default function OverviewPage() {
             <Readiness readiness={focus.readiness} showList={false} />
             <button
               className="dash-btn is-primary ov-resume"
-              onClick={() => navigate(`/dashboard/entries/${focus.detail.id}`)}
+              onClick={() => navigate(`/entries/${focus.detail.id}`)}
             >
               Resume editing <i className="fas fa-arrow-right" aria-hidden="true" />
             </button>
@@ -113,7 +113,7 @@ export default function OverviewPage() {
               You don’t have any drafts yet. Pick a category, tell us about your LGU and program, and we’ll guide you
               through the bidbook step by step.
             </p>
-            <button className="dash-btn is-primary" onClick={() => navigate('/dashboard/entries/new')}>
+            <button className="dash-btn is-primary" onClick={() => navigate('/entries/new')}>
               <i className="fas fa-plus" aria-hidden="true" /> Create an entry
             </button>
           </div>
@@ -123,7 +123,7 @@ export default function OverviewPage() {
           <div className="dash-card-title"><i className="fas fa-compass" aria-hidden="true" /> Quick links</div>
           <div className="ov-links">
             <QuickLink to="/dashboard/entries" icon="fa-folder-open" title="My entries" desc="View and manage every entry" />
-            <QuickLink to="/dashboard/awards" icon="fa-award" title="Award categories" desc={`Explore ${catalog?.categories?.length || ''} categories and their criteria`} />
+            <QuickLink to="/awards" icon="fa-award" title="Award categories" desc={`Explore ${catalog?.categories?.length || ''} categories and their criteria`} />
             <QuickLink to="/dashboard/profile" icon="fa-id-badge" title="Profile" desc="Update your name and office" />
           </div>
         </div>

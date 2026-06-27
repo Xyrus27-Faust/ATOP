@@ -79,8 +79,10 @@ export default function EntryEditorPage() {
           </p>
         </div>
         <div className="ed-head-side">
-          <StatusStepper status={workingEntry.status} />
           <div className="ed-head-meter"><Readiness readiness={readiness} showList={false} /></div>
+        </div>
+        <div className="ed-head-timeline">
+          <StatusStepper status={workingEntry.status} />
         </div>
       </header>
 
@@ -111,15 +113,19 @@ export default function EntryEditorPage() {
       <div className="ed-panel">
         <div hidden={tab !== 'bidbook'}>
           <BidbookSection entry={workingEntry} category={category} readOnly={readOnly} onSaved={setEntry} />
+          <SectionNav next={TABS[1]} onGo={setTab} />
         </div>
         <div hidden={tab !== 'declaration'}>
           <DeclarationSection entry={workingEntry} readOnly={readOnly} onSaved={setEntry} />
+          <SectionNav prev={TABS[0]} next={TABS[2]} onGo={setTab} />
         </div>
         <div hidden={tab !== 'endorsement'}>
           <EndorsementSection entry={workingEntry} readOnly={readOnly} onSaved={setEntry} />
+          <SectionNav prev={TABS[1]} next={TABS[3]} onGo={setTab} />
         </div>
         <div hidden={tab !== 'review'}>
           <ReviewSection entry={workingEntry} catalog={catalog} readiness={readiness} readOnly={readOnly} onSaved={setEntry} goTo={setTab} />
+          <SectionNav prev={TABS[2]} onGo={setTab} />
         </div>
       </div>
 
@@ -661,25 +667,52 @@ function SectionIntro({ icon, title, desc }) {
   )
 }
 
-function SaveBar({ saving, dirty, blocked, banner, onSave, saveLabel = 'Save now', blockedMsg }) {
+// Bottom-of-section navigation through the editor tabs, so applicants can move
+// forward without hunting for the tab strip up top.
+function SectionNav({ prev, next, onGo }) {
   return (
-    <div className="ed-savebar">
-      <div className="ed-savebar-status">
-        {saving ? (
-          <span className="dash-help"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</span>
-        ) : banner ? (
-          <span className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {banner}</span>
-        ) : blocked ? (
-          <span className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {blockedMsg}</span>
-        ) : dirty ? (
-          <span className="dash-help"><i className="fas fa-cloud-arrow-up" aria-hidden="true" /> Unsaved changes — saving automatically…</span>
+    <div className="ed-nav">
+      {prev ? (
+        <button type="button" className="dash-btn" onClick={() => { onGo(prev.key); window.scrollTo(0, 0); }}>
+          <i className="fas fa-arrow-left" aria-hidden="true" /> {prev.label}
+        </button>
+      ) : <span />}
+      {next && (
+        <button type="button" className="dash-btn is-primary" onClick={() => { onGo(next.key); window.scrollTo(0, 0); }}>
+          Next: {next.label} <i className="fas fa-arrow-right" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Autosave persists in the background (useAutosave), so this is just status —
+// not a primary action. Quiet states (saving / saved) collapse to a small corner
+// pill that doesn't cover content; only a real problem expands to a visible alert
+// with a manual retry.
+function SaveBar({ saving, dirty, blocked, banner, onSave, saveLabel = 'Save now', blockedMsg }) {
+  const problem = !!banner || blocked
+
+  if (!problem) {
+    return (
+      <div className="ed-savestatus" aria-live="polite">
+        {saving || dirty ? (
+          <span className="ed-ss is-busy"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</span>
         ) : (
-          <span className="ed-saved"><i className="fas fa-circle-check" aria-hidden="true" /> All changes saved</span>
+          <span className="ed-ss is-ok"><i className="fas fa-circle-check" aria-hidden="true" /> Saved</span>
         )}
       </div>
-      <button type="button" className="dash-btn is-primary" disabled={saving || blocked || !dirty} onClick={onSave}>
-        {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : <><i className="fas fa-floppy-disk" aria-hidden="true" /> {saveLabel}</>}
-      </button>
+    )
+  }
+
+  return (
+    <div className="ed-savealert" role="alert">
+      <span className="ed-savealert-msg"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {banner || blockedMsg}</span>
+      {banner && (
+        <button type="button" className="dash-btn is-sm" disabled={saving} onClick={onSave}>
+          {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : <><i className="fas fa-floppy-disk" aria-hidden="true" /> {saveLabel}</>}
+        </button>
+      )}
     </div>
   )
 }
@@ -692,7 +725,10 @@ const EDITOR_CSS = `
   .ed-sub { color: var(--gray-600); font-size: 0.9rem; margin-top: 6px; }
   .ed-head-side { display: flex; flex-direction: column; gap: 16px; min-width: 280px; flex: 1; max-width: 420px; }
   .ed-head-meter { width: 100%; }
-  .ed-panel { margin-top: 22px; }
+  /* Full-width row so the 4-step status timeline never has to wrap. */
+  .ed-head-timeline { flex-basis: 100%; width: 100%; }
+  .ed-panel { margin-top: 22px; padding-bottom: 60px; }
+  .ed-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
   .ed-stack { display: flex; flex-direction: column; gap: 18px; }
   .ed-intro { padding: 0 2px; }
   .ed-intro-title { font-family: var(--font-heading); font-size: 1.2rem; font-weight: 800; color: var(--navy); display: flex; align-items: center; gap: 10px; }
@@ -723,15 +759,21 @@ const EDITOR_CSS = `
   .ed-statements i { color: #16A34A; margin-top: 3px; }
   .ed-certify { margin-top: 12px; padding: 14px; background: var(--off-white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
   .ed-signature { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 1.15rem; letter-spacing: 0.02em; }
-  .ed-savebar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); position: sticky; bottom: 14px; }
-  .ed-savebar-status { min-width: 0; }
-  .ed-saved { color: #15803D; font-family: var(--font-heading); font-weight: 700; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 7px; }
+  /* Quiet save status — a small corner pill that follows scroll without covering content. */
+  .ed-savestatus { position: sticky; bottom: 14px; display: flex; justify-content: flex-end; margin-top: 6px; pointer-events: none; }
+  .ed-ss { pointer-events: auto; display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: var(--white); border: 1px solid var(--gray-200); box-shadow: var(--shadow-sm); font-family: var(--font-heading); font-weight: 700; font-size: 0.76rem; }
+  .ed-ss.is-ok { color: #15803D; }
+  .ed-ss.is-busy { color: var(--gray-600); }
+  /* A save problem expands to a visible (sticky) alert with a manual retry. */
+  .ed-savealert { position: sticky; bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 12px 16px; background: #FEF2F2; border: 1px solid #FECACA; border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+  .ed-savealert-msg { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: #B91C1C; font-family: var(--font-body); font-size: 0.88rem; line-height: 1.4; }
+  .ed-savealert-msg i { color: #DC2626; flex-shrink: 0; }
   .ed-blockers { margin: 8px 0 0 18px; list-style: disc; display: flex; flex-direction: column; gap: 4px; }
   .ed-linkbtn { background: none; border: none; padding: 0; cursor: pointer; color: inherit; font: inherit; }
   .dash-inline-link { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
   @media (max-width: 760px) {
     .ed-head-side { max-width: none; min-width: 0; width: 100%; }
-    .ed-savebar { flex-direction: column; align-items: stretch; }
-    .ed-savebar .dash-btn { width: 100%; }
+    .ed-savealert { flex-direction: column; align-items: stretch; }
+    .ed-savealert .dash-btn { width: 100%; }
   }
 `
