@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { navForRoles, primaryRole, roleLabel } from './dashboardNav'
+import NotificationBell from './components/NotificationBell'
 
 // The brand's topographic contour, carried over from the auth pages as a quiet
 // watermark in the sidebar — ties the workspace to the marketing identity.
@@ -86,6 +87,8 @@ export default function DashboardLayout() {
           </button>
 
           <div className="dash-topbar-spacer" />
+
+          <NotificationBell />
 
           <div className="dash-user">
             <span className="dash-avatar" aria-hidden="true">{initialsOf(user)}</span>
