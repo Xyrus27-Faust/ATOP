@@ -5,13 +5,22 @@ import AuthField from './AuthField'
 import GoogleButton from './GoogleButton'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/lib/apiClient'
+import { canAccessPath, roleHome } from '@/dashboard/dashboardNav'
 import { validateEmail, validateRequired } from '@/lib/validation'
 
 export default function LoginPage() {
   const { login, resendVerification } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const redirectTo = location.state?.from?.pathname || '/dashboard'
+
+  // Land the user where their role belongs. Honor a remembered deep link (`from`,
+  // set by ProtectedRoute) only when this role may actually view it — otherwise a
+  // stale link would drop, say, a reviewer on the applicant "My Entries" page.
+  function landAfterLogin(roles) {
+    const from = location.state?.from?.pathname
+    const target = from && canAccessPath(from, roles) ? from : roleHome(roles)
+    navigate(target, { replace: true })
+  }
 
   const [form, setForm] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})
@@ -37,8 +46,8 @@ export default function LoginPage() {
 
     setSubmitting(true)
     try {
-      await login(form.email.trim(), form.password)
-      navigate(redirectTo, { replace: true })
+      const me = await login(form.email.trim(), form.password)
+      landAfterLogin(me?.roles)
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setBanner({ kind: 'unverified', message: err.message })
@@ -145,7 +154,7 @@ export default function LoginPage() {
       <div className="auth-divider">or</div>
       <GoogleButton
         text="signin_with"
-        onSuccess={() => navigate(redirectTo, { replace: true })}
+        onSuccess={(me) => landAfterLogin(me?.roles)}
         onError={(err) =>
           setBanner({
             kind: 'error',

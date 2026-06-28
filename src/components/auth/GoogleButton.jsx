@@ -26,7 +26,7 @@ function loadGis() {
  * Google ID token for our session via AuthContext.googleSignIn, then calls
  * onSuccess. Falls back to a setup note when VITE_GOOGLE_CLIENT_ID is unset.
  *
- * Props: onSuccess(), onError(err), text ('continue_with' | 'signin_with' | 'signup_with')
+ * Props: onSuccess(user), onError(err), text ('continue_with' | 'signin_with' | 'signup_with')
  */
 export default function GoogleButton({ onSuccess, onError, text = 'continue_with' }) {
   const { googleSignIn } = useAuth()
@@ -51,8 +51,8 @@ export default function GoogleButton({ onSuccess, onError, text = 'continue_with
           callback: async ({ credential }) => {
             setPending(true)
             try {
-              await handlers.current.googleSignIn(credential)
-              handlers.current.onSuccess?.()
+              const me = await handlers.current.googleSignIn(credential)
+              handlers.current.onSuccess?.(me)
             } catch (err) {
               handlers.current.onError?.(err)
             } finally {

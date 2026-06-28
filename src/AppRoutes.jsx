@@ -4,6 +4,7 @@ import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import VerifyEmailPage from './components/auth/VerifyEmailPage'
 import ProtectedRoute from './auth/ProtectedRoute'
+import ApplicantRoute from './auth/ApplicantRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
 import SubmissionLayout from './dashboard/SubmissionLayout'
 import OverviewPage from './dashboard/pages/OverviewPage'
@@ -27,15 +28,20 @@ export default function AppRoutes() {
 
       <Route element={<ProtectedRoute />}>
         {/* The submission flow lives outside the dashboard in a focused shell —
-            composing an entry is an application, not a dashboard page. */}
-        <Route element={<SubmissionLayout />}>
-          <Route path="/entries/new" element={<NewEntryPage />} />
-          <Route path="/entries/:id" element={<EntryEditorPage />} />
+            composing an entry is an application, not a dashboard page. It's
+            applicant-only: pure reviewers are bounced to their review queue. */}
+        <Route element={<ApplicantRoute />}>
+          <Route element={<SubmissionLayout />}>
+            <Route path="/entries/new" element={<NewEntryPage />} />
+            <Route path="/entries/:id" element={<EntryEditorPage />} />
+          </Route>
         </Route>
 
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<OverviewPage />} />
-          <Route path="entries" element={<EntriesListPage />} />
+          <Route element={<ApplicantRoute />}>
+            <Route path="entries" element={<EntriesListPage />} />
+          </Route>
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
           <Route path="profile" element={<ProfilePage />} />

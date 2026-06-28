@@ -16,6 +16,11 @@ export const ROLE_LABELS = {
 export const REVIEWER_ROLES = ['Admin', 'Secretariat', 'Validator']
 export const isReviewer = (roles = []) => roles.some((r) => REVIEWER_ROLES.includes(r))
 
+// A reviewer with no applicant role belongs in the review workspace — they have
+// no entries of their own, so the applicant pages (overview, my entries, the
+// submission editor) are empty or unusable for them.
+export const isPureReviewer = (roles = []) => isReviewer(roles) && !roles.includes('Applicant')
+
 // Highest-privilege role wins for the badge shown in the shell.
 const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Judge', 'Applicant']
 
@@ -44,4 +49,22 @@ export function navForRoles(roles = []) {
   if (reviewer) nav.push(REVIEW)
   nav.push(AWARDS, PROFILE)
   return nav
+}
+
+// Applicant-only routes: the entry list and the focused submission editor. A
+// pure reviewer should never be parked on one of these.
+export function isApplicantOnlyPath(path = '') {
+  return path === '/dashboard/entries' || path.startsWith('/entries')
+}
+
+// Where a freshly signed-in user belongs. Pure reviewers land in the review
+// queue; everyone else gets the applicant overview.
+export function roleHome(roles = []) {
+  return isPureReviewer(roles) ? '/dashboard/review' : '/dashboard'
+}
+
+// Whether a role set may view a path. Used to vet a remembered post-login `from`
+// target so a stale deep link can't drop a reviewer on an applicant-only page.
+export function canAccessPath(path, roles = []) {
+  return !(isPureReviewer(roles) && isApplicantOnlyPath(path))
 }
