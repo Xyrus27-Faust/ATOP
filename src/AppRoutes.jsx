@@ -5,6 +5,7 @@ import RegisterPage from './components/auth/RegisterPage'
 import VerifyEmailPage from './components/auth/VerifyEmailPage'
 import ProtectedRoute from './auth/ProtectedRoute'
 import ApplicantRoute from './auth/ApplicantRoute'
+import AdminRoute from './auth/AdminRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
 import SubmissionLayout from './dashboard/SubmissionLayout'
 import OverviewPage from './dashboard/pages/OverviewPage'
@@ -14,6 +15,7 @@ import EntryEditorPage from './dashboard/pages/EntryEditorPage'
 import ProfilePage from './dashboard/pages/ProfilePage'
 import ReviewQueuePage from './dashboard/pages/ReviewQueuePage'
 import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
+import ReviewerAdminPage from './dashboard/pages/ReviewerAdminPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -44,6 +46,9 @@ export default function AppRoutes() {
           </Route>
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
+          <Route element={<AdminRoute />}>
+            <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
+          </Route>
           <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Route>

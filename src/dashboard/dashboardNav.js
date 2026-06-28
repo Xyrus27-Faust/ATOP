@@ -21,6 +21,8 @@ export const isReviewer = (roles = []) => roles.some((r) => REVIEWER_ROLES.inclu
 // submission editor) are empty or unusable for them.
 export const isPureReviewer = (roles = []) => isReviewer(roles) && !roles.includes('Applicant')
 
+export const isAdmin = (roles = []) => roles.includes('Admin')
+
 // Highest-privilege role wins for the badge shown in the shell.
 const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Judge', 'Applicant']
 
@@ -36,6 +38,7 @@ export function roleLabel(role) {
 const OVERVIEW = { to: '/dashboard', end: true, label: 'Overview', icon: 'fa-gauge-high' }
 const MY_ENTRIES = { to: '/dashboard/entries', label: 'My Entries', icon: 'fa-folder-open' }
 const REVIEW = { to: '/dashboard/review', label: 'Review Queue', icon: 'fa-clipboard-check' }
+const REVIEWERS = { to: '/dashboard/admin/reviewers', label: 'Reviewers', icon: 'fa-users-gear' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -47,6 +50,7 @@ export function navForRoles(roles = []) {
   const nav = []
   if (applicant) nav.push(OVERVIEW, MY_ENTRIES)
   if (reviewer) nav.push(REVIEW)
+  if (isAdmin(roles)) nav.push(REVIEWERS) // category assignment is an admin task
   nav.push(AWARDS, PROFILE)
   return nav
 }
