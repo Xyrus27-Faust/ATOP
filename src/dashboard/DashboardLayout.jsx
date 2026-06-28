@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { navForRoles, primaryRole, roleLabel } from './dashboardNav'
@@ -26,13 +26,35 @@ export default function DashboardLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
 
   const role = primaryRole(user?.roles)
   const nav = navForRoles(user?.roles)
 
-  // Close the mobile drawer whenever the route changes.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setDrawerOpen(false), [location.pathname])
+  // Close the mobile drawer and the user menu whenever the route changes.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDrawerOpen(false)
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  // Dismiss the user menu on an outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen) return
+    function onDocClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
 
   return (
     <div className="dash">
@@ -90,17 +112,36 @@ export default function DashboardLayout() {
 
           <NotificationBell />
 
-          <div className="dash-user">
-            <span className="dash-avatar" aria-hidden="true">{initialsOf(user)}</span>
-            <span className="dash-user-meta">
-              <span className="dash-user-name">{user?.fullName || user?.firstName || user?.email}</span>
-              <span className="dash-user-role">{roleLabel(role)}</span>
-            </span>
+          <div className="dash-usermenu" ref={menuRef}>
+            <button
+              type="button"
+              className="dash-user"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            >
+              <span className="dash-avatar" aria-hidden="true">{initialsOf(user)}</span>
+              <span className="dash-user-meta">
+                <span className="dash-user-name">{user?.fullName || user?.firstName || user?.email}</span>
+                <span className="dash-user-role">{roleLabel(role)}</span>
+              </span>
+              <i className={`fas fa-chevron-down dash-user-caret ${menuOpen ? 'is-open' : ''}`} aria-hidden="true" />
+            </button>
+
+            {menuOpen && (
+              <div className="dash-menu" role="menu">
+                <NavLink to="/dashboard/profile" className="dash-menu-item" role="menuitem">
+                  <i className="fas fa-id-badge" aria-hidden="true" />
+                  <span>My profile</span>
+                </NavLink>
+                <div className="dash-menu-sep" role="separator" />
+                <button type="button" className="dash-menu-item is-signout" role="menuitem" onClick={logout}>
+                  <i className="fas fa-arrow-right-from-bracket" aria-hidden="true" />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            )}
           </div>
-          <button type="button" className="dash-logout" onClick={logout}>
-            <i className="fas fa-arrow-right-from-bracket" aria-hidden="true" />
-            <span>Sign out</span>
-          </button>
         </header>
 
         <main className="dash-content">
@@ -204,7 +245,16 @@ export const DASH_CSS = `
     display: none; background: none; border: none; color: var(--navy);
     font-size: 1.2rem; padding: 6px 8px; cursor: pointer;
   }
-  .dash-user { display: flex; align-items: center; gap: 11px; }
+  .dash-usermenu { position: relative; }
+  .dash-user {
+    display: flex; align-items: center; gap: 11px;
+    background: none; border: 1px solid transparent; border-radius: 999px;
+    padding: 5px 12px 5px 5px; cursor: pointer; transition: var(--transition-fast);
+    font-family: inherit; text-align: left; color: inherit;
+  }
+  .dash-user:hover { background: var(--gray-100); border-color: var(--gray-200); }
+  .dash-user-caret { font-size: 0.66rem; color: var(--gray-400); transition: var(--transition-fast); }
+  .dash-user-caret.is-open { transform: rotate(180deg); }
   .dash-avatar {
     width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
     font-family: var(--font-heading); font-size: 0.8rem; font-weight: 800; color: var(--navy);
@@ -214,13 +264,29 @@ export const DASH_CSS = `
   .dash-user-meta { display: flex; flex-direction: column; line-height: 1.25; }
   .dash-user-name { font-family: var(--font-heading); font-size: 0.86rem; font-weight: 700; color: var(--navy); }
   .dash-user-role { font-size: 0.72rem; color: var(--gray-600); }
-  .dash-logout {
-    display: inline-flex; align-items: center; gap: 8px; background: none;
-    border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
-    color: var(--gray-600); font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700;
-    padding: 9px 14px; cursor: pointer; transition: var(--transition-fast);
+  /* User dropdown menu */
+  .dash-menu {
+    position: absolute; right: 0; top: calc(100% + 8px); z-index: 40;
+    min-width: 210px; padding: 6px;
+    background: var(--white); border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg, 0 18px 44px rgba(15,25,46,0.18));
+    display: flex; flex-direction: column; gap: 2px;
+    animation: dash-menu-in 0.16s ease-out both;
   }
-  .dash-logout:hover { border-color: var(--navy); color: var(--navy); background: var(--white); }
+  @keyframes dash-menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .dash-menu-item {
+    display: flex; align-items: center; gap: 11px; width: 100%;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: none; border: none; cursor: pointer; text-align: left;
+    font-family: var(--font-heading); font-size: 0.84rem; font-weight: 600; color: var(--navy);
+    transition: var(--transition-fast);
+  }
+  .dash-menu-item i { width: 18px; text-align: center; color: var(--gray-400); font-size: 0.9rem; }
+  .dash-menu-item:hover { background: var(--gray-100); }
+  .dash-menu-item.is-signout { color: #B91C1C; }
+  .dash-menu-item.is-signout i { color: #B91C1C; }
+  .dash-menu-item.is-signout:hover { background: #FEF2F2; }
+  .dash-menu-sep { height: 1px; margin: 4px 6px; background: var(--gray-200); }
 
   .dash-content { padding: clamp(22px, 3.4vw, 40px); max-width: 1180px; width: 100%; margin: 0 auto; }
 
