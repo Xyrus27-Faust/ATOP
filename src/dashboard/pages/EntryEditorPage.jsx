@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
@@ -73,6 +73,12 @@ export default function EntryEditorPage() {
           <div className="ed-head-top">
             <span className="dash-badge tone-progress">Category #{workingEntry.categoryNumber}</span>
             <StatusBadge status={workingEntry.status} />
+            <EntryActions
+              entry={workingEntry}
+              win={win}
+              onWithdrawn={(res) => setEntry({ ...workingEntry, status: res.status, submittedAt: res.submittedAt })}
+              onDeleted={() => navigate('/dashboard/entries')}
+            />
           </div>
           <h1 className="ed-title">{workingEntry.title}</h1>
           <p className="ed-sub">
@@ -129,13 +135,6 @@ export default function EntryEditorPage() {
           <SectionNav prev={TABS[2]} onGo={setTab} />
         </div>
       </div>
-
-      <EntryActions
-        entry={workingEntry}
-        win={win}
-        onWithdrawn={(res) => setEntry({ ...workingEntry, status: res.status, submittedAt: res.submittedAt })}
-        onDeleted={() => navigate('/dashboard/entries')}
-      />
 
       <style>{EDITOR_CSS}</style>
     </>
@@ -710,15 +709,28 @@ function SectionNav({ prev, next, onGo }) {
   )
 }
 
-// Owner self-service: withdraw a submission back to Draft (before a reviewer takes it,
-// while the window is open) or delete an entry that's still in the owner's hands.
+// Owner self-service, tucked into a header overflow menu: withdraw a submission back to
+// Draft (before a reviewer takes it, while the window is open) or delete an entry that's
+// still in the owner's hands. Rare, lifecycle-level actions — kept out of the editing flow.
 function EntryActions({ entry, win, onWithdrawn, onDeleted }) {
+  const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState(null) // 'withdraw' | 'delete'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const ref = useRef(null)
 
   const canWithdraw = entry.status === 'Submitted' && win?.state === 'open'
   const canDelete = isEditable(entry.status)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
   if (!canWithdraw && !canDelete) return null
 
   async function withdraw() {
@@ -745,33 +757,32 @@ function EntryActions({ entry, win, onWithdrawn, onDeleted }) {
     }
   }
 
+  function choose(which) { setOpen(false); setError(null); setConfirm(which) }
+
   return (
-    <section className="ed-danger" aria-label="Entry actions">
-      {canWithdraw && (
-        <div className="ed-danger-row">
-          <div>
-            <h3>Withdraw submission</h3>
-            <p>Pull this entry back to <strong>Draft</strong> so you can edit and resubmit before submissions close.</p>
-          </div>
-          <button type="button" className="dash-btn" disabled={busy} onClick={() => setConfirm('withdraw')}>
-            <i className="fas fa-rotate-left" aria-hidden="true" /> Withdraw
-          </button>
-        </div>
-      )}
-      {canDelete && (
-        <div className="ed-danger-row">
-          <div>
-            <h3>Delete this entry</h3>
-            <p>Permanently remove this entry and everything in it. This can’t be undone.</p>
-          </div>
-          <button type="button" className="dash-btn is-danger" disabled={busy} onClick={() => setConfirm('delete')}>
-            <i className="fas fa-trash-can" aria-hidden="true" /> Delete
-          </button>
-        </div>
-      )}
-      {error && (
-        <div className="dash-banner tone-error" style={{ margin: '0 20px 18px' }}>
-          <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{error}</span>
+    <div className="ed-actions" ref={ref}>
+      <button
+        type="button"
+        className="ed-actions-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Entry actions"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <i className="fas fa-ellipsis-vertical" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="ed-actions-menu" role="menu">
+          {canWithdraw && (
+            <button type="button" role="menuitem" className="ed-actions-item" onClick={() => choose('withdraw')}>
+              <i className="fas fa-rotate-left" aria-hidden="true" /> Withdraw to draft
+            </button>
+          )}
+          {canDelete && (
+            <button type="button" role="menuitem" className="ed-actions-item is-danger" onClick={() => choose('delete')}>
+              <i className="fas fa-trash-can" aria-hidden="true" /> Delete entry
+            </button>
+          )}
         </div>
       )}
 
@@ -781,6 +792,7 @@ function EntryActions({ entry, win, onWithdrawn, onDeleted }) {
           body="It returns to Draft and leaves the review queue. You can edit and resubmit while submissions are open."
           confirmLabel="Withdraw"
           busy={busy}
+          error={error}
           onConfirm={withdraw}
           onCancel={() => setConfirm(null)}
         />
@@ -792,15 +804,16 @@ function EntryActions({ entry, win, onWithdrawn, onDeleted }) {
           body="This permanently deletes the entry and its bidbook, declaration, and endorsement. This can’t be undone."
           confirmLabel="Delete entry"
           busy={busy}
+          error={error}
           onConfirm={remove}
           onCancel={() => setConfirm(null)}
         />
       )}
-    </section>
+    </div>
   )
 }
 
-function ConfirmDialog({ title, body, confirmLabel, danger, busy, onConfirm, onCancel }) {
+function ConfirmDialog({ title, body, confirmLabel, danger, busy, error, onConfirm, onCancel }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' && !busy) onCancel() }
     window.addEventListener('keydown', onKey)
@@ -812,6 +825,11 @@ function ConfirmDialog({ title, body, confirmLabel, danger, busy, onConfirm, onC
       <div className="ed-modal-card" onMouseDown={(e) => e.stopPropagation()}>
         <h3 className="ed-modal-title">{title}</h3>
         <p className="ed-modal-body">{body}</p>
+        {error && (
+          <div className="dash-banner tone-error" style={{ marginBottom: 14 }}>
+            <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{error}</span>
+          </div>
+        )}
         <div className="ed-modal-actions">
           <button type="button" className="dash-btn" onClick={onCancel} disabled={busy}>Cancel</button>
           <button type="button" className={`dash-btn ${danger ? 'is-danger' : 'is-primary'}`} onClick={onConfirm} disabled={busy}>
@@ -867,13 +885,17 @@ const EDITOR_CSS = `
   .ed-panel { margin-top: 22px; padding-bottom: 60px; }
   .ed-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
 
-  /* Owner actions (withdraw / delete) */
-  .ed-danger { margin-top: 30px; border: 1px solid var(--gray-200); border-radius: var(--radius-md); background: var(--white); overflow: hidden; }
-  .ed-danger-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px; }
-  .ed-danger-row + .ed-danger-row { border-top: 1px solid var(--gray-100); }
-  .ed-danger-row h3 { font-family: var(--font-heading); font-size: 0.95rem; font-weight: 800; color: var(--navy); }
-  .ed-danger-row p { font-size: 0.84rem; color: var(--gray-600); line-height: 1.5; margin-top: 3px; max-width: 62ch; }
-  .ed-danger-row .dash-btn { flex-shrink: 0; }
+  /* Owner actions (withdraw / delete) — header overflow menu */
+  .ed-actions { position: relative; margin-left: auto; }
+  .ed-actions-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid transparent; background: transparent; color: var(--gray-600); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+  .ed-actions-btn:hover, .ed-actions-btn[aria-expanded="true"] { background: var(--gray-100); color: var(--navy); border-color: var(--gray-200); }
+  .ed-actions-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; min-width: 188px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+  .ed-actions-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 10px; border: none; background: transparent; border-radius: var(--radius-sm); font: inherit; font-size: 0.88rem; color: var(--navy); cursor: pointer; }
+  .ed-actions-item i { width: 16px; text-align: center; color: var(--gray-400); }
+  .ed-actions-item:hover { background: var(--gray-100); }
+  .ed-actions-item.is-danger { color: #B91C1C; }
+  .ed-actions-item.is-danger i { color: currentColor; }
+  .ed-actions-item.is-danger:hover { background: #FEF2F2; }
 
   .ed-modal { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(15,25,46,0.55); backdrop-filter: blur(2px); animation: ed-modal-in 0.16s ease-out; }
   .ed-modal-card { width: 100%; max-width: 440px; background: var(--white); border-radius: var(--radius-md); box-shadow: 0 30px 70px rgba(15,25,46,0.4); padding: 26px; }
@@ -929,7 +951,5 @@ const EDITOR_CSS = `
     .ed-head-side { max-width: none; min-width: 0; width: 100%; }
     .ed-savealert { flex-direction: column; align-items: stretch; }
     .ed-savealert .dash-btn { width: 100%; }
-    .ed-danger-row { flex-direction: column; align-items: stretch; }
-    .ed-danger-row .dash-btn { width: 100%; }
   }
 `

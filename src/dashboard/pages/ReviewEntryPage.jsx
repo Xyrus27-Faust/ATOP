@@ -41,7 +41,6 @@ export default function ReviewEntryPage() {
     try {
       let res
       if (type === 'validate') res = await api.post(`/review/entries/${id}/validate`, undefined, { auth: true })
-      else if (type === 'begin') res = await api.post(`/review/entries/${id}/begin`, undefined, { auth: true })
       else res = await api.post(`/review/entries/${id}/${type}`, { reason: reason.trim() }, { auth: true })
       setOverride({ status: res.status, decisionReason: type === 'return' || type === 'disqualify' ? reason.trim() : null })
       setAction(null); setReason('')
@@ -232,15 +231,9 @@ export default function ReviewEntryPage() {
             </div>
           ) : (
             <div className="rv-buttons">
-              {status === 'Submitted' && (
-                <button type="button" className="dash-btn" disabled={submitting} onClick={() => decide('begin')}>
-                  <i className="fas fa-play" aria-hidden="true" /> Start review
-                </button>
-              )}
-              <div style={{ flex: 1 }} />
-              <button type="button" className="dash-btn is-danger" disabled={submitting} onClick={() => setAction('disqualify')}>Disqualify</button>
-              <button type="button" className="dash-btn" disabled={submitting} onClick={() => setAction('return')}>Return for revision</button>
-              <button type="button" className="dash-btn is-primary" disabled={submitting} onClick={() => decide('validate')}>
+              <button type="button" className="dash-btn is-danger is-sm" disabled={submitting} onClick={() => setAction('disqualify')}>Disqualify</button>
+              <button type="button" className="dash-btn is-sm" disabled={submitting} onClick={() => setAction('return')}>Return for revision</button>
+              <button type="button" className="dash-btn is-primary is-sm" disabled={submitting} onClick={() => decide('validate')}>
                 {submitting ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> …</> : <><i className="fas fa-circle-check" aria-hidden="true" /> Validate</>}
               </button>
             </div>
@@ -252,7 +245,7 @@ export default function ReviewEntryPage() {
         .rv-head-top { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
         .rv-title { font-family: var(--font-heading); font-size: clamp(1.3rem, 2.4vw, 1.7rem); font-weight: 800; color: var(--navy); line-height: 1.18; }
         .rv-sub { color: var(--gray-600); font-size: 0.9rem; margin-top: 6px; }
-        .rv-stack { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; padding-bottom: 90px; }
+        .rv-stack { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; padding-bottom: 72px; }
         .rv-section-title { font-family: var(--font-heading); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy); display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
         .rv-section-title i { color: var(--gold-dark); }
         .rv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; }
@@ -276,15 +269,13 @@ export default function ReviewEntryPage() {
         .rv-video-fallback i { color: var(--gold-dark); margin-top: 2px; }
         .rv-video-fallback strong { color: var(--navy); display: block; margin-bottom: 2px; }
         .rv-video-link { color: var(--gold-dark); word-break: break-all; font-size: 0.84rem; text-decoration: underline; text-underline-offset: 2px; }
-        .rv-decide { position: sticky; bottom: 14px; margin-top: 18px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 14px 16px; }
-        .rv-buttons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .rv-decide { position: sticky; bottom: 12px; margin-top: 16px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 9px 12px; }
+        .rv-buttons { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
         .rv-reason { display: flex; flex-direction: column; gap: 10px; }
         .rv-reason-actions { display: flex; justify-content: flex-end; gap: 10px; }
         @media (max-width: 620px) {
           .rv-grid { grid-template-columns: 1fr; }
-          .rv-buttons { justify-content: stretch; }
           .rv-buttons .dash-btn { flex: 1; }
-          .rv-buttons > div { display: none; }
         }
       `}</style>
     </>

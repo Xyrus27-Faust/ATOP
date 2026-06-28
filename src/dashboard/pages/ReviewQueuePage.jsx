@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
@@ -43,13 +43,90 @@ function Th({ label, sortKey, sort, onSort, className }) {
   )
 }
 
+// Type-ahead LGU filter backed by the canonical PSGC table (GET /lgus/search). Picking an LGU
+// filters the queue by its code; the province · region context disambiguates same-named towns.
+function LguSearchSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) return
+    const t = setTimeout(() => {
+      setLoading(true)
+      api.get(`/lgus/search?q=${encodeURIComponent(q)}&limit=20`)
+        .then(setResults)
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false))
+    }, 200)
+    return () => clearTimeout(t)
+  }, [query])
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  function pick(r) {
+    onChange({ code: r.code, name: r.name })
+    setQuery('')
+    setResults([])
+    setOpen(false)
+  }
+
+  const term = query.trim()
+  return (
+    <div className="rq-lgu" ref={ref}>
+      {value ? (
+        <div className="rq-lgu-chip">
+          <i className="fas fa-location-dot" aria-hidden="true" />
+          <span className="rq-lgu-chip-name">{value.name}</span>
+          <button type="button" onClick={() => onChange(null)} aria-label="Clear LGU filter">
+            <i className="fas fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+      ) : (
+        <div className="rq-lgu-field">
+          <i className="fas fa-magnifying-glass" aria-hidden="true" />
+          <input
+            className="dash-input"
+            type="search"
+            placeholder="Filter by LGU…"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+            aria-label="Filter by LGU"
+          />
+        </div>
+      )}
+      {open && !value && term.length >= 2 && (
+        <div className="rq-lgu-menu" role="listbox">
+          {loading && <div className="rq-lgu-note">Searching…</div>}
+          {!loading && results.length === 0 && <div className="rq-lgu-note">No LGU matches “{term}”.</div>}
+          {results.map((r) => (
+            <button type="button" key={r.code} className="rq-lgu-opt" role="option" onClick={() => pick(r)}>
+              <span className="rq-lgu-opt-name">{r.name}</span>
+              <span className="rq-lgu-opt-ctx">{r.context}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ReviewQueuePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [view, setView] = useState('queue')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
-  const [lgu, setLgu] = useState('all')
+  const [selectedLgu, setSelectedLgu] = useState(null) // { code, name } from the LGU search
   const [sort, setSort] = useState({ key: 'submittedAt', dir: 'desc' })
 
   const { loading, error, data, reload } = useAsync(async () => {
@@ -74,22 +151,17 @@ export default function ReviewQueuePage() {
     return nums.map((n) => ({ value: String(n), label: `#${n} · ${nameByNumber.get(n) || `Category ${n}`}` }))
   }, [entries, nameByNumber])
 
-  const lguOptions = useMemo(
-    () => [...new Set((entries || []).map((e) => e.lguName).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-    [entries],
-  )
-
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
     const filtered = (entries || []).filter((e) => {
       if (category !== 'all' && String(e.categoryNumber) !== category) return false
-      if (lgu !== 'all' && e.lguName !== lgu) return false
+      if (selectedLgu && e.lguCode !== selectedLgu.code) return false
       if (term && !`${e.title} ${e.lguName}`.toLowerCase().includes(term)) return false
       return true
     })
     const dir = sort.dir === 'asc' ? 1 : -1
     return filtered.sort((a, b) => compare(a, b, sort.key) * dir)
-  }, [entries, search, category, lgu, sort])
+  }, [entries, search, category, selectedLgu, sort])
 
   if (!isReviewer(user?.roles)) return <Navigate to="/dashboard" replace />
   if (loading) return <Loading />
@@ -98,14 +170,14 @@ export default function ReviewQueuePage() {
   function onView(next) {
     setView(next)
     setCategory('all') // option sets change with the loaded view
-    setLgu('all')
+    setSelectedLgu(null)
   }
 
   function onSort(key) {
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))
   }
 
-  const filtersActive = search.trim() !== '' || category !== 'all' || lgu !== 'all'
+  const filtersActive = search.trim() !== '' || category !== 'all' || selectedLgu != null
   const total = entries?.length || 0
 
   return (
@@ -144,17 +216,12 @@ export default function ReviewQueuePage() {
           ))}
         </select>
 
-        <select className="dash-select" value={lgu} onChange={(e) => setLgu(e.target.value)} aria-label="LGU">
-          <option value="all">All LGUs</option>
-          {lguOptions.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
+        <LguSearchSelect value={selectedLgu} onChange={setSelectedLgu} />
 
         <div className="rqt-meta">
           <span className="rqt-count">{rows.length} of {total}</span>
           {filtersActive && (
-            <button type="button" className="rqt-clear" onClick={() => { setSearch(''); setCategory('all'); setLgu('all') }}>
+            <button type="button" className="rqt-clear" onClick={() => { setSearch(''); setCategory('all'); setSelectedLgu(null) }}>
               <i className="fas fa-xmark" aria-hidden="true" /> Clear
             </button>
           )}
@@ -212,11 +279,31 @@ export default function ReviewQueuePage() {
       )}
 
       <style>{`
-        .rqt-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+        /* position+z-index so the LGU dropdown paints above the table card below it
+           (each dash-content child gets its own stacking context via dash-fade). */
+        .rqt-controls { position: relative; z-index: 20; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
         .rqt-search { position: relative; flex: 1 1 240px; min-width: 200px; }
         .rqt-search i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }
         .rqt-search .dash-input { padding-left: 36px; }
         .rqt-controls .dash-select { width: auto; min-width: 152px; }
+
+        /* LGU type-ahead filter */
+        .rq-lgu { position: relative; flex: 0 1 240px; min-width: 200px; }
+        .rq-lgu-field { position: relative; }
+        .rq-lgu-field i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }
+        .rq-lgu-field .dash-input { padding-left: 36px; }
+        .rq-lgu-chip { display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 6px 0 13px; border: 1px solid var(--gold); background: rgba(200,168,75,0.08); border-radius: var(--radius-sm); }
+        .rq-lgu-chip > i { color: var(--gold-dark); font-size: 0.82rem; flex-shrink: 0; }
+        .rq-lgu-chip-name { font-family: var(--font-heading); font-size: 0.84rem; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rq-lgu-chip button { margin-left: auto; display: grid; place-items: center; background: none; border: none; color: var(--gray-600); cursor: pointer; padding: 5px; border-radius: 6px; }
+        .rq-lgu-chip button:hover { color: var(--navy); background: rgba(0,0,0,0.05); }
+        .rq-lgu-menu { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; min-width: 264px; max-height: 320px; overflow-y: auto; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg, 0 18px 44px rgba(15,25,46,0.18)); padding: 5px; }
+        .rq-lgu-note { padding: 11px 12px; color: var(--gray-600); font-size: 0.84rem; font-family: var(--font-body); }
+        .rq-lgu-opt { display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 9px 11px; border-radius: var(--radius-sm); }
+        .rq-lgu-opt:hover { background: var(--gray-100); }
+        .rq-lgu-opt-name { font-family: var(--font-heading); font-weight: 700; font-size: 0.86rem; color: var(--navy); }
+        .rq-lgu-opt-ctx { font-size: 0.76rem; color: var(--gray-600); }
+
         .rqt-meta { display: flex; align-items: center; gap: 12px; margin-left: auto; }
         .rqt-count { font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; color: var(--gray-600); white-space: nowrap; }
         .rqt-clear { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; color: var(--gold-dark); font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; cursor: pointer; padding: 0; }
@@ -251,7 +338,7 @@ export default function ReviewQueuePage() {
         @media (max-width: 720px) {
           .rqt-catname { display: none; }
           .rqt-meta { width: 100%; margin-left: 0; justify-content: space-between; }
-          .rqt-controls .dash-select { flex: 1 1 auto; }
+          .rqt-controls .dash-select, .rq-lgu { flex: 1 1 auto; }
         }
       `}</style>
     </>
