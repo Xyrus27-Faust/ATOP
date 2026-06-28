@@ -9,7 +9,6 @@ import { Field, ctl } from '../components/form'
 import {
   COVERAGE_OPTIONS,
   LGU_LEVELS,
-  REGIONS,
   ENTRANT_TYPE_LABELS,
   NOMINATOR_RULE_LABELS,
 } from '@/lib/pearlAwards'
@@ -18,9 +17,10 @@ const EMPTY = {
   categoryNumber: '',
   title: '',
   coverage: '',
-  'lgu.name': '',
-  'lgu.level': '',
   'lgu.region': '',
+  'lgu.province': '',
+  'lgu.code': '',
+  'lgu.level': '',
   'nominator.firstName': '',
   'nominator.lastName': '',
   'nominator.designation': '',
@@ -71,6 +71,16 @@ export default function NewEntryPage() {
   const [submitting, setSubmitting] = useState(false)
   const [step, setStep] = useState(0)
 
+  // LGU cascade options (PSGC): regions loaded once; provinces/cities fetched on selection.
+  const [regions, setRegions] = useState([])
+  const [provinces, setProvinces] = useState([])
+  const [cities, setCities] = useState([])
+  useEffect(() => {
+    let active = true
+    api.get('/lgus/regions').then((r) => { if (active) setRegions(r) }).catch(() => {})
+    return () => { active = false }
+  }, [])
+
   // For a preset third-party-only category, default the nominator toggle on
   // (mirrors onCategoryChange for a manual pick). Runs once when the catalog lands.
   const presetApplied = useRef(false)
@@ -94,6 +104,14 @@ export default function NewEntryPage() {
       ? LGU_LEVELS.filter((l) => category.eligibleLguLevels.includes(l.value))
       : LGU_LEVELS
 
+  // A real province can itself be the LGU (a province-level entry); synthetic groups
+  // (Metro Manila, Independent Cities) can't, so only their cities are selectable.
+  const selectedProvince = provinces.find((p) => p.code === form['lgu.province'])
+  const cityOptions = [
+    ...(selectedProvince?.selectable ? [{ code: selectedProvince.code, name: `— Whole province (${selectedProvince.name}) —` }] : []),
+    ...cities,
+  ]
+
   const set = (key) => (e) =>
     setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
 
@@ -109,6 +127,27 @@ export default function NewEntryPage() {
     setErrors((p) => ({ ...p, categoryNumber: undefined }))
   }
 
+  // LGU cascade: each selection narrows and resets the levels below it.
+  function onRegionChange(e) {
+    const region = e.target.value
+    setForm((f) => ({ ...f, 'lgu.region': region, 'lgu.province': '', 'lgu.code': '' }))
+    setProvinces([])
+    setCities([])
+    setErrors((p) => ({ ...p, 'lgu.region': undefined, 'lgu.province': undefined, 'lgu.code': undefined }))
+    if (region) api.get(`/lgus/provinces?region=${region}`).then(setProvinces).catch(() => {})
+  }
+  function onProvinceChange(e) {
+    const province = e.target.value
+    setForm((f) => ({ ...f, 'lgu.province': province, 'lgu.code': '' }))
+    setCities([])
+    setErrors((p) => ({ ...p, 'lgu.province': undefined, 'lgu.code': undefined }))
+    if (province) api.get(`/lgus/cities?province=${encodeURIComponent(province)}`).then(setCities).catch(() => {})
+  }
+  function onCityChange(e) {
+    setForm((f) => ({ ...f, 'lgu.code': e.target.value }))
+    setErrors((p) => ({ ...p, 'lgu.code': undefined }))
+  }
+
   function errorsForStep(i) {
     const e = {}
     if (i === 0) {
@@ -116,9 +155,10 @@ export default function NewEntryPage() {
       if (!form.title.trim()) e.title = 'Give your entry a title.'
       if (!form.coverage) e.coverage = 'Select how the program maps to the coverage year.'
     } else if (i === 1) {
-      if (!form['lgu.name'].trim()) e['lgu.name'] = 'LGU name is required.'
-      if (!form['lgu.level']) e['lgu.level'] = 'Select an LGU level.'
       if (!form['lgu.region']) e['lgu.region'] = 'Select a region.'
+      if (!form['lgu.province']) e['lgu.province'] = 'Select a province.'
+      if (!form['lgu.code']) e['lgu.code'] = 'Select your city/municipality.'
+      if (!form['lgu.level']) e['lgu.level'] = 'Select an LGU level.'
     } else if (i === 2) {
       if (!form['nominator.firstName'].trim()) e['nominator.firstName'] = 'First name is required.'
       if (!form['nominator.lastName'].trim()) e['nominator.lastName'] = 'Last name is required.'
@@ -167,7 +207,7 @@ export default function NewEntryPage() {
         categoryNumber: Number(form.categoryNumber),
         title: form.title.trim(),
         coverage: form.coverage,
-        lgu: { name: form['lgu.name'].trim(), level: form['lgu.level'], region: form['lgu.region'] },
+        lgu: { code: form['lgu.code'], level: form['lgu.level'] },
         nominator: {
           firstName: form['nominator.firstName'].trim(),
           lastName: form['nominator.lastName'].trim(),
@@ -268,20 +308,34 @@ export default function NewEntryPage() {
             {step === 1 && (
               <>
                 <div className="dash-card-title"><i className="fas fa-building-columns" aria-hidden="true" /> Local government unit</div>
-                <Field label="LGU name" htmlFor="lguName" required error={errors['lgu.name']}>
-                  <input id="lguName" className={ctl('dash-input', errors['lgu.name'])} value={form['lgu.name']} onChange={set('lgu.name')} placeholder="e.g. Province of Bohol" />
-                </Field>
+                <p className="dash-help" style={{ marginTop: '-6px' }}>
+                  Pick your LGU from the official PSGC list. Region narrows the province, which narrows the city/municipality.
+                </p>
                 <div className="dash-form-row">
+                  <Field label="Region" htmlFor="lguRegion" required error={errors['lgu.region']}>
+                    <select id="lguRegion" className={ctl('dash-select', errors['lgu.region'])} value={form['lgu.region']} onChange={onRegionChange}>
+                      <option value="">Select region…</option>
+                      {regions.map((r) => <option key={r.region} value={r.region}>{r.name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Province" htmlFor="lguProvince" required error={errors['lgu.province']}>
+                    <select id="lguProvince" className={ctl('dash-select', errors['lgu.province'])} value={form['lgu.province']} onChange={onProvinceChange} disabled={!form['lgu.region']}>
+                      <option value="">{form['lgu.region'] ? 'Select province…' : 'Choose a region first'}</option>
+                      {provinces.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <div className="dash-form-row">
+                  <Field label="City / Municipality" htmlFor="lguCity" required error={errors['lgu.code']}>
+                    <select id="lguCity" className={ctl('dash-select', errors['lgu.code'])} value={form['lgu.code']} onChange={onCityChange} disabled={!form['lgu.province']}>
+                      <option value="">{form['lgu.province'] ? 'Select city/municipality…' : 'Choose a province first'}</option>
+                      {cityOptions.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                    </select>
+                  </Field>
                   <Field label="Level" htmlFor="lguLevel" required error={errors['lgu.level']}>
                     <select id="lguLevel" className={ctl('dash-select', errors['lgu.level'])} value={form['lgu.level']} onChange={set('lgu.level')}>
                       <option value="">Select level…</option>
                       {levelOptions.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Region" htmlFor="lguRegion" required error={errors['lgu.region']}>
-                    <select id="lguRegion" className={ctl('dash-select', errors['lgu.region'])} value={form['lgu.region']} onChange={set('lgu.region')}>
-                      <option value="">Select region…</option>
-                      {REGIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </Field>
                 </div>

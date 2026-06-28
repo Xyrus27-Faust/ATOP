@@ -6,7 +6,7 @@ import { useAsync } from '../useAsync'
 import { isReviewer } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
-import { statusMeta, formatDate, labelFor, COVERAGE_OPTIONS, EDITABLE_STATUSES } from '@/lib/pearlAwards'
+import { statusMeta, formatDate, labelFor, COVERAGE_OPTIONS, EDITABLE_STATUSES, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
 
 export default function ReviewEntryPage() {
   const { id } = useParams()
@@ -34,6 +34,7 @@ export default function ReviewEntryPage() {
   const decisionReason = override ? override.decisionReason : entry.decisionReason
   const underReview = status === 'Submitted' || status === 'UnderValidation'
   const bb = entry.bidbook || { executiveSummary: '', narratives: [], supportingDocuments: [] }
+  const kindByLabel = new Map((category?.requiredSubmissions || []).map((r) => [r.label, r.kind]))
 
   async function decide(type) {
     setSubmitting(true); setBanner(null)
@@ -133,14 +134,49 @@ export default function ReviewEntryPage() {
         </Section>
 
         <Section icon="fa-paperclip" title="Supporting documents">
-          {bb.supportingDocuments.length === 0 ? <p className="rv-empty">No documents attached.</p> : bb.supportingDocuments.map((d) => (
-            <div key={d.label} className="rv-doc">
-              <span className="rv-doc-label">{d.label}</span>
-              <button type="button" className="dash-btn is-ghost is-sm" onClick={() => viewDoc(d.label)}>
-                <i className={`fas ${d.fileKey ? 'fa-file-lines' : 'fa-link'}`} aria-hidden="true" /> {d.fileName || (d.fileKey ? 'View file' : 'Open link')}
-              </button>
-            </div>
-          ))}
+          {bb.supportingDocuments.length === 0 ? <p className="rv-empty">No documents attached.</p> : bb.supportingDocuments.map((d) => {
+            const embed = !d.fileKey ? videoEmbed(d.link) : null
+            const brokenVideo = !d.fileKey && !embed && (kindByLabel.get(d.label) === 'VideoLink' || looksLikeVideo(d.link))
+            return (
+              <div key={d.label} className="rv-doc-item">
+                <div className="rv-doc">
+                  <span className="rv-doc-label">{d.label}</span>
+                  {embed ? (
+                    <a className="dash-btn is-ghost is-sm" href={d.link} target="_blank" rel="noopener noreferrer">
+                      <i className="fas fa-up-right-from-square" aria-hidden="true" /> Open in {embed.provider}
+                    </a>
+                  ) : (
+                    <button type="button" className="dash-btn is-ghost is-sm" onClick={() => viewDoc(d.label)}>
+                      <i className={`fas ${d.fileKey ? 'fa-file-lines' : 'fa-link'}`} aria-hidden="true" /> {d.fileName || (d.fileKey ? 'View file' : 'Open link')}
+                    </button>
+                  )}
+                </div>
+                {embed && (
+                  <div className="rv-video">
+                    <iframe
+                      src={embed.embedUrl}
+                      title={d.label}
+                      loading="lazy"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
+                {brokenVideo && (
+                  <div className="rv-video-fallback">
+                    <i className="fas fa-circle-exclamation" aria-hidden="true" />
+                    <div>
+                      <strong>This video cannot be previewed.</strong>
+                      {d.link
+                        ? <a href={d.link} target="_blank" rel="noopener noreferrer" className="rv-video-link">{d.link}</a>
+                        : <span className="rv-empty">No link was provided.</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </Section>
 
         {/* Declaration & endorsement */}
@@ -231,6 +267,15 @@ export default function ReviewEntryPage() {
         .rv-doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--gray-100); }
         .rv-doc:first-of-type { border-top: none; padding-top: 0; }
         .rv-doc-label { font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.9rem; }
+        .rv-doc-item { padding: 12px 0; border-top: 1px solid var(--gray-100); }
+        .rv-doc-item:first-of-type { border-top: none; padding-top: 0; }
+        .rv-doc-item .rv-doc { border-top: none; padding: 0; }
+        .rv-video { margin-top: 12px; width: 100%; max-width: 680px; aspect-ratio: 16 / 9; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--gray-200); }
+        .rv-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+        .rv-video-fallback { margin-top: 12px; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-md); background: var(--gray-100); border: 1px solid var(--gray-200); font-size: 0.88rem; }
+        .rv-video-fallback i { color: var(--gold-dark); margin-top: 2px; }
+        .rv-video-fallback strong { color: var(--navy); display: block; margin-bottom: 2px; }
+        .rv-video-link { color: var(--gold-dark); word-break: break-all; font-size: 0.84rem; text-decoration: underline; text-underline-offset: 2px; }
         .rv-decide { position: sticky; bottom: 14px; margin-top: 18px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 14px 16px; }
         .rv-buttons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .rv-reason { display: flex; flex-direction: column; gap: 10px; }

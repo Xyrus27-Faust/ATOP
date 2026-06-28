@@ -108,6 +108,58 @@ export function formatBytes(n) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
 }
 
+// ---- Video embeds ---------------------------------------------------------
+// Reviewers preview submitted video links (almost always YouTube) inline. We
+// only build a player URL for providers we recognise; everything else stays a
+// plain link. `looksLikeVideo` lets the UI flag a link that is *meant* to be a
+// video but can't be embedded, so it can say so instead of failing silently.
+
+const YT_HOSTS = new Set(['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtube-nocookie.com', 'youtu.be'])
+const VIDEO_HOSTS = new Set([...YT_HOSTS, 'vimeo.com', 'player.vimeo.com', 'dailymotion.com', 'dai.ly', 'facebook.com', 'fb.watch'])
+
+function parseUrl(link) {
+  if (!link || typeof link !== 'string') return null
+  try { return new URL(link.trim()) } catch { return null }
+}
+
+const bareHost = (url) => url.hostname.replace(/^www\./, '').toLowerCase()
+
+function youTubeId(url, host) {
+  if (host === 'youtu.be') return url.pathname.slice(1).split('/')[0] || null
+  if (url.pathname === '/watch') return url.searchParams.get('v')
+  const m = url.pathname.match(/^\/(?:embed|shorts|live|v)\/([A-Za-z0-9_-]+)/)
+  return m ? m[1] : null
+}
+
+// Returns { provider, embedUrl } for an embeddable video link, otherwise null.
+export function videoEmbed(link) {
+  const url = parseUrl(link)
+  if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) return null
+  const host = bareHost(url)
+
+  if (YT_HOSTS.has(host)) {
+    const id = youTubeId(url, host)
+    if (id && /^[A-Za-z0-9_-]{6,}$/.test(id)) {
+      const t = url.searchParams.get('start') || url.searchParams.get('t')
+      const start = t && /^\d+$/.test(t) ? `?start=${t}` : ''
+      return { provider: 'YouTube', embedUrl: `https://www.youtube-nocookie.com/embed/${id}${start}` }
+    }
+  }
+  if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+    const id = (url.pathname.match(/\/(?:video\/)?(\d+)/) || [])[1]
+    if (id) return { provider: 'Vimeo', embedUrl: `https://player.vimeo.com/video/${id}` }
+  }
+  return null
+}
+
+// True when a link is meant to be a video but may not be previewable inline —
+// a known video host or a direct video file we have no inline player for.
+export function looksLikeVideo(link) {
+  const url = parseUrl(link)
+  if (!url) return false
+  return VIDEO_HOSTS.has(bareHost(url)) || /\.(mp4|mov|webm|m4v|avi|mkv)(?:[?#]|$)/i.test(url.pathname)
+}
+
 // ---- Submission window ----------------------------------------------------
 
 export function submissionWindow(catalog, now = new Date()) {
