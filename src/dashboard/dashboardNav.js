@@ -37,6 +37,7 @@ export function roleLabel(role) {
 
 const OVERVIEW = { to: '/dashboard', end: true, label: 'Overview', icon: 'fa-gauge-high' }
 const MY_ENTRIES = { to: '/dashboard/entries', label: 'My Entries', icon: 'fa-folder-open' }
+const SUMMARY = { to: '/dashboard/summary', label: 'Summary', icon: 'fa-chart-pie' }
 const REVIEW = { to: '/dashboard/review', label: 'Review Queue', icon: 'fa-clipboard-check' }
 const REVIEWERS = { to: '/dashboard/admin/reviewers', label: 'Reviewers', icon: 'fa-users-gear' }
 // Award categories now live on the public marketing page (ungated). The dashboard
@@ -49,7 +50,7 @@ export function navForRoles(roles = []) {
   const applicant = roles.includes('Applicant') || !reviewer // default to the applicant view
   const nav = []
   if (applicant) nav.push(OVERVIEW, MY_ENTRIES)
-  if (reviewer) nav.push(REVIEW)
+  if (reviewer) nav.push(SUMMARY, REVIEW)
   if (isAdmin(roles)) nav.push(REVIEWERS) // category assignment is an admin task
   nav.push(AWARDS, PROFILE)
   return nav

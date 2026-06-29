@@ -15,6 +15,7 @@ import EntryEditorPage from './dashboard/pages/EntryEditorPage'
 import ProfilePage from './dashboard/pages/ProfilePage'
 import ReviewQueuePage from './dashboard/pages/ReviewQueuePage'
 import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
+import SummaryPage from './dashboard/pages/SummaryPage'
 import ReviewerAdminPage from './dashboard/pages/ReviewerAdminPage'
 
 // Auth pages are real routes (the email verification link points at
@@ -44,6 +45,7 @@ export default function AppRoutes() {
           <Route element={<ApplicantRoute />}>
             <Route path="entries" element={<EntriesListPage />} />
           </Route>
+          <Route path="summary" element={<SummaryPage />} />
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
           <Route element={<AdminRoute />}>
