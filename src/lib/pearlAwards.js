@@ -88,6 +88,9 @@ export const NARRATIVE_MAX = 1200
 // links (e.g. YouTube) — hosting/serving video is too costly.
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024 // 25 MB
 
+// Optional per-criterion evidence files (mirrors CriterionEvidence.MaxPerCriterion).
+export const EVIDENCE_MAX_FILES = 3
+
 // What a required-submission slot accepts, driven by its `kind`.
 export function uploadRulesFor(kind) {
   switch (kind) {

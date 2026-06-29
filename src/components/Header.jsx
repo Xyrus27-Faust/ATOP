@@ -16,7 +16,7 @@ const navItems = [
     label: 'Programs', id: 'programs',
     children: ['Capacity Building', 'Conventions & Meetings', 'Research & Publications', 'Advocacy', 'Partnerships'],
   },
-  { label: 'Awards', id: 'awards' },
+  { label: 'Pearl Awards', id: 'awards' },
   {
     label: 'News & Events', id: 'news',
     children: ['Latest News', 'Upcoming Events', 'Press Releases', 'Gallery'],

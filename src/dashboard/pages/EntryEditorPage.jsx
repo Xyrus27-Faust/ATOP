@@ -20,6 +20,7 @@ import {
   COVERAGE_OPTIONS,
   labelFor,
   MAX_UPLOAD_BYTES,
+  EVIDENCE_MAX_FILES,
   uploadRulesFor,
   formatBytes,
 } from '@/lib/pearlAwards'
@@ -186,7 +187,15 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
     })
     return seed
   })
+  const [evidence, setEvidence] = useState(() => {
+    const seed = {}
+    ;(entry.bidbook?.evidence || []).forEach((e) => {
+      ;(seed[e.criterionId] ||= []).push({ fileKey: e.fileKey, fileName: e.fileName, contentType: e.contentType })
+    })
+    return seed
+  })
   const [uploading, setUploading] = useState(null) // label currently uploading
+  const [uploadingEvidence, setUploadingEvidence] = useState(null) // criterionId currently uploading
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [banner, setBanner] = useState(null)
@@ -238,6 +247,47 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
     }
   }
 
+  // ---- per-criterion evidence files (optional, up to EVIDENCE_MAX_FILES each) ----
+  const evidenceOf = (criterionId) => evidence[criterionId] || []
+  // A file is viewable once it's saved to the entry (the URL endpoint reads stored evidence).
+  const savedEvidenceKeys = new Set((entry.bidbook?.evidence || []).map((e) => e.fileKey))
+  async function uploadEvidence(criterionId, file) {
+    if (!file) return
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setBanner(`That file is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_UPLOAD_BYTES)}. Upload a smaller file.`)
+      return
+    }
+    if (evidenceOf(criterionId).length >= EVIDENCE_MAX_FILES) {
+      setBanner(`You can attach up to ${EVIDENCE_MAX_FILES} evidence files per criterion.`)
+      return
+    }
+    setUploadingEvidence(criterionId); setBanner(null)
+    try {
+      const contentType = file.type || 'application/octet-stream'
+      const pres = await api.post(`/entries/${entry.id}/evidence/presign`, { criterionId, fileName: file.name, contentType }, { auth: true })
+      const res = await fetch(pres.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file })
+      if (!res.ok) throw new Error(`Upload failed (${res.status}).`)
+      setEvidence((ev) => ({ ...ev, [criterionId]: [...(ev[criterionId] || []), { fileKey: pres.fileKey, fileName: file.name, contentType }] }))
+      touch()
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : 'We couldn’t upload that file. Please try again.')
+    } finally {
+      setUploadingEvidence(null)
+    }
+  }
+  function removeEvidence(criterionId, fileKey) {
+    setEvidence((ev) => ({ ...ev, [criterionId]: (ev[criterionId] || []).filter((f) => f.fileKey !== fileKey) }))
+    touch()
+  }
+  async function viewEvidence(fileKey) {
+    try {
+      const { url } = await api.get(`/entries/${entry.id}/evidence/url?fileKey=${encodeURIComponent(fileKey)}`, { auth: true })
+      window.open(url, '_blank', 'noopener')
+    } catch {
+      setBanner('Save your changes first, then you can view the file.')
+    }
+  }
+
   const summaryOver = summary.length > EXEC_SUMMARY_MAX
   const narrativeOver = Object.values(narratives).some((t) => (t || '').length > NARRATIVE_MAX)
   const blocked = summaryOver || narrativeOver
@@ -258,6 +308,8 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
           fileName: d.fileName || null,
           contentType: d.contentType || null,
         })),
+      evidence: Object.entries(evidence).flatMap(([criterionId, files]) =>
+        files.map((f) => ({ criterionId, fileKey: f.fileKey, fileName: f.fileName || null, contentType: f.contentType || null }))),
     }
   }
 
@@ -276,7 +328,7 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
   // Autosave (debounced) while there are unsaved, within-limit changes; also
   // warns on tab close and flushes when navigating away.
   useAutosave({
-    signature: JSON.stringify([summary, narratives, docs]),
+    signature: JSON.stringify([summary, narratives, docs, evidence]),
     dirty,
     canSave: !blocked,
     onSave: doSave,
@@ -315,6 +367,8 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
         {criteria.map((c) => {
           const text = narratives[c.id] || ''
           const over = text.length > NARRATIVE_MAX
+          const files = evidenceOf(c.id)
+          const evBusy = uploadingEvidence === c.id
           return (
             <div key={c.id} className="ed-criterion">
               <div className="ed-criterion-head">
@@ -331,6 +385,45 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
                   placeholder={`Describe how your program meets “${c.name}”…`}
                 />
               </Field>
+
+              {(!readOnly || files.length > 0) && (
+                <div className="ed-evidence">
+                  <div className="ed-evidence-head">
+                    <span className="ed-evidence-title"><i className="fas fa-paperclip" aria-hidden="true" /> Supporting evidence</span>
+                    <span className="ed-evidence-opt">optional · up to {EVIDENCE_MAX_FILES} files</span>
+                  </div>
+                  {files.length > 0 && (
+                    <ul className="ed-evidence-list">
+                      {files.map((f) => (
+                        <li key={f.fileKey} className="ed-evidence-item">
+                          <i className="fas fa-file-lines" aria-hidden="true" />
+                          <span className="ed-evidence-name">{f.fileName || 'Uploaded file'}</span>
+                          {savedEvidenceKeys.has(f.fileKey) ? (
+                            <button type="button" className="dash-btn is-ghost is-sm" onClick={() => viewEvidence(f.fileKey)}>
+                              <i className="fas fa-arrow-up-right-from-square" aria-hidden="true" /> View
+                            </button>
+                          ) : (
+                            <span className="ed-file-note">uploaded · save to view</span>
+                          )}
+                          {!readOnly && (
+                            <button type="button" className="dash-btn is-ghost is-sm" onClick={() => removeEvidence(c.id, f.fileKey)}>
+                              <i className="fas fa-xmark" aria-hidden="true" /> Remove
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {!readOnly && files.length < EVIDENCE_MAX_FILES && (
+                    <label className={`dash-btn is-ghost is-sm ed-upload-btn${evBusy ? ' is-busy' : ''}`}>
+                      {evBusy
+                        ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Uploading…</>
+                        : <><i className="fas fa-upload" aria-hidden="true" /> Add file</>}
+                      <input type="file" hidden disabled={evBusy} onChange={(e) => { uploadEvidence(c.id, e.target.files?.[0]); e.target.value = '' }} />
+                    </label>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -914,6 +1007,15 @@ const EDITOR_CSS = `
   .ed-criterion-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .ed-criterion-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.95rem; }
   .ed-criterion-ind { color: var(--gray-600); font-size: 0.82rem; line-height: 1.55; }
+  .ed-evidence { padding: 12px; background: var(--off-white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 10px; }
+  .ed-evidence-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .ed-evidence-title { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.82rem; display: flex; align-items: center; gap: 7px; }
+  .ed-evidence-title i { color: var(--gold-dark); }
+  .ed-evidence-opt { font-size: 0.74rem; color: var(--gray-400); white-space: nowrap; }
+  .ed-evidence-list { display: flex; flex-direction: column; gap: 6px; }
+  .ed-evidence-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+  .ed-evidence-item > i { color: var(--gold-dark); }
+  .ed-evidence-name { font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.85rem; flex: 1; min-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ed-doc { padding: 14px 0; border-top: 1px solid var(--gray-100); display: flex; flex-direction: column; gap: 8px; }
   .ed-doc:first-of-type { border-top: none; }
   .ed-doc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

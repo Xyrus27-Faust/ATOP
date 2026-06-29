@@ -33,8 +33,12 @@ export default function ReviewEntryPage() {
   const status = override?.status || entry.status
   const decisionReason = override ? override.decisionReason : entry.decisionReason
   const underReview = status === 'Submitted' || status === 'UnderValidation'
-  const bb = entry.bidbook || { executiveSummary: '', narratives: [], supportingDocuments: [] }
+  const bb = entry.bidbook || { executiveSummary: '', narratives: [], supportingDocuments: [], evidence: [] }
   const kindByLabel = new Map((category?.requiredSubmissions || []).map((r) => [r.label, r.kind]))
+  const evidenceByCriterion = (bb.evidence || []).reduce((map, e) => {
+    ;(map[e.criterionId] ||= []).push(e)
+    return map
+  }, {})
 
   async function decide(type) {
     setSubmitting(true); setBanner(null)
@@ -57,6 +61,15 @@ export default function ReviewEntryPage() {
       window.open(url, '_blank', 'noopener')
     } catch {
       setBanner('We couldn’t open that document.')
+    }
+  }
+
+  async function viewEvidence(fileKey) {
+    try {
+      const { url } = await api.get(`/review/entries/${id}/evidence/url?fileKey=${encodeURIComponent(fileKey)}`, { auth: true })
+      window.open(url, '_blank', 'noopener')
+    } catch {
+      setBanner('We couldn’t open that evidence file.')
     }
   }
 
@@ -121,15 +134,28 @@ export default function ReviewEntryPage() {
         </Section>
 
         <Section icon="fa-list-check" title="Criteria narratives">
-          {bb.narratives.length === 0 ? <p className="rv-empty">No narratives provided.</p> : bb.narratives.map((n) => (
-            <div key={n.criterionId} className="rv-narr">
-              <div className="rv-narr-head">
-                <span className="rv-narr-name">{n.criterionName}</span>
-                <span className="dash-badge tone-progress">{n.criterionPoints} pts</span>
+          {bb.narratives.length === 0 ? <p className="rv-empty">No narratives provided.</p> : bb.narratives.map((n) => {
+            const files = evidenceByCriterion[n.criterionId] || []
+            return (
+              <div key={n.criterionId} className="rv-narr">
+                <div className="rv-narr-head">
+                  <span className="rv-narr-name">{n.criterionName}</span>
+                  <span className="dash-badge tone-progress">{n.criterionPoints} pts</span>
+                </div>
+                <p className="rv-prose">{n.text}</p>
+                {files.length > 0 && (
+                  <div className="rv-evidence">
+                    <span className="rv-evidence-label"><i className="fas fa-paperclip" aria-hidden="true" /> Supporting evidence</span>
+                    {files.map((f) => (
+                      <button key={f.fileKey} type="button" className="dash-btn is-ghost is-sm" onClick={() => viewEvidence(f.fileKey)}>
+                        <i className="fas fa-file-lines" aria-hidden="true" /> {f.fileName || 'View file'}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <p className="rv-prose">{n.text}</p>
-            </div>
-          ))}
+            )
+          })}
         </Section>
 
         <Section icon="fa-paperclip" title="Supporting documents">
@@ -257,6 +283,9 @@ export default function ReviewEntryPage() {
         .rv-narr:first-of-type { border-top: none; padding-top: 0; }
         .rv-narr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
         .rv-narr-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; }
+        .rv-evidence { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .rv-evidence-label { font-family: var(--font-heading); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray-600); display: inline-flex; align-items: center; gap: 6px; margin-right: 2px; }
+        .rv-evidence-label i { color: var(--gold-dark); }
         .rv-doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--gray-100); }
         .rv-doc:first-of-type { border-top: none; padding-top: 0; }
         .rv-doc-label { font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.9rem; }
