@@ -108,6 +108,11 @@ export default function DashboardLayout() {
             <i className="fas fa-bars" aria-hidden="true" />
           </button>
 
+          <button type="button" className="dash-home-link" onClick={() => navigate('/')}>
+            <i className="fas fa-house" aria-hidden="true" />
+            <span>Main site</span>
+          </button>
+
           <div className="dash-topbar-spacer" />
 
           <NotificationBell />
@@ -241,6 +246,15 @@ export const DASH_CSS = `
     border-bottom: 1px solid var(--gray-200);
   }
   .dash-topbar-spacer { flex: 1; }
+  .dash-home-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: none; border: 1px solid var(--gray-200); border-radius: 999px;
+    padding: 7px 14px; cursor: pointer; color: var(--navy);
+    font-family: var(--font-heading); font-size: 0.8rem; font-weight: 700;
+    transition: var(--transition-fast);
+  }
+  .dash-home-link:hover { border-color: var(--gold); background: var(--off-white); color: var(--gold-dark); }
+  .dash-home-link i { font-size: 0.85rem; color: var(--gold-dark); }
   .dash-menu-btn {
     display: none; background: none; border: none; color: var(--navy);
     font-size: 1.2rem; padding: 6px 8px; cursor: pointer;

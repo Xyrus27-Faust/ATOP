@@ -10,7 +10,7 @@ export default function Hero({ setCurrentPage }) {
         <button
           type="button"
           className="hero-awards-pill"
-          onClick={() => document.getElementById('pearl-awards')?.scrollIntoView({ behavior: 'smooth' })}
+          onClick={() => { setCurrentPage('awards'); window.scrollTo(0, 0); }}
         >
           <i className="fas fa-trophy" aria-hidden="true"></i>
           ATOP National Pearl Awards 2026 — now accepting entries
@@ -34,7 +34,7 @@ export default function Hero({ setCurrentPage }) {
               <button
                 className="btn-gold"
                 id="hero-awards-btn"
-                onClick={() => document.getElementById('pearl-awards')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => { setCurrentPage('awards'); window.scrollTo(0, 0); }}
               >
                 <i className="fas fa-trophy"></i> Pearl Awards 2026
               </button>
