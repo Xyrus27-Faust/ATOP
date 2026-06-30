@@ -122,6 +122,7 @@ export default function OverviewPage() {
         <div className="dash-card dash-card-pad">
           <div className="dash-card-title"><i className="fas fa-compass" aria-hidden="true" /> Quick links</div>
           <div className="ov-links">
+            <QuickLink href="/guides/applicant-guide.pdf" icon="fa-book-open" title="Applicant guide (PDF)" desc="Step-by-step — how to enter the Pearl Awards" />
             <QuickLink to="/dashboard/entries" icon="fa-folder-open" title="My entries" desc="View and manage every entry" />
             <QuickLink to="/awards" icon="fa-award" title="Award categories" desc={`Explore ${catalog?.categories?.length || ''} categories and their criteria`} />
             <QuickLink to="/dashboard/profile" icon="fa-id-badge" title="Profile" desc="Update your name and office" />
@@ -175,15 +176,18 @@ function WindowBanner({ win, catalog }) {
   )
 }
 
-function QuickLink({ to, icon, title, desc }) {
-  return (
-    <Link to={to} className="ov-link">
+function QuickLink({ to, href, icon, title, desc }) {
+  const inner = (
+    <>
       <span className="ov-link-icon"><i className={`fas ${icon}`} aria-hidden="true" /></span>
       <span style={{ flex: 1 }}>
         <span className="ov-link-title">{title}</span>
         <span className="ov-link-desc">{desc}</span>
       </span>
-      <i className="fas fa-chevron-right" aria-hidden="true" style={{ color: 'var(--gray-400)' }} />
-    </Link>
+      <i className={`fas ${href ? 'fa-arrow-up-right-from-square' : 'fa-chevron-right'}`} aria-hidden="true" style={{ color: 'var(--gray-400)' }} />
+    </>
   )
+  return href
+    ? <a href={href} target="_blank" rel="noopener noreferrer" className="ov-link">{inner}</a>
+    : <Link to={to} className="ov-link">{inner}</Link>
 }

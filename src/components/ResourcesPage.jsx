@@ -8,6 +8,20 @@ export default function ResourcesPage() {
       desc: 'Official handbook containing rules, categories, rubrics, and technical video guidelines for the 2026 awards cycle.',
     },
     {
+      title: 'Pearl Awards — Applicant Guide',
+      type: 'PDF Document',
+      size: '5.5 MB',
+      link: '/guides/applicant-guide.pdf',
+      desc: 'Step-by-step walkthrough for entering the Pearl Awards: create an account, browse the categories, build your bidbook, and submit.',
+    },
+    {
+      title: 'Pearl Awards — Validator Guide',
+      type: 'PDF Document',
+      size: '4.5 MB',
+      link: '/guides/validator-guide.pdf',
+      desc: 'How to register as a validator and review submitted entries — request access, get approved, then validate.',
+    },
+    {
       title: 'ATOP Member Registration & Renewal Form',
       type: 'PDF Form',
       size: '450 KB',

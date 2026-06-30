@@ -97,6 +97,11 @@ export default function PublicAwardCategoriesPage() {
               ? `Submissions open ${formatDate(win.opens)}.`
               : `Submissions closed ${formatDate(win?.closes)}.`}
           </p>
+          <a className="apc-guide" href="/guides/applicant-guide.pdf" target="_blank" rel="noopener noreferrer">
+            <span className="apc-guide-icon"><i className="fas fa-book-open" aria-hidden="true" /></span>
+            <span>New here? Read the <strong>Applicant Guide</strong> — how to enter, step by step.</span>
+            <i className="fas fa-arrow-up-right-from-square apc-guide-ext" aria-hidden="true" />
+          </a>
         </header>
 
         {selectedCategory ? (
@@ -370,6 +375,11 @@ const APC_CSS = `
   .apc-eyebrow { font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-dark); }
   .apc-title { font-family: var(--font-heading); font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 800; color: var(--navy); line-height: 1.12; margin-top: 8px; }
   .apc-sub { color: var(--gray-600); margin-top: 12px; max-width: 70ch; line-height: 1.7; font-size: 0.98rem; }
+  .apc-guide { display: inline-flex; align-items: center; gap: 12px; margin-top: 18px; padding: 11px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(200,168,75,0.45); background: rgba(200,168,75,0.08); color: var(--navy); font-size: 0.9rem; line-height: 1.4; transition: var(--transition-fast); }
+  .apc-guide:hover { border-color: var(--gold); background: rgba(200,168,75,0.14); transform: translateY(-1px); }
+  .apc-guide-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--gold); color: var(--white); font-size: 0.8rem; flex-shrink: 0; }
+  .apc-guide strong { font-weight: 800; }
+  .apc-guide-ext { color: var(--gold-dark); font-size: 0.78rem; flex-shrink: 0; }
 
   /* Toolbar */
   .apc-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 24px; }
