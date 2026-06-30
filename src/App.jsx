@@ -58,9 +58,9 @@ function App() {
         return (
           <>
             <Hero setCurrentPage={setCurrentPage} />
+            <PearlAwards setCurrentPage={setCurrentPage} />
             <Pillars />
             <About setCurrentPage={setCurrentPage} />
-            <PearlAwards setCurrentPage={setCurrentPage} />
             <NewsEvents setCurrentPage={setCurrentPage} />
             <Membership setCurrentPage={setCurrentPage} />
           </>
