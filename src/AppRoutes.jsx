@@ -17,6 +17,7 @@ import ReviewQueuePage from './dashboard/pages/ReviewQueuePage'
 import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
 import SummaryPage from './dashboard/pages/SummaryPage'
 import ReviewerAdminPage from './dashboard/pages/ReviewerAdminPage'
+import AdminAccessPage from './dashboard/pages/AdminAccessPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -50,6 +51,7 @@ export default function AppRoutes() {
           <Route path="review/:id" element={<ReviewEntryPage />} />
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
+            <Route path="admin/access" element={<AdminAccessPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />
         </Route>

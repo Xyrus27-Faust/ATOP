@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/auth/AuthContext'
-import { ApiError } from '@/lib/apiClient'
+import { api, ApiError } from '@/lib/apiClient'
+import { useAsync } from '../useAsync'
 import { Field, ctl } from '../components/form'
 import { roleLabel } from '../dashboardNav'
 
@@ -75,16 +76,19 @@ export default function ProfilePage() {
       </div>
 
       <div className="pf-grid">
-        <aside className="dash-card dash-card-pad pf-identity">
-          <span className="pf-avatar" aria-hidden="true">{initials(user)}</span>
-          <h2 className="pf-name">{user?.fullName || `${form.firstName} ${form.lastName}`.trim()}</h2>
-          <span className="pf-email">{user?.email}</span>
-          <div className="pf-roles">
-            {roles.map((r) => (
-              <span key={r} className="dash-badge tone-progress">{roleLabel(r)}</span>
-            ))}
-          </div>
-        </aside>
+        <div className="pf-left">
+          <aside className="dash-card dash-card-pad pf-identity">
+            <span className="pf-avatar" aria-hidden="true">{initials(user)}</span>
+            <h2 className="pf-name">{user?.fullName || `${form.firstName} ${form.lastName}`.trim()}</h2>
+            <span className="pf-email">{user?.email}</span>
+            <div className="pf-roles">
+              {roles.map((r) => (
+                <span key={r} className="dash-badge tone-progress">{roleLabel(r)}</span>
+              ))}
+            </div>
+          </aside>
+          <ValidatorAccessCard roles={roles} />
+        </div>
 
         <form className="dash-card dash-card-pad pf-form" onSubmit={handleSubmit} noValidate>
           {banner && (
@@ -125,6 +129,11 @@ export default function ProfilePage() {
 
       <style>{`
         .pf-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+        .pf-left { display: flex; flex-direction: column; gap: 20px; }
+        .pf-access-title { display: flex; align-items: center; gap: 9px; font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 0.96rem; }
+        .pf-access-note { color: var(--gray-600); font-size: 0.85rem; line-height: 1.6; margin: 10px 0 14px; }
+        .pf-access .dash-badge { display: inline-flex; align-items: center; gap: 6px; }
+        .pf-access .dash-btn { width: 100%; justify-content: center; }
         .pf-identity { text-align: center; }
         .pf-avatar {
           width: 84px; height: 84px; margin: 4px auto 16px; border-radius: 50%; display: grid; place-items: center;
@@ -141,5 +150,81 @@ export default function ProfilePage() {
         }
       `}</style>
     </>
+  )
+}
+
+// Lets a non-validator request the role (admin-approved) right from their profile. Validators
+// already in the role see a confirmation instead. Roles are additive — requesting never affects
+// the user's ability to submit their own entries.
+function ValidatorAccessCard({ roles }) {
+  const isValidator = roles.includes('Validator')
+  const { loading, data, reload } = useAsync(
+    () => (isValidator ? Promise.resolve([]) : api.get('/role-requests/mine', { auth: true })),
+    [isValidator],
+  )
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
+
+  if (isValidator) {
+    return (
+      <div className="dash-card dash-card-pad pf-access">
+        <div className="pf-access-title"><i className="fas fa-shield-halved" aria-hidden="true" /> Validator access</div>
+        <p className="pf-access-note">You have validator access. Your assigned categories appear in the Review Queue.</p>
+      </div>
+    )
+  }
+
+  const requests = data || []
+  const pending = requests.find((r) => r.role === 'Validator' && r.status === 'Pending')
+  const approved = requests.find((r) => r.role === 'Validator' && r.status === 'Approved')
+  const denied = requests.find((r) => r.role === 'Validator' && r.status === 'Denied')
+
+  async function request() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      await api.post('/role-requests/', { role: 'Validator' }, { auth: true })
+      await reload()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not submit your request. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="dash-card dash-card-pad pf-access">
+      <div className="pf-access-title"><i className="fas fa-shield-halved" aria-hidden="true" /> Validator access</div>
+      {loading ? (
+        <p className="pf-access-note">Checking your access…</p>
+      ) : pending ? (
+        <>
+          <p className="pf-access-note">Your request to become a validator is awaiting an administrator's review.</p>
+          <span className="dash-badge tone-progress"><i className="fas fa-hourglass-half" aria-hidden="true" /> Pending review</span>
+        </>
+      ) : approved ? (
+        <>
+          <p className="pf-access-note">Your request was approved — sign out and back in to activate validator access.</p>
+          <span className="dash-badge tone-success"><i className="fas fa-circle-check" aria-hidden="true" /> Approved</span>
+        </>
+      ) : (
+        <>
+          <p className="pf-access-note">
+            Want to help review award entries? Request validator access — an admin approves it, and you can still submit your own entries.
+            {denied ? ' Your previous request was declined; you may request again.' : ''}
+          </p>
+          {error && (
+            <div className="dash-banner tone-error" style={{ marginBottom: 12 }}>
+              <i className="fas fa-circle-exclamation" aria-hidden="true" /> {error}
+            </div>
+          )}
+          <button type="button" className="dash-btn is-primary" onClick={request} disabled={submitting}>
+            {submitting
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Requesting…</>
+              : <><i className="fas fa-user-shield" aria-hidden="true" /> Request validator access</>}
+          </button>
+        </>
+      )}
+    </div>
   )
 }
