@@ -8,7 +8,7 @@ import { roleLabel } from '../dashboardNav'
 // Roles a user can request from their profile. Adding a "scorer" later is one entry here plus the
 // matching role in the backend allowlist (RoleRequestEndpoints.AssignableRoles).
 const REQUESTABLE_ROLES = [
-  { role: 'Validator', label: 'Validator', icon: 'fa-shield-halved', blurb: 'Review & validate award entries in your assigned categories.' },
+  { role: 'Validator', label: 'Validator', icon: 'fa-shield-halved', blurb: 'Review & validate submitted entries across all award categories.' },
 ]
 
 function initials(user) {

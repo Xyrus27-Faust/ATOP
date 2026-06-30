@@ -39,7 +39,6 @@ const OVERVIEW = { to: '/dashboard', end: true, label: 'Overview', icon: 'fa-gau
 const MY_ENTRIES = { to: '/dashboard/entries', label: 'My Entries', icon: 'fa-folder-open' }
 const SUMMARY = { to: '/dashboard/summary', label: 'Summary', icon: 'fa-chart-pie' }
 const REVIEW = { to: '/dashboard/review', label: 'Review Queue', icon: 'fa-clipboard-check' }
-const REVIEWERS = { to: '/dashboard/admin/reviewers', label: 'Reviewers', icon: 'fa-users-gear' }
 const ACCESS = { to: '/dashboard/admin/access', label: 'Manage Validators', icon: 'fa-user-shield' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
@@ -52,7 +51,7 @@ export function navForRoles(roles = []) {
   const nav = []
   if (applicant) nav.push(OVERVIEW, MY_ENTRIES)
   if (reviewer) nav.push(SUMMARY, REVIEW)
-  if (isAdmin(roles)) nav.push(ACCESS, REVIEWERS) // grant validator access, then scope categories
+  if (isAdmin(roles)) nav.push(ACCESS) // validators are unscoped; the old Reviewers page is retired from the menu
   nav.push(AWARDS, PROFILE)
   return nav
 }

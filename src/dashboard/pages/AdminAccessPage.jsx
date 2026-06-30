@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
 import { isAdmin } from '../dashboardNav'
@@ -7,12 +7,18 @@ import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { formatDate } from '@/lib/pearlAwards'
 
-// Admin: approve/deny self-service validator requests (the table), and grant/revoke the role
-// directly (the "Add Validator" modal). Granting only adds the role (additive) — it never removes
-// the user's existing roles. After a grant, scope the validator's categories on the Reviewers page.
+// Admin home for validators: approve/deny self-service requests, see the active validators, and
+// grant/revoke the role directly. Validators are unscoped — they review submissions across ALL
+// categories — so there are no per-validator category assignments here.
 export default function AdminAccessPage() {
   const { user } = useAuth()
-  const { loading, error, data, reload } = useAsync(() => api.get('/admin/role-requests', { auth: true }), [])
+  const { loading, error, data, reload } = useAsync(
+    () => Promise.all([
+      api.get('/admin/role-requests', { auth: true }),
+      api.get('/admin/reviewers', { auth: true }),
+    ]).then(([requests, reviewers]) => ({ requests, reviewers })),
+    [],
+  )
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -21,7 +27,8 @@ export default function AdminAccessPage() {
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
-  const requests = data || []
+  const requests = data?.requests || []
+  const validators = (data?.reviewers || []).filter((r) => (r.roles || []).includes('Validator'))
 
   async function decide(req, action) {
     setBusyId(req.id)
@@ -36,6 +43,19 @@ export default function AdminAccessPage() {
     }
   }
 
+  async function removeValidator(v) {
+    setBusyId(v.userId)
+    setActionError(null)
+    try {
+      await api.delete(`/admin/users/${v.userId}/roles/Validator`, { auth: true })
+      await reload()
+    } catch (e) {
+      setActionError(e?.message || 'Could not remove that validator. Please try again.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <>
       <div className="dash-page-head">
@@ -43,8 +63,8 @@ export default function AdminAccessPage() {
           <span className="dash-eyebrow">Admin · Validators</span>
           <h1 className="dash-h1">Manage Validators</h1>
           <p className="dash-sub">
-            Approve validator requests, or add one directly. After granting, scope their award
-            categories on the <Link to="/dashboard/admin/reviewers" className="dash-inline-link">Reviewers</Link> page.
+            Approve validator requests or add one directly. Validators review submitted entries across
+            <strong> all award categories</strong>.
           </p>
         </div>
         <button type="button" className="dash-btn is-primary" onClick={() => setAssignOpen(true)}>
@@ -97,9 +117,47 @@ export default function AdminAccessPage() {
         </div>
       )}
 
+      <h2 className="mv-h2">Active validators <span className="mv-count">{validators.length}</span></h2>
+      {validators.length === 0 ? (
+        <div className="dash-card dash-empty">
+          <div className="dash-empty-icon"><i className="fas fa-user-shield" aria-hidden="true" /></div>
+          <h3>No validators yet</h3>
+          <p>Approve a request above, or use <strong>Add Validator</strong> to grant the role directly.</p>
+        </div>
+      ) : (
+        <div className="dash-card mv-table-card">
+          <div className="mv-scroll">
+            <table className="mv-table">
+              <thead>
+                <tr>
+                  <th>Validator</th>
+                  <th>Email</th>
+                  <th>Coverage</th>
+                  <th className="mv-th-actions" aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {validators.map((v) => (
+                  <tr key={v.userId}>
+                    <td className="mv-name">{v.fullName || '—'}</td>
+                    <td className="mv-email">{v.email}</td>
+                    <td><span className="mv-all"><i className="fas fa-layer-group" aria-hidden="true" /> All categories</span></td>
+                    <td className="mv-actions">
+                      <button type="button" className="dash-btn is-sm is-ghost" disabled={busyId === v.userId} onClick={() => removeValidator(v)}>
+                        {busyId === v.userId ? 'Working…' : 'Remove'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {assignOpen && (
         <Modal title="Add validator" onClose={() => setAssignOpen(false)}>
-          <p className="mv-modal-note">Search for a user and grant the Validator role. They keep their existing roles.</p>
+          <p className="mv-modal-note">Search for a user and grant the Validator role. They keep their existing roles, and review every category.</p>
           <UserAssign />
         </Modal>
       )}
@@ -121,6 +179,7 @@ export default function AdminAccessPage() {
         .mv-email { color: var(--gray-600); font-size: 0.86rem; }
         .mv-date { color: var(--gray-600); font-size: 0.84rem; white-space: nowrap; font-family: var(--font-heading); font-weight: 600; }
         .mv-actions { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
+        .mv-all { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold-dark); background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.28); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
 
         /* Modal */
         .mv-modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(15,25,46,0.45); display: grid; place-items: center; padding: 20px; animation: mvFade 0.15s ease-out; }
