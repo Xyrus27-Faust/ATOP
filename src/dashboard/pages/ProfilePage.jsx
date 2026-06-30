@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/auth/AuthContext'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
 import { Field, ctl } from '../components/form'
 import { roleLabel } from '../dashboardNav'
+
+// Roles a user can request from their profile. Adding a "scorer" later is one entry here plus the
+// matching role in the backend allowlist (RoleRequestEndpoints.AssignableRoles).
+const REQUESTABLE_ROLES = [
+  { role: 'Validator', label: 'Validator', icon: 'fa-shield-halved', blurb: 'Review & validate award entries in your assigned categories.' },
+]
 
 function initials(user) {
   const a = user?.firstName?.[0]
@@ -24,6 +30,7 @@ export default function ProfilePage() {
   const [errors, setErrors] = useState({})
   const [banner, setBanner] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [requestOpen, setRequestOpen] = useState(false)
 
   const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setBanner(null) }
 
@@ -63,7 +70,36 @@ export default function ProfilePage() {
     }
   }
 
-  const roles = user?.roles || []
+  const tokenRoles = user?.roles || []
+
+  // The live grant is the source of truth — not the request history. /auth/me returns the user's
+  // CURRENT DB roles, so a revoke flips a role back to "requestable" and a fresh grant shows up
+  // right away; the token (tokenRoles) only tells us whether it's usable yet or needs a re-login.
+  // A failed fetch just means no extra badges — it never blocks the profile form.
+  const { loading: reqLoading, data: access, reload: reloadRequests } = useAsync(async () => {
+    const [me, reqs] = await Promise.all([
+      api.get('/auth/me', { auth: true }).catch(() => null),
+      api.get('/role-requests/mine', { auth: true }).catch(() => []),
+    ])
+    return { liveRoles: Array.isArray(me?.roles) ? me.roles : null, requests: reqs || [] }
+  }, [])
+  const liveRoles = access?.liveRoles ?? tokenRoles
+  const requests = access?.requests || []
+
+  const held = (role) => liveRoles.includes(role)
+  const isPending = (role) => requests.some((r) => r.role === role && r.status === 'Pending')
+  const wasDenied = (role) => {
+    const decided = requests.filter((r) => r.role === role && (r.status === 'Approved' || r.status === 'Denied'))
+    return decided.length > 0 && decided.reduce((a, b) => (new Date(b.requestedAt) > new Date(a.requestedAt) ? b : a)).status === 'Denied'
+  }
+
+  // Solid chips = granted AND already in the token (usable now). Granted-but-token-stale roles show
+  // a "sign in again" badge instead; revoked roles simply drop out and become requestable again.
+  const chipRoles = liveRoles.filter((r) => tokenRoles.includes(r))
+  const reloginRoles = REQUESTABLE_ROLES.filter((r) => held(r.role) && !tokenRoles.includes(r.role))
+  const pendingRoles = REQUESTABLE_ROLES.filter((r) => !held(r.role) && isPending(r.role))
+  const declinedRoles = REQUESTABLE_ROLES.filter((r) => !held(r.role) && !isPending(r.role) && wasDenied(r.role))
+  const requestable = REQUESTABLE_ROLES.filter((r) => !held(r.role) && !isPending(r.role))
 
   return (
     <>
@@ -76,19 +112,39 @@ export default function ProfilePage() {
       </div>
 
       <div className="pf-grid">
-        <div className="pf-left">
-          <aside className="dash-card dash-card-pad pf-identity">
-            <span className="pf-avatar" aria-hidden="true">{initials(user)}</span>
-            <h2 className="pf-name">{user?.fullName || `${form.firstName} ${form.lastName}`.trim()}</h2>
-            <span className="pf-email">{user?.email}</span>
-            <div className="pf-roles">
-              {roles.map((r) => (
-                <span key={r} className="dash-badge tone-progress">{roleLabel(r)}</span>
-              ))}
-            </div>
-          </aside>
-          <ValidatorAccessCard roles={roles} />
-        </div>
+        <aside className="dash-card dash-card-pad pf-identity">
+          <span className="pf-avatar" aria-hidden="true">{initials(user)}</span>
+          <h2 className="pf-name">{user?.fullName || `${form.firstName} ${form.lastName}`.trim()}</h2>
+          <span className="pf-email">{user?.email}</span>
+
+          <div className="pf-roles">
+            {chipRoles.map((r) => (
+              <span key={r} className="dash-badge tone-progress">{roleLabel(r)}</span>
+            ))}
+            {/* Pending / approved-but-not-yet-active requests, shown as outlined badges below. */}
+            {!reqLoading && pendingRoles.map((r) => (
+              <span key={`p-${r.role}`} className="pf-req-badge is-pending" title="Awaiting an administrator's approval">
+                <i className="fas fa-hourglass-half" aria-hidden="true" /> {r.label} · pending
+              </span>
+            ))}
+            {!reqLoading && reloginRoles.map((r) => (
+              <span key={`a-${r.role}`} className="pf-req-badge is-approved" title="Granted — sign out and back in to use it">
+                <i className="fas fa-circle-check" aria-hidden="true" /> {r.label} · sign in again
+              </span>
+            ))}
+            {!reqLoading && declinedRoles.map((r) => (
+              <span key={`d-${r.role}`} className="pf-req-badge is-declined" title="Your request was declined — you can request again below">
+                <i className="fas fa-circle-xmark" aria-hidden="true" /> {r.label} · declined
+              </span>
+            ))}
+          </div>
+
+          {!reqLoading && requestable.length > 0 && (
+            <button type="button" className="dash-btn is-ghost is-sm pf-request-btn" onClick={() => setRequestOpen(true)}>
+              <i className="fas fa-plus" aria-hidden="true" /> Request a role
+            </button>
+          )}
+        </aside>
 
         <form className="dash-card dash-card-pad pf-form" onSubmit={handleSubmit} noValidate>
           {banner && (
@@ -127,13 +183,16 @@ export default function ProfilePage() {
         </form>
       </div>
 
+      {requestOpen && (
+        <RequestRoleModal
+          roles={requestable}
+          onClose={() => setRequestOpen(false)}
+          onSubmitted={() => { setRequestOpen(false); reloadRequests() }}
+        />
+      )}
+
       <style>{`
         .pf-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
-        .pf-left { display: flex; flex-direction: column; gap: 20px; }
-        .pf-access-title { display: flex; align-items: center; gap: 9px; font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 0.96rem; }
-        .pf-access-note { color: var(--gray-600); font-size: 0.85rem; line-height: 1.6; margin: 10px 0 14px; }
-        .pf-access .dash-badge { display: inline-flex; align-items: center; gap: 6px; }
-        .pf-access .dash-btn { width: 100%; justify-content: center; }
         .pf-identity { text-align: center; }
         .pf-avatar {
           width: 84px; height: 84px; margin: 4px auto 16px; border-radius: 50%; display: grid; place-items: center;
@@ -143,6 +202,11 @@ export default function ProfilePage() {
         .pf-name { font-family: var(--font-heading); font-size: 1.2rem; font-weight: 800; color: var(--navy); line-height: 1.25; }
         .pf-email { display: block; color: var(--gray-600); font-size: 0.85rem; margin-top: 4px; word-break: break-all; }
         .pf-roles { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 16px; }
+        .pf-req-badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-heading); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; border: 1px dashed var(--gray-300); }
+        .pf-req-badge.is-pending { color: var(--gray-600); background: var(--off-white); }
+        .pf-req-badge.is-approved { color: var(--success, #16a34a); border-color: var(--success, #16a34a); background: rgba(22,163,74,0.06); }
+        .pf-req-badge.is-declined { color: var(--danger, #dc2626); border-color: var(--danger, #dc2626); background: rgba(220,38,38,0.05); }
+        .pf-request-btn { margin-top: 16px; }
         .pf-form { display: flex; flex-direction: column; gap: 16px; }
         .pf-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
         @media (max-width: 760px) {
@@ -153,78 +217,86 @@ export default function ProfilePage() {
   )
 }
 
-// Lets a non-validator request the role (admin-approved) right from their profile. Validators
-// already in the role see a confirmation instead. Roles are additive — requesting never affects
-// the user's ability to submit their own entries.
-function ValidatorAccessCard({ roles }) {
-  const isValidator = roles.includes('Validator')
-  const { loading, data, reload } = useAsync(
-    () => (isValidator ? Promise.resolve([]) : api.get('/role-requests/mine', { auth: true })),
-    [isValidator],
-  )
+// Pick a role to request. Lists only roles the user can still request (not held, not pending). An
+// admin approves it; the grant is additive, so the user keeps submitting their own entries.
+function RequestRoleModal({ roles, onClose, onSubmitted }) {
+  const [selected, setSelected] = useState(roles[0]?.role || '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  if (isValidator) {
-    return (
-      <div className="dash-card dash-card-pad pf-access">
-        <div className="pf-access-title"><i className="fas fa-shield-halved" aria-hidden="true" /> Validator access</div>
-        <p className="pf-access-note">You have validator access. Your assigned categories appear in the Review Queue.</p>
-      </div>
-    )
-  }
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
 
-  const requests = data || []
-  const pending = requests.find((r) => r.role === 'Validator' && r.status === 'Pending')
-  const approved = requests.find((r) => r.role === 'Validator' && r.status === 'Approved')
-  const denied = requests.find((r) => r.role === 'Validator' && r.status === 'Denied')
-
-  async function request() {
+  async function submit() {
+    if (!selected) return
     setSubmitting(true)
     setError(null)
     try {
-      await api.post('/role-requests/', { role: 'Validator' }, { auth: true })
-      await reload()
+      await api.post('/role-requests/', { role: selected }, { auth: true })
+      onSubmitted()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not submit your request. Please try again.')
-    } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <div className="dash-card dash-card-pad pf-access">
-      <div className="pf-access-title"><i className="fas fa-shield-halved" aria-hidden="true" /> Validator access</div>
-      {loading ? (
-        <p className="pf-access-note">Checking your access…</p>
-      ) : pending ? (
-        <>
-          <p className="pf-access-note">Your request to become a validator is awaiting an administrator's review.</p>
-          <span className="dash-badge tone-progress"><i className="fas fa-hourglass-half" aria-hidden="true" /> Pending review</span>
-        </>
-      ) : approved ? (
-        <>
-          <p className="pf-access-note">Your request was approved — sign out and back in to activate validator access.</p>
-          <span className="dash-badge tone-success"><i className="fas fa-circle-check" aria-hidden="true" /> Approved</span>
-        </>
-      ) : (
-        <>
-          <p className="pf-access-note">
-            Want to help review award entries? Request validator access — an admin approves it, and you can still submit your own entries.
-            {denied ? ' Your previous request was declined; you may request again.' : ''}
-          </p>
+    <div className="pf-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="pf-modal" role="dialog" aria-modal="true" aria-label="Request a role">
+        <div className="pf-modal-head">
+          <h3>Request a role</h3>
+          <button type="button" className="pf-modal-close" onClick={onClose} aria-label="Close"><i className="fas fa-xmark" aria-hidden="true" /></button>
+        </div>
+        <div className="pf-modal-body">
+          <p className="pf-modal-note">Choose the access you’d like. An admin approves it; you’ll keep submitting your own entries.</p>
           {error && (
             <div className="dash-banner tone-error" style={{ marginBottom: 12 }}>
               <i className="fas fa-circle-exclamation" aria-hidden="true" /> {error}
             </div>
           )}
-          <button type="button" className="dash-btn is-primary" onClick={request} disabled={submitting}>
-            {submitting
-              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Requesting…</>
-              : <><i className="fas fa-user-shield" aria-hidden="true" /> Request validator access</>}
-          </button>
-        </>
-      )}
+          <div className="pf-role-options">
+            {roles.map((r) => (
+              <label key={r.role} className={`pf-role-opt${selected === r.role ? ' is-on' : ''}`}>
+                <input type="radio" name="role" value={r.role} checked={selected === r.role} onChange={() => setSelected(r.role)} />
+                <span className="pf-role-opt-text">
+                  <span className="pf-role-opt-name"><i className={`fas ${r.icon}`} aria-hidden="true" /> {r.label}</span>
+                  <span className="pf-role-opt-blurb">{r.blurb}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="pf-modal-actions">
+            <button type="button" className="dash-btn is-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button type="button" className="dash-btn is-primary" onClick={submit} disabled={submitting || !selected}>
+              {submitting ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Submitting…</> : 'Submit request'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .pf-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(15,25,46,0.45); display: grid; place-items: center; padding: 20px; animation: pfFade 0.15s ease-out; }
+        .pf-modal { width: 100%; max-width: 460px; background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg, 0 24px 60px rgba(15,25,46,0.3)); overflow: hidden; }
+        .pf-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--gray-200); }
+        .pf-modal-head h3 { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); }
+        .pf-modal-close { display: grid; place-items: center; width: 32px; height: 32px; border: none; background: none; color: var(--gray-600); cursor: pointer; border-radius: 8px; }
+        .pf-modal-close:hover { background: var(--gray-100); color: var(--navy); }
+        .pf-modal-body { padding: 20px; }
+        .pf-modal-note { color: var(--gray-600); font-size: 0.86rem; line-height: 1.6; margin-bottom: 14px; }
+        .pf-role-options { display: flex; flex-direction: column; gap: 10px; }
+        .pf-role-opt { display: flex; align-items: flex-start; gap: 11px; padding: 13px 14px; border: 1px solid var(--gray-200); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition-fast); }
+        .pf-role-opt:hover { border-color: var(--gold); }
+        .pf-role-opt.is-on { border-color: var(--gold); background: rgba(200,168,75,0.07); }
+        .pf-role-opt input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--gold-dark); cursor: pointer; flex-shrink: 0; }
+        .pf-role-opt-text { display: flex; flex-direction: column; gap: 3px; }
+        .pf-role-opt-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; }
+        .pf-role-opt-blurb { color: var(--gray-600); font-size: 0.82rem; line-height: 1.5; }
+        .pf-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        @keyframes pfFade { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
     </div>
   )
 }

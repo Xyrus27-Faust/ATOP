@@ -5,15 +5,17 @@ import { useAuth } from '@/auth/AuthContext'
 import { isAdmin } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
+import { formatDate } from '@/lib/pearlAwards'
 
-// Admin: approve/deny self-service validator requests, and grant/revoke the role directly.
-// Granting only adds the role (additive) — it never removes the user's existing roles. After a
-// grant, the admin scopes the validator's award categories on the existing Reviewers page.
+// Admin: approve/deny self-service validator requests (the table), and grant/revoke the role
+// directly (the "Add Validator" modal). Granting only adds the role (additive) — it never removes
+// the user's existing roles. After a grant, scope the validator's categories on the Reviewers page.
 export default function AdminAccessPage() {
   const { user } = useAuth()
   const { loading, error, data, reload } = useAsync(() => api.get('/admin/role-requests', { auth: true }), [])
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
+  const [assignOpen, setAssignOpen] = useState(false)
 
   if (!isAdmin(user?.roles)) return <Navigate to="/dashboard" replace />
   if (loading) return <Loading />
@@ -38,75 +40,132 @@ export default function AdminAccessPage() {
     <>
       <div className="dash-page-head">
         <div>
-          <span className="dash-eyebrow">Admin · Access</span>
-          <h1 className="dash-h1">Validator access</h1>
+          <span className="dash-eyebrow">Admin · Validators</span>
+          <h1 className="dash-h1">Manage Validators</h1>
           <p className="dash-sub">
-            Approve validator requests or assign the role directly. After granting, scope their award
+            Approve validator requests, or add one directly. After granting, scope their award
             categories on the <Link to="/dashboard/admin/reviewers" className="dash-inline-link">Reviewers</Link> page.
           </p>
         </div>
+        <button type="button" className="dash-btn is-primary" onClick={() => setAssignOpen(true)}>
+          <i className="fas fa-plus" aria-hidden="true" /> Add Validator
+        </button>
       </div>
 
       {actionError && (
         <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {actionError}</div>
       )}
 
-      <section className="aa-section">
-        <h2 className="aa-h2">Pending requests <span className="aa-count">{requests.length}</span></h2>
-        {requests.length === 0 ? (
-          <div className="dash-card dash-empty">
-            <div className="dash-empty-icon"><i className="fas fa-inbox" aria-hidden="true" /></div>
-            <h3>No pending requests</h3>
-            <p>Self-service validator requests will appear here for approval.</p>
+      <h2 className="mv-h2">Pending requests <span className="mv-count">{requests.length}</span></h2>
+      {requests.length === 0 ? (
+        <div className="dash-card dash-empty">
+          <div className="dash-empty-icon"><i className="fas fa-inbox" aria-hidden="true" /></div>
+          <h3>No pending requests</h3>
+          <p>Self-service validator requests appear here for approval. You can also add a validator directly.</p>
+        </div>
+      ) : (
+        <div className="dash-card mv-table-card">
+          <div className="mv-scroll">
+            <table className="mv-table">
+              <thead>
+                <tr>
+                  <th>Requester</th>
+                  <th>Email</th>
+                  <th>Requested</th>
+                  <th className="mv-th-actions" aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((r) => (
+                  <tr key={r.id}>
+                    <td className="mv-name">{r.fullName || '—'}</td>
+                    <td className="mv-email">{r.email}</td>
+                    <td className="mv-date">{formatDate(r.requestedAt)}</td>
+                    <td className="mv-actions">
+                      <button type="button" className="dash-btn is-sm is-ghost" disabled={busyId === r.id} onClick={() => decide(r, 'deny')}>
+                        Deny
+                      </button>
+                      <button type="button" className="dash-btn is-sm is-primary" disabled={busyId === r.id} onClick={() => decide(r, 'approve')}>
+                        {busyId === r.id ? 'Working…' : 'Approve'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <div className="aa-list">
-            {requests.map((r) => (
-              <div key={r.id} className="dash-card aa-card">
-                <div className="aa-id">
-                  <span className="aa-name">{r.fullName || r.email}</span>
-                  <span className="aa-email">{r.email}</span>
-                </div>
-                <span className="dash-badge tone-progress">{r.role}</span>
-                <div className="aa-actions">
-                  <button type="button" className="dash-btn is-sm is-ghost" disabled={busyId === r.id} onClick={() => decide(r, 'deny')}>
-                    Deny
-                  </button>
-                  <button type="button" className="dash-btn is-sm is-primary" disabled={busyId === r.id} onClick={() => decide(r, 'approve')}>
-                    {busyId === r.id ? 'Working…' : 'Approve'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+        </div>
+      )}
 
-      <section className="aa-section">
-        <h2 className="aa-h2">Assign directly</h2>
-        <UserAssign />
-      </section>
+      {assignOpen && (
+        <Modal title="Add validator" onClose={() => setAssignOpen(false)}>
+          <p className="mv-modal-note">Search for a user and grant the Validator role. They keep their existing roles.</p>
+          <UserAssign />
+        </Modal>
+      )}
 
       <style>{`
-        .aa-section { margin-top: 26px; }
-        .aa-h2 { display: flex; align-items: center; gap: 10px; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); margin-bottom: 14px; }
-        .aa-count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; color: var(--gold-dark); background: rgba(200,168,75,0.14); border: 1px solid rgba(200,168,75,0.28); }
-        .aa-list { display: flex; flex-direction: column; gap: 12px; }
-        .aa-card { display: flex; align-items: center; gap: 14px; padding: 14px 18px; }
-        .aa-id { display: flex; flex-direction: column; min-width: 0; }
-        .aa-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; }
-        .aa-email { color: var(--gray-600); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; }
-        .aa-actions { display: flex; gap: 8px; margin-left: auto; flex-shrink: 0; }
+        .mv-h2 { display: flex; align-items: center; gap: 10px; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); margin: 26px 0 14px; }
+        .mv-count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; color: var(--gold-dark); background: rgba(200,168,75,0.14); border: 1px solid rgba(200,168,75,0.28); }
 
-        .aa-search { position: relative; }
-        .aa-search i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }
-        .aa-search .dash-input { padding-left: 36px; }
-        .aa-results { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-        .aa-user { display: flex; align-items: center; gap: 14px; padding: 11px 4px; border-bottom: 1px solid var(--gray-100); }
-        .aa-user:last-child { border-bottom: none; }
-        .aa-note { color: var(--gray-600); font-size: 0.86rem; padding: 8px 2px; }
+        .mv-table-card { padding: 0; overflow: hidden; }
+        .mv-scroll { overflow-x: auto; }
+        .mv-table { width: 100%; border-collapse: collapse; }
+        .mv-table thead th { text-align: left; background: var(--off-white); border-bottom: 1px solid var(--gray-200); padding: 12px 16px; font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); white-space: nowrap; }
+        .mv-th-actions { width: 1%; }
+        .mv-table tbody tr { border-bottom: 1px solid var(--gray-100); }
+        .mv-table tbody tr:last-child { border-bottom: none; }
+        .mv-table tbody tr:hover { background: rgba(200,168,75,0.05); }
+        .mv-table td { padding: 12px 16px; vertical-align: middle; }
+        .mv-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; white-space: nowrap; }
+        .mv-email { color: var(--gray-600); font-size: 0.86rem; }
+        .mv-date { color: var(--gray-600); font-size: 0.84rem; white-space: nowrap; font-family: var(--font-heading); font-weight: 600; }
+        .mv-actions { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
+
+        /* Modal */
+        .mv-modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(15,25,46,0.45); display: grid; place-items: center; padding: 20px; animation: mvFade 0.15s ease-out; }
+        .mv-modal { width: 100%; max-width: 520px; background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg, 0 24px 60px rgba(15,25,46,0.3)); overflow: hidden; }
+        .mv-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--gray-200); }
+        .mv-modal-head h3 { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); }
+        .mv-modal-close { display: grid; place-items: center; width: 32px; height: 32px; border: none; background: none; color: var(--gray-600); cursor: pointer; border-radius: 8px; }
+        .mv-modal-close:hover { background: var(--gray-100); color: var(--navy); }
+        .mv-modal-body { padding: 20px; }
+        .mv-modal-note { color: var(--gray-600); font-size: 0.86rem; line-height: 1.6; margin-bottom: 14px; }
+        @keyframes mvFade { from { opacity: 0; } to { opacity: 1; } }
+
+        .mv-search { position: relative; }
+        .mv-search i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }
+        .mv-search .dash-input { padding-left: 36px; }
+        .mv-results { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; max-height: 320px; overflow-y: auto; }
+        .mv-user { display: flex; align-items: center; gap: 14px; padding: 11px 4px; border-bottom: 1px solid var(--gray-100); }
+        .mv-user:last-child { border-bottom: none; }
+        .mv-id { display: flex; flex-direction: column; min-width: 0; }
+        .mv-note { color: var(--gray-600); font-size: 0.86rem; padding: 8px 2px; }
+        .mv-actions-cell { margin-left: auto; flex-shrink: 0; }
       `}</style>
     </>
+  )
+}
+
+function Modal({ title, onClose, children }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="mv-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="mv-modal" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="mv-modal-head">
+          <h3>{title}</h3>
+          <button type="button" className="mv-modal-close" onClick={onClose} aria-label="Close">
+            <i className="fas fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="mv-modal-body">{children}</div>
+      </div>
+    </div>
   )
 }
 
@@ -117,8 +176,8 @@ function UserAssign() {
   const [busy, setBusy] = useState(null)
 
   useEffect(() => {
-    // Leave stale results in state when the term is too short — the render gates on length, so
-    // they're never shown, and clearing here would be a synchronous setState in the effect body.
+    // Leave stale results when the term is too short — the render gates on length, so they're
+    // never shown, and clearing here would be a synchronous setState in the effect body.
     const term = q.trim()
     if (term.length < 2) return
     const t = setTimeout(() => {
@@ -147,8 +206,8 @@ function UserAssign() {
 
   const term = q.trim()
   return (
-    <div className="dash-card dash-card-pad">
-      <div className="aa-search">
+    <>
+      <div className="mv-search">
         <i className="fas fa-magnifying-glass" aria-hidden="true" />
         <input
           className="dash-input"
@@ -157,24 +216,25 @@ function UserAssign() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           aria-label="Search users"
+          autoFocus
         />
       </div>
       {term.length >= 2 && (
-        <div className="aa-results">
-          {loading && <div className="aa-note">Searching…</div>}
-          {!loading && results.length === 0 && <div className="aa-note">No users match “{term}”.</div>}
+        <div className="mv-results">
+          {loading && <div className="mv-note">Searching…</div>}
+          {!loading && results.length === 0 && <div className="mv-note">No users match “{term}”.</div>}
           {results.map((u) => {
             const isValidator = (u.roles || []).includes('Validator')
             return (
-              <div key={u.userId} className="aa-user">
-                <div className="aa-id">
-                  <span className="aa-name">{u.fullName || u.email}</span>
-                  <span className="aa-email">{u.email}</span>
+              <div key={u.userId} className="mv-user">
+                <div className="mv-id">
+                  <span className="mv-name">{u.fullName || u.email}</span>
+                  <span className="mv-email">{u.email}</span>
                 </div>
-                <div className="aa-actions">
+                <div className="mv-actions-cell">
                   {isValidator ? (
                     <button type="button" className="dash-btn is-sm is-ghost" disabled={busy === u.userId} onClick={() => toggle(u, false)}>
-                      {busy === u.userId ? 'Working…' : 'Remove validator'}
+                      {busy === u.userId ? 'Working…' : 'Remove'}
                     </button>
                   ) : (
                     <button type="button" className="dash-btn is-sm is-primary" disabled={busy === u.userId} onClick={() => toggle(u, true)}>
@@ -187,6 +247,6 @@ function UserAssign() {
           })}
         </div>
       )}
-    </div>
+    </>
   )
 }
