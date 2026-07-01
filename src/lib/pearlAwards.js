@@ -57,6 +57,7 @@ export const REGIONS = [
   { value: 'Region11', label: 'Region XI — Davao Region' },
   { value: 'Region12', label: 'Region XII — SOCCSKSARGEN' },
   { value: 'Region13', label: 'Region XIII — Caraga' },
+  { value: 'Region18', label: 'Region XVIII — Negros Island Region' },
   { value: 'Barmm', label: 'BARMM — Bangsamoro' },
 ]
 
