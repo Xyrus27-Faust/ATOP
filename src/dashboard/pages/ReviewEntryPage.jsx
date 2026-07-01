@@ -6,6 +6,7 @@ import { useAsync } from '../useAsync'
 import { isReviewer } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
+import CommentThread from '../components/CommentThread'
 import { statusMeta, formatDate, labelFor, COVERAGE_OPTIONS, EDITABLE_STATUSES, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
 
 export default function ReviewEntryPage() {
@@ -266,6 +267,8 @@ export default function ReviewEntryPage() {
           )}
         </div>
       )}
+
+      <CommentThread entryId={entry.id} />
 
       <style>{`
         .rv-head-top { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }

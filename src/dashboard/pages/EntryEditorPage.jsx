@@ -7,6 +7,7 @@ import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
 import StatusBadge from '../components/StatusBadge'
 import Readiness from '../components/Readiness'
+import CommentThread from '../components/CommentThread'
 import {
   isEditable,
   computeReadiness,
@@ -136,6 +137,8 @@ export default function EntryEditorPage() {
           <SectionNav prev={TABS[2]} onGo={setTab} />
         </div>
       </div>
+
+      {workingEntry.status !== 'Draft' && <CommentThread entryId={workingEntry.id} />}
 
       <style>{EDITOR_CSS}</style>
     </>
