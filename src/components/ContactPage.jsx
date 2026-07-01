@@ -41,30 +41,21 @@ export default function ContactPage() {
               <div className="contact-info-card">
                 <div className="c-icon"><i className="fas fa-map-marked-alt"></i></div>
                 <div>
-                  <h4>National Headquarters</h4>
-                  <p>Unit 402, Tourism Governance Center, Intramuros, Manila, 1002 Philippines</p>
+                  <h4>Address</h4>
+                  <p>
+                    <strong>MR. ELRIC M. BATILARAN</strong><br />
+                    National President<br />
+                    Association of Tourism Officers of the Philippines (ATOP)<br />
+                    City Tourism and Cultural Affairs Office, 2nd Floor, City Hall Building, City of Koronadal, 9506
+                  </p>
                 </div>
               </div>
 
               <div className="contact-info-card">
                 <div className="c-icon"><i className="fas fa-envelope"></i></div>
                 <div>
-                  <h4>Email Addresses</h4>
-                  <p>
-                    General Inquiry: <strong>info@atop.org.ph</strong><br />
-                    Pearl Awards: <strong>pearlawards@atop.org.ph</strong>
-                  </p>
-                </div>
-              </div>
-
-              <div className="contact-info-card">
-                <div className="c-icon"><i className="fas fa-phone-alt"></i></div>
-                <div>
-                  <h4>Telephone &amp; Mobile</h4>
-                  <p>
-                    Hotline: <strong>+63 (2) 8527-1234</strong><br />
-                    Secretariat Mobile: <strong>+63 917 555 ATOP</strong>
-                  </p>
+                  <h4>Email</h4>
+                  <p><strong>atoppearlawards2026@gmail.com</strong></p>
                 </div>
               </div>
             </div>
@@ -75,7 +66,7 @@ export default function ContactPage() {
                 <i className="fas fa-map-pin map-pin-pulse"></i>
                 <div className="map-labels">
                   <strong>ATOP Secretariat Office</strong>
-                  <span>Intramuros, Manila</span>
+                  <span>City of Koronadal</span>
                 </div>
               </div>
             </div>

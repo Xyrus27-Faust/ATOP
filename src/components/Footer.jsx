@@ -99,17 +99,13 @@ export default function Footer({ setCurrentPage }) {
               <li>
                 <i className="fas fa-map-marker-alt"></i>
                 <span>
-                  8F Legazpi Towers 200, 107 Paseo de Roxas,
-                  Legazpi Village, Makati City 1226, Philippines
+                  City Tourism and Cultural Affairs Office, 2nd Floor,
+                  City Hall Building, City of Koronadal, 9506
                 </span>
               </li>
               <li>
-                <i className="fas fa-phone"></i>
-                <span>(02) 8 459 5201</span>
-              </li>
-              <li>
                 <i className="fas fa-envelope"></i>
-                <span>info@atopphilippines.org</span>
+                <span>atoppearlawards2026@gmail.com</span>
               </li>
               <li>
                 <i className="fas fa-globe"></i>
