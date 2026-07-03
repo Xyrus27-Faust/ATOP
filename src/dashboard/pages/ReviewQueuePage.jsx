@@ -131,14 +131,16 @@ function LguSearchSelect({ value, onChange }) {
 export default function ReviewQueuePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [view, setView] = useState('queue')
+  const admin = isAdmin(user?.roles)
+  const [view, setView] = useState(admin ? 'all' : 'queue')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
   const [selectedLgu, setSelectedLgu] = useState(null) // { code, name } from the LGU search
   const [sort, setSort] = useState({ key: 'submittedAt', dir: 'desc' })
 
-  // Admins get the extra Drafts / All views; other reviewers see the standard set.
-  const views = isAdmin(user?.roles) ? ALL_VIEWS : STATUS_VIEWS
+  // Admins see the oversight "Submissions" framing (every status incl. drafts, defaults to All);
+  // other reviewers get the focused review queue.
+  const views = admin ? ALL_VIEWS : STATUS_VIEWS
 
   const { loading, error, data, reload } = useAsync(async () => {
     const v = ALL_VIEWS.find((x) => x.key === view) || ALL_VIEWS[0]
@@ -195,9 +197,11 @@ export default function ReviewQueuePage() {
     <>
       <div className="dash-page-head">
         <div>
-          <span className="dash-eyebrow">Secretariat · Review</span>
-          <h1 className="dash-h1">Review queue</h1>
-          <p className="dash-sub">Check submitted entries and validate, return for revision, or disqualify them.</p>
+          <span className="dash-eyebrow">{admin ? 'Admin · Submissions' : 'Secretariat · Review'}</span>
+          <h1 className="dash-h1">{admin ? 'Submissions' : 'Review queue'}</h1>
+          <p className="dash-sub">{admin
+            ? 'Every entry across all categories — drafts, submitted, and decided. Open one to review or act on it.'
+            : 'Check submitted entries and validate, return for revision, or disqualify them.'}</p>
         </div>
       </div>
 
@@ -243,7 +247,7 @@ export default function ReviewQueuePage() {
         <div className="dash-card dash-empty">
           <div className="dash-empty-icon"><i className="fas fa-clipboard-check" aria-hidden="true" /></div>
           <h3>Nothing here</h3>
-          <p>{view === 'queue' ? 'No entries are waiting for review right now.' : 'No entries with this status.'}</p>
+          <p>{view === 'queue' ? 'No entries are waiting for review right now.' : view === 'all' ? 'No entries yet.' : 'No entries with this status.'}</p>
         </div>
       ) : (
         <div className="dash-card rqt-card">
