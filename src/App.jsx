@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import Pillars from './components/Pillars';
@@ -17,14 +18,34 @@ import ResourcesPage from './components/ResourcesPage';
 import ContactPage from './components/ContactPage';
 import PublicAwardCategoriesPage from './components/PublicAwardCategoriesPage';
 
+// The marketing pages are real URLs so refresh, browser back/forward, and deep
+// links work (previously the nav was state-only and a refresh reset to home).
+// The nav still calls setCurrentPage(id); we translate that to a route change and
+// derive the active page from the URL, so the child components stay unchanged.
+const PAGE_PATHS = {
+  home: '/',
+  about: '/about',
+  membership: '/membership',
+  programs: '/programs',
+  news: '/news',
+  resources: '/resources',
+  contact: '/contact',
+  awards: '/awards',
+};
+
+function pageFromPath(pathname) {
+  const match = Object.keys(PAGE_PATHS).find((id) => PAGE_PATHS[id] === pathname);
+  return match || 'home';
+}
+
 function App() {
   const [scrolled, setScrolled] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  // Open the public Award Categories page directly when reached at /awards
-  // (e.g. linked from the dashboard) — the marketing nav is otherwise state-only.
-  const [currentPage, setCurrentPage] = useState(
-    () => (window.location.pathname === '/awards' ? 'awards' : 'home'),
-  );
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const currentPage = pageFromPath(location.pathname);
+  const setCurrentPage = (id) => navigate(PAGE_PATHS[id] ?? '/');
 
   useEffect(() => {
     const onScroll = () => {
