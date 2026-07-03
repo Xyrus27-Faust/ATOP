@@ -3,52 +3,21 @@ export default function ResourcesPage() {
     {
       title: 'ATOP Pearl Awards Guidelines Manual 2026',
       type: 'PDF Document',
-      size: '1.2 MB',
       link: '/ATOP Pearl Awards Guidelines Manual 2026 (FINAL).pdf',
       desc: 'Official handbook containing rules, categories, rubrics, and technical video guidelines for the 2026 awards cycle.',
     },
     {
       title: 'Pearl Awards — Applicant Guide',
       type: 'PDF Document',
-      size: '5.5 MB',
       link: '/guides/applicant-guide.pdf',
       desc: 'Step-by-step walkthrough for entering the Pearl Awards: create an account, browse the categories, build your bidbook, and submit.',
     },
     {
       title: 'Pearl Awards — Validator Guide',
       type: 'PDF Document',
-      size: '4.5 MB',
       link: '/guides/validator-guide.pdf',
       desc: 'How to register as a validator and review submitted entries — request access, get approved, then validate.',
     },
-    {
-      title: 'ATOP Member Registration & Renewal Form',
-      type: 'PDF Form',
-      size: '450 KB',
-      link: '#',
-      desc: 'Downloadable form for manually enrolling LGUs or renewing annual regular/associate memberships.',
-    },
-    {
-      title: 'Model Local Tourism Code Template',
-      type: 'DOCX Document',
-      size: '820 KB',
-      link: '#',
-      desc: 'A framework template helping local councils draft, review, or modernize municipal and city tourism ordinances.',
-    },
-    {
-      title: 'ATOP National Convention 2025 Annual Report',
-      type: 'PDF Document',
-      size: '3.4 MB',
-      link: '#',
-      desc: 'Summary of finances, event participation, board resolutions, and key initiatives completed in the past fiscal year.',
-    },
-  ];
-
-  const stats = [
-    { region: 'Region VII (Central Visayas)', arrivals: '4,821,340', growth: '+12.4%', status: 'Outstanding' },
-    { region: 'CAR (Cordillera Admin Region)', arrivals: '1,924,560', growth: '+8.2%', status: 'Increasing' },
-    { region: 'Region IV-A (CALABARZON)', arrivals: '6,211,880', growth: '+15.1%', status: 'Outstanding' },
-    { region: 'Region XI (Davao Region)', arrivals: '2,450,210', growth: '+4.3%', status: 'Stable' },
   ];
 
   return (
@@ -56,7 +25,7 @@ export default function ResourcesPage() {
       <div className="subpage-banner">
         <div className="container">
           <h2>Resources &amp; Downloads</h2>
-          <p>Access official guidelines, policy templates, registration forms, and regional tourism reports</p>
+          <p>Access official Pearl Awards guidelines and applicant resources</p>
         </div>
       </div>
 
@@ -96,16 +65,15 @@ export default function ResourcesPage() {
                   <div className="doc-file-icon"><i className="far fa-file-alt"></i></div>
                   <div>
                     <h4>{doc.title}</h4>
-                    <span className="doc-meta">{doc.type} • {doc.size}</span>
+                    <span className="doc-meta">{doc.type}</span>
                   </div>
                 </div>
                 <p className="doc-desc">{doc.desc}</p>
-                <a 
-                  href={doc.link} 
-                  target={doc.link !== '#' ? '_blank' : '_self'}
+                <a
+                  href={doc.link}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="doc-download-link"
-                  onClick={(e) => doc.link === '#' && e.preventDefault()}
                 >
                   <i className="fas fa-download"></i> Download File
                 </a>
@@ -114,40 +82,6 @@ export default function ResourcesPage() {
           </div>
         </section>
 
-        {/* Statistics Section */}
-        <section className="statistics-section">
-          <h3 className="subpage-section-title">LGU Tourism Data Benchmarks</h3>
-          <p className="section-intro-text">
-            Key statistical highlights sourced from regional reports, displaying tourism growth and visitor arrivals.
-          </p>
-
-          <div className="stats-table-wrapper">
-            <table className="stats-table">
-              <thead>
-                <tr>
-                  <th>Region / Destination Group</th>
-                  <th>Visitor Arrivals (2025)</th>
-                  <th>Year-over-Year Growth</th>
-                  <th>LGU Performance Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.map((s, idx) => (
-                  <tr key={idx}>
-                    <td><strong>{s.region}</strong></td>
-                    <td>{s.arrivals}</td>
-                    <td className="growth-text">{s.growth}</td>
-                    <td>
-                      <span className={`status-badge ${s.status.toLowerCase()}`}>
-                        {s.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
 
       <style>{`

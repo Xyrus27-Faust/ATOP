@@ -36,11 +36,11 @@ export default function MembershipPage() {
           </div>
 
           <div className="membership-fees-box">
-            <h4>Membership Classification &amp; Fees</h4>
+            <h4>Membership Classifications</h4>
             <ul>
-              <li><strong>Regular Members:</strong> Tourism officers appointed/designated in LGUs. (₱2,000 Annual Fee)</li>
-              <li><strong>Institutional Members:</strong> Academic partners and tourism organizations. (₱5,000 Annual Fee)</li>
-              <li><strong>Associate Members:</strong> Tourism office staff and advocates. (₱1,000 Annual Fee)</li>
+              <li><strong>Regular Members:</strong> Tourism officers appointed/designated in LGUs.</li>
+              <li><strong>Institutional Members:</strong> Academic partners and tourism organizations.</li>
+              <li><strong>Associate Members:</strong> Tourism office staff and advocates.</li>
             </ul>
           </div>
         </div>

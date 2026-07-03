@@ -24,7 +24,7 @@ export default function ContactPage() {
       <div className="subpage-banner">
         <div className="container">
           <h2>Contact Us</h2>
-          <p>Get in touch with the ATOP National Secretariat and regional coordinators</p>
+          <p>Get in touch with the ATOP National Secretariat</p>
         </div>
       </div>
 
@@ -80,8 +80,8 @@ export default function ContactPage() {
                   <div className="success-icon"><i className="fas fa-paper-plane"></i></div>
                   <h3>Message Dispatched!</h3>
                   <p>
-                    Thank you for reaching out. A representative from the ATOP National Secretariat 
-                    will respond to your message at <strong>{formData.email}</strong> within 24-48 business hours.
+                    Thank you for reaching out. A representative from the ATOP National Secretariat
+                    will respond to your message at <strong>{formData.email}</strong>.
                   </p>
                   <button className="btn-gold" onClick={handleReset}>Send Another Message</button>
                 </div>

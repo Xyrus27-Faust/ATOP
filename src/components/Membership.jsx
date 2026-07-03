@@ -31,7 +31,7 @@ export default function Membership({ setCurrentPage }) {
             </div>
             <h2>Membership</h2>
             <p>
-              Be part of the country's largest network of tourism professionals
+              Be part of a national network of tourism professionals
               and help shape the future of tourism in the Philippines.
             </p>
             <button 

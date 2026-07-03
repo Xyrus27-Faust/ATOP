@@ -1,11 +1,4 @@
 export default function AboutPage() {
-  const leaders = [
-    { name: 'Albert F. Pascual', role: 'National President', img: '/Untitled.png' },
-    { name: 'Maria Elena S. Santos', role: 'Vice President for Luzon', img: '/Untitled.png' },
-    { name: 'Danilo P. Fernandez', role: 'Vice President for Visayas', img: '/Untitled.png' },
-    { name: 'Grace M. Alih', role: 'Vice President for Mindanao', img: '/Untitled.png' },
-  ];
-
   return (
     <div className="subpage-container animate-fade-in">
       {/* Banner */}
@@ -22,10 +15,9 @@ export default function AboutPage() {
           <div>
             <h3 className="subpage-section-title">Our History</h3>
             <p>
-              The Association of Tourism Officers of the Philippines, Inc. (ATOP) was established 
-              to provide local government tourism officers with a unified platform for professional growth, 
-              knowledge sharing, and strategic collaboration. Over the decades, ATOP has grown into the 
-              nation's leading LGU tourism network, partnering directly with the Department of Tourism (DOT).
+              The Association of Tourism Officers of the Philippines, Inc. (ATOP) was established
+              to provide local government tourism officers with a unified platform for professional growth,
+              knowledge sharing, and strategic collaboration.
             </p>
             <p>
               By driving sustainable destination management and high-impact regional promotions, 
@@ -60,24 +52,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Leadership */}
-        <section className="leadership-section">
-          <h3 className="subpage-section-title text-center">Board of Directors</h3>
-          <p className="section-intro-text text-center">
-            The dedicated officers guiding ATOP's mission to strengthen Philippine tourism governance.
-          </p>
-          <div className="leadership-grid">
-            {leaders.map((leader, index) => (
-              <div className="leader-card" key={index}>
-                <div className="leader-avatar-wrapper">
-                  <img src={leader.img} alt={leader.name} className="leader-avatar" />
-                </div>
-                <h4>{leader.name}</h4>
-                <p className="leader-role">{leader.role}</p>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
 
       <style>{`

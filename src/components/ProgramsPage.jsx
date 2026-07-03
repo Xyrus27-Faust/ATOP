@@ -11,15 +11,15 @@ export default function ProgramsPage() {
       icon: 'fas fa-globe-asia',
       title: 'National Tourism Conventions',
       img: '/news_convention.png',
-      desc: 'The annual assembly uniting over 1,000 tourism officers, governors, mayors, and national leaders to network, debate policies, and celebrate achievements (including the Pearl Awards gala).',
-      details: ['Keynote Addresses by DOT officials', 'Regional Destination Showcases', 'General Assembly & Board Elections'],
+      desc: 'The annual assembly uniting tourism officers, governors, mayors, and national leaders to network, debate policies, and celebrate achievements (including the Pearl Awards gala).',
+      details: ['Keynote Addresses', 'Regional Destination Showcases', 'General Assembly & Board Elections'],
     },
     {
       icon: 'fas fa-balance-scale',
-      title: 'Advocacy & Policy Drafting',
+      title: 'Advocacy & Policy',
       img: '/news_travel_mart.png',
-      desc: 'ATOP collaborates directly with the Senate, Congress, and Department of Tourism to draft legislative reforms that support LGU officers, establish permanent tourism offices, and allocate funding.',
-      details: ['LGU Tourism Officer Security of Tenure', 'Community-Based Tourism Support Bill', 'National Tourism Development Plan input'],
+      desc: 'ATOP advocates for policy reforms that support LGU tourism officers, promote permanent tourism offices, and strengthen community-based tourism.',
+      details: ['LGU Tourism Officer Security of Tenure', 'Community-Based Tourism', 'Sustainable Tourism Funding'],
     },
   ];
 

@@ -39,13 +39,6 @@ export default function Footer({ setCurrentPage }) {
             <p className="footer-tagline">
               Uniting Tourism Leaders.<br />Building Better Destinations.
             </p>
-            <div className="footer-socials">
-              <a href="#" aria-label="Facebook" id="social-facebook" onClick={(e) => e.preventDefault()}><i className="fab fa-facebook-f"></i></a>
-              <a href="#" aria-label="Twitter/X" id="social-twitter" onClick={(e) => e.preventDefault()}><i className="fab fa-x-twitter"></i></a>
-              <a href="#" aria-label="Instagram" id="social-instagram" onClick={(e) => e.preventDefault()}><i className="fab fa-instagram"></i></a>
-              <a href="#" aria-label="YouTube" id="social-youtube" onClick={(e) => e.preventDefault()}><i className="fab fa-youtube"></i></a>
-              <a href="#" aria-label="Email" id="social-email" onClick={(e) => e.preventDefault()}><i className="fas fa-envelope"></i></a>
-            </div>
           </div>
 
           {/* Quick Links */}
@@ -107,21 +100,13 @@ export default function Footer({ setCurrentPage }) {
                 <i className="fas fa-envelope"></i>
                 <span>atoppearlawards2026@gmail.com</span>
               </li>
-              <li>
-                <i className="fas fa-globe"></i>
-                <span>www.atopphilippines.org</span>
-              </li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="footer-bottom">
-          <p>© 2025 Association of Tourism Officers of the Philippines, Inc. (ATOP). All Rights Reserved.</p>
-          <div className="footer-bottom-links">
-            <a href="#" id="footer-privacy-link">Privacy Policy</a>
-            <a href="#" id="footer-terms-link">Terms of Use</a>
-          </div>
+          <p>© 2026 Association of Tourism Officers of the Philippines, Inc. (ATOP). All Rights Reserved.</p>
         </div>
       </div>
 
