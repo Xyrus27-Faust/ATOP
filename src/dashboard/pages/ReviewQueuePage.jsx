@@ -137,6 +137,8 @@ export default function ReviewQueuePage() {
   const [category, setCategory] = useState('all')
   const [selectedLgu, setSelectedLgu] = useState(null) // { code, name } from the LGU search
   const [sort, setSort] = useState({ key: 'submittedAt', dir: 'desc' })
+  const [reminding, setReminding] = useState(false)
+  const [remindMsg, setRemindMsg] = useState(null)
 
   // Admins see the oversight "Submissions" framing (every status incl. drafts, defaults to All);
   // other reviewers get the focused review queue.
@@ -190,6 +192,20 @@ export default function ReviewQueuePage() {
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))
   }
 
+  async function remindDrafts() {
+    if (reminding) return
+    setReminding(true); setRemindMsg(null)
+    try {
+      const res = await api.post('/admin/entries/remind-drafts', undefined, { auth: true })
+      const n = res?.ownersReminded ?? 0
+      setRemindMsg(`Reminder sent to ${n} applicant${n === 1 ? '' : 's'} with unsubmitted drafts.`)
+    } catch {
+      setRemindMsg('Couldn’t send reminders — please try again.')
+    } finally {
+      setReminding(false)
+    }
+  }
+
   const filtersActive = search.trim() !== '' || category !== 'all' || selectedLgu != null
   const total = entries?.length || 0
 
@@ -203,7 +219,18 @@ export default function ReviewQueuePage() {
             ? 'Every entry across all categories — drafts, submitted, and decided. Open one to review or act on it.'
             : 'Check submitted entries and validate, return for revision, or disqualify them.'}</p>
         </div>
+        {admin && (
+          <button type="button" className="dash-btn is-primary" onClick={remindDrafts} disabled={reminding}
+            title="Email every applicant who still has an unsubmitted draft">
+            <i className="fas fa-bell" aria-hidden="true" /> {reminding ? 'Sending…' : 'Remind unsubmitted drafts'}
+          </button>
+        )}
       </div>
+      {remindMsg && (
+        <div className="dash-banner tone-info" style={{ marginTop: 12 }}>
+          <i className="fas fa-circle-info" aria-hidden="true" /> {remindMsg}
+        </div>
+      )}
 
       <div className="rqt-controls">
         <div className="rqt-search">
