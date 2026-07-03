@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
-import { isReviewer } from '../dashboardNav'
+import { isReviewer, isAdmin } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
 import { formatDate } from '@/lib/pearlAwards'
@@ -16,6 +16,14 @@ const STATUS_VIEWS = [
   { key: 'ReturnedForRevision', label: 'Returned for revision', status: 'ReturnedForRevision' },
   { key: 'Disqualified', label: 'Disqualified', status: 'Disqualified' },
 ]
+
+// Admin-only views: inspect drafts, and every entry at once (all statuses, including
+// not-yet-submitted). `all` is a server-side flag that drops the status filter.
+const ADMIN_VIEWS = [
+  { key: 'Draft', label: 'Drafts', status: 'Draft' },
+  { key: 'all', label: 'All submissions', status: 'all' },
+]
+const ALL_VIEWS = [...STATUS_VIEWS, ...ADMIN_VIEWS]
 
 const submittedTime = (e) => new Date(e.submittedAt || e.updatedAt).getTime()
 
@@ -129,8 +137,11 @@ export default function ReviewQueuePage() {
   const [selectedLgu, setSelectedLgu] = useState(null) // { code, name } from the LGU search
   const [sort, setSort] = useState({ key: 'submittedAt', dir: 'desc' })
 
+  // Admins get the extra Drafts / All views; other reviewers see the standard set.
+  const views = isAdmin(user?.roles) ? ALL_VIEWS : STATUS_VIEWS
+
   const { loading, error, data, reload } = useAsync(async () => {
-    const v = STATUS_VIEWS.find((x) => x.key === view) || STATUS_VIEWS[0]
+    const v = ALL_VIEWS.find((x) => x.key === view) || ALL_VIEWS[0]
     const path = v.status ? `/review/entries/?status=${v.status}` : '/review/entries/'
     const [entries, catalog] = await Promise.all([api.get(path, { auth: true }), api.get('/award-categories/')])
     return { entries, catalog }
@@ -204,7 +215,7 @@ export default function ReviewQueuePage() {
         </div>
 
         <select className="dash-select" value={view} onChange={(e) => onView(e.target.value)} aria-label="Status">
-          {STATUS_VIEWS.map((v) => (
+          {views.map((v) => (
             <option key={v.key} value={v.key}>{v.label}</option>
           ))}
         </select>
