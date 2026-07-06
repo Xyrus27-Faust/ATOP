@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-import { navForRoles, primaryRole, roleLabel } from './dashboardNav'
+import { navForRoles, primaryRole, roleLabel, roleChipLabel } from './dashboardNav'
 import NotificationBell from './components/NotificationBell'
 
 // The brand's topographic contour, carried over from the auth pages as a quiet
@@ -30,7 +30,9 @@ export default function DashboardLayout() {
   const menuRef = useRef(null)
 
   const role = primaryRole(user?.roles)
-  const nav = navForRoles(user?.roles)
+  const navGroups = navForRoles(user?.roles)
+  // Only label the sections when the user actually spans more than one role area.
+  const showNavHeaders = navGroups.filter((g) => g.label).length > 1
 
   // Close the mobile drawer and the user menu whenever the route changes.
   useEffect(() => {
@@ -66,17 +68,22 @@ export default function DashboardLayout() {
             <span className="dash-wordmark">atop</span>
           </NavLink>
           <span className="dash-portal-label">Member Portal</span>
-          <span className="dash-role-chip">
-            <i className="fas fa-shield-halved" aria-hidden="true" /> {roleLabel(role)}
+          <span className="dash-role-chip" title={roleLabel(role)}>
+            <i className="fas fa-shield-halved" aria-hidden="true" /> {roleChipLabel(role)}
           </span>
         </div>
 
         <nav className="dash-nav" aria-label="Dashboard">
-          {nav.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className="dash-nav-link">
-              <i className={`fas ${item.icon}`} aria-hidden="true" />
-              <span>{item.label}</span>
-            </NavLink>
+          {navGroups.map((group, gi) => (
+            <div key={group.label || `general-${gi}`} className={`dash-nav-group${group.label ? '' : ' is-tail'}`}>
+              {showNavHeaders && group.label && <span className="dash-nav-label">{group.label}</span>}
+              {group.items.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.end} className="dash-nav-link">
+                  <i className={`fas ${item.icon}`} aria-hidden="true" />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -128,7 +135,7 @@ export default function DashboardLayout() {
               <span className="dash-avatar" aria-hidden="true">{initialsOf(user)}</span>
               <span className="dash-user-meta">
                 <span className="dash-user-name">{user?.fullName || user?.firstName || user?.email}</span>
-                <span className="dash-user-role">{roleLabel(role)}</span>
+                <span className="dash-user-role" title={roleLabel(role)}>{roleChipLabel(role)}</span>
               </span>
               <i className={`fas fa-chevron-down dash-user-caret ${menuOpen ? 'is-open' : ''}`} aria-hidden="true" />
             </button>
@@ -207,6 +214,13 @@ export const DASH_CSS = `
   .dash-role-chip i { font-size: 0.7rem; }
 
   .dash-nav { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; flex: 1; }
+  .dash-nav-group { display: flex; flex-direction: column; gap: 4px; }
+  .dash-nav-label {
+    font-family: var(--font-heading); font-size: 0.6rem; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.34);
+    padding: 0 14px; margin: 10px 0 4px;
+  }
+  .dash-nav-group.is-tail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
   .dash-nav-link {
     display: flex; align-items: center; gap: 13px;
     padding: 11px 14px; border-radius: var(--radius-sm);

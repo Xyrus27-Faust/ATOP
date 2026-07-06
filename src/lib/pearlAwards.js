@@ -12,6 +12,8 @@ export const ENTRY_STATUS = {
   ReturnedForRevision: { label: 'Returned for revision', tone: 'warn', icon: 'fa-rotate-left' },
   Validated: { label: 'Validated', tone: 'success', icon: 'fa-circle-check' },
   Disqualified: { label: 'Disqualified', tone: 'danger', icon: 'fa-circle-xmark' },
+  Finalist: { label: 'Finalist', tone: 'success', icon: 'fa-trophy' },
+  Eliminated: { label: 'Eliminated', tone: 'neutral', icon: 'fa-circle-minus' },
 }
 
 export function statusMeta(status) {
