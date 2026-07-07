@@ -24,7 +24,7 @@ const ADMIN_VIEWS = [
   { key: 'all', label: 'All submissions', status: 'all' },
 ]
 const ALL_VIEWS = [...STATUS_VIEWS, ...ADMIN_VIEWS]
-const PAGE_SIZES = [25, 50, 100]
+const PAGE_SIZES = [15, 25, 50, 100]
 
 function Th({ label, sortKey, sort, onSort, className }) {
   const active = sort.key === sortKey
@@ -128,7 +128,7 @@ export default function ReviewQueuePage() {
   const [selectedLgu, setSelectedLgu] = useState(null) // { code, name } from the LGU search
   const [sort, setSort] = useState({ key: 'submittedAt', dir: 'desc' })
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(25)
+  const [pageSize, setPageSize] = useState(15)
   const [reminding, setReminding] = useState(false)
   const [remindMsg, setRemindMsg] = useState(null)
 
