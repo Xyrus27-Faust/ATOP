@@ -24,19 +24,7 @@ const ADMIN_VIEWS = [
   { key: 'all', label: 'All submissions', status: 'all' },
 ]
 const ALL_VIEWS = [...STATUS_VIEWS, ...ADMIN_VIEWS]
-
-const submittedTime = (e) => new Date(e.submittedAt || e.updatedAt).getTime()
-
-function compare(a, b, key) {
-  switch (key) {
-    case 'categoryNumber': return a.categoryNumber - b.categoryNumber
-    case 'title': return (a.title || '').localeCompare(b.title || '')
-    case 'lguName': return (a.lguName || '').localeCompare(b.lguName || '')
-    case 'status': return (a.status || '').localeCompare(b.status || '')
-    case 'submittedAt': return submittedTime(a) - submittedTime(b)
-    default: return 0
-  }
-}
+const PAGE_SIZES = [25, 50, 100]
 
 function Th({ label, sortKey, sort, onSort, className }) {
   const active = sort.key === sortKey
@@ -132,11 +120,15 @@ export default function ReviewQueuePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const admin = isAdmin(user?.roles)
+
   const [view, setView] = useState(admin ? 'all' : 'queue')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [category, setCategory] = useState('all')
   const [selectedLgu, setSelectedLgu] = useState(null) // { code, name } from the LGU search
   const [sort, setSort] = useState({ key: 'submittedAt', dir: 'desc' })
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
   const [reminding, setReminding] = useState(false)
   const [remindMsg, setRemindMsg] = useState(null)
 
@@ -144,53 +136,71 @@ export default function ReviewQueuePage() {
   // other reviewers get the focused review queue.
   const views = admin ? ALL_VIEWS : STATUS_VIEWS
 
-  const { loading, error, data, reload } = useAsync(async () => {
+  // Debounce the search box so it fires one request after typing settles; a new term starts at page 1.
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search.trim()); setPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // The category catalog is static — load it once, not on every page/filter change.
+  const catalogAsync = useAsync(() => api.get('/award-categories/'), [])
+
+  // The entry list is fully server-driven: status, search, filters, sort and paging are all query
+  // params, so each concern spans the whole set rather than just the rows currently on screen.
+  const { loading, error, data, reload } = useAsync(() => {
     const v = ALL_VIEWS.find((x) => x.key === view) || ALL_VIEWS[0]
-    const path = v.status ? `/review/entries/?status=${v.status}` : '/review/entries/'
-    const [entries, catalog] = await Promise.all([api.get(path, { auth: true }), api.get('/award-categories/')])
-    return { entries, catalog }
-  }, [view])
+    const params = new URLSearchParams()
+    if (v.status) params.set('status', v.status)
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (category !== 'all') params.set('category', category)
+    if (selectedLgu) params.set('lgu', selectedLgu.code)
+    params.set('sort', sort.key)
+    params.set('dir', sort.dir)
+    params.set('page', String(page))
+    params.set('pageSize', String(pageSize))
+    return api.get(`/review/entries/?${params.toString()}`, { auth: true })
+  }, [view, debouncedSearch, category, selectedLgu, sort, page, pageSize])
 
-  const entries = data?.entries
-  const catalog = data?.catalog
-
+  const catalog = catalogAsync.data
   const nameByNumber = useMemo(
     () => new Map((catalog?.categories || []).map((c) => [c.number, c.name])),
     [catalog],
   )
+  // Options come from the full catalog (not the current page), so filtering is meaningful across pages.
+  const categoryOptions = useMemo(
+    () => [...(catalog?.categories || [])]
+      .sort((a, b) => a.number - b.number)
+      .map((c) => ({ value: String(c.number), label: `#${c.number} · ${c.name}` })),
+    [catalog],
+  )
 
-  // Filter options derive from what's actually in the loaded set, so a filter
-  // never offers a value that yields nothing.
-  const categoryOptions = useMemo(() => {
-    const nums = [...new Set((entries || []).map((e) => e.categoryNumber))].sort((a, b) => a - b)
-    return nums.map((n) => ({ value: String(n), label: `#${n} · ${nameByNumber.get(n) || `Category ${n}`}` }))
-  }, [entries, nameByNumber])
-
-  const rows = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    const filtered = (entries || []).filter((e) => {
-      if (category !== 'all' && String(e.categoryNumber) !== category) return false
-      if (selectedLgu && e.lguCode !== selectedLgu.code) return false
-      if (term && !`${e.title} ${e.lguName}`.toLowerCase().includes(term)) return false
-      return true
-    })
-    const dir = sort.dir === 'asc' ? 1 : -1
-    return filtered.sort((a, b) => compare(a, b, sort.key) * dir)
-  }, [entries, search, category, selectedLgu, sort])
+  const items = data?.items || []
+  const total = data?.total || 0
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const filtersActive = search.trim() !== '' || category !== 'all' || selectedLgu != null
 
   if (!isReviewer(user?.roles)) return <Navigate to="/dashboard" replace />
-  if (loading) return <Loading />
+  // First paint waits for the catalog + the first page; later refetches keep the table mounted.
+  if (catalogAsync.loading || (loading && !data)) return <Loading />
+  if (catalogAsync.error) return <ErrorState error={catalogAsync.error} onRetry={catalogAsync.reload} />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
   function onView(next) {
     setView(next)
-    setCategory('all') // option sets change with the loaded view
+    setCategory('all') // option sets don't change, but a new view starts fresh
     setSelectedLgu(null)
+    setPage(1)
   }
-
+  function onCategory(next) { setCategory(next); setPage(1) }
+  function onLgu(next) { setSelectedLgu(next); setPage(1) }
   function onSort(key) {
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))
+    setSort((s) => (s.key === key
+      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: key === 'submittedAt' ? 'desc' : 'asc' }))
+    setPage(1)
   }
+  function clearFilters() { setSearch(''); setCategory('all'); setSelectedLgu(null); setPage(1) }
+  function goto(p) { setPage(Math.min(totalPages, Math.max(1, p))) }
 
   async function remindDrafts() {
     if (reminding) return
@@ -206,8 +216,8 @@ export default function ReviewQueuePage() {
     }
   }
 
-  const filtersActive = search.trim() !== '' || category !== 'all' || selectedLgu != null
-  const total = entries?.length || 0
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const rangeEnd = Math.min(page * pageSize, total)
 
   return (
     <>
@@ -251,19 +261,21 @@ export default function ReviewQueuePage() {
           ))}
         </select>
 
-        <select className="dash-select" value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Award category">
+        <select className="dash-select" value={category} onChange={(e) => onCategory(e.target.value)} aria-label="Award category">
           <option value="all">All categories</option>
           {categoryOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
 
-        <LguSearchSelect value={selectedLgu} onChange={setSelectedLgu} />
+        <LguSearchSelect value={selectedLgu} onChange={onLgu} />
 
         <div className="rqt-meta">
-          <span className="rqt-count">{rows.length} of {total}</span>
+          <span className="rqt-count">
+            {total === 0 ? '0 entries' : `${rangeStart}–${rangeEnd} of ${total}`}
+          </span>
           {filtersActive && (
-            <button type="button" className="rqt-clear" onClick={() => { setSearch(''); setCategory('all'); setSelectedLgu(null) }}>
+            <button type="button" className="rqt-clear" onClick={clearFilters}>
               <i className="fas fa-xmark" aria-hidden="true" /> Clear
             </button>
           )}
@@ -273,30 +285,29 @@ export default function ReviewQueuePage() {
       {total === 0 ? (
         <div className="dash-card dash-empty">
           <div className="dash-empty-icon"><i className="fas fa-clipboard-check" aria-hidden="true" /></div>
-          <h3>Nothing here</h3>
-          <p>{view === 'queue' ? 'No entries are waiting for review right now.' : view === 'all' ? 'No entries yet.' : 'No entries with this status.'}</p>
+          <h3>{filtersActive ? 'No matches' : 'Nothing here'}</h3>
+          <p>{filtersActive
+            ? 'No entries match your filters. Try widening or clearing them.'
+            : view === 'queue' ? 'No entries are waiting for review right now.'
+            : view === 'all' ? 'No entries yet.' : 'No entries with this status.'}</p>
         </div>
       ) : (
-        <div className="dash-card rqt-card">
-          <div className="rqt-scroll">
-            <table className="rqt-table">
-              <thead>
-                <tr>
-                  <Th label="#" sortKey="categoryNumber" sort={sort} onSort={onSort} className="rqt-th-num" />
-                  <Th label="Entry" sortKey="title" sort={sort} onSort={onSort} />
-                  <Th label="LGU" sortKey="lguName" sort={sort} onSort={onSort} />
-                  <Th label="Status" sortKey="status" sort={sort} onSort={onSort} />
-                  <Th label="Submitted" sortKey="submittedAt" sort={sort} onSort={onSort} />
-                  <th aria-hidden="true" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
+        <>
+          <div className={`dash-card rqt-card${loading ? ' is-loading' : ''}`} aria-busy={loading}>
+            <div className="rqt-scroll">
+              <table className="rqt-table">
+                <thead>
                   <tr>
-                    <td colSpan={6} className="rqt-norows">No entries match your filters.</td>
+                    <Th label="#" sortKey="categoryNumber" sort={sort} onSort={onSort} className="rqt-th-num" />
+                    <Th label="Entry" sortKey="title" sort={sort} onSort={onSort} />
+                    <Th label="LGU" sortKey="lguName" sort={sort} onSort={onSort} />
+                    <Th label="Status" sortKey="status" sort={sort} onSort={onSort} />
+                    <Th label="Submitted" sortKey="submittedAt" sort={sort} onSort={onSort} />
+                    <th aria-hidden="true" />
                   </tr>
-                ) : (
-                  rows.map((e) => (
+                </thead>
+                <tbody>
+                  {items.map((e) => (
                     <tr
                       key={e.id}
                       className="rqt-row"
@@ -312,12 +323,42 @@ export default function ReviewQueuePage() {
                       <td className="rqt-date">{e.submittedAt ? formatDate(e.submittedAt) : formatDate(e.updatedAt)}</td>
                       <td className="rqt-chevcell"><i className="fas fa-chevron-right rqt-chev" aria-hidden="true" /></td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          <div className="rqt-pager">
+            <div className="rqt-pgsize">
+              <label htmlFor="rqt-pgsize">Rows</label>
+              <select
+                id="rqt-pgsize"
+                className="dash-select"
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
+                aria-label="Rows per page"
+              >
+                {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div className="rqt-pgnav">
+              <button type="button" className="rqt-pgbtn" onClick={() => goto(1)} disabled={page <= 1 || loading} aria-label="First page">
+                <i className="fas fa-angles-left" aria-hidden="true" />
+              </button>
+              <button type="button" className="rqt-pgbtn" onClick={() => goto(page - 1)} disabled={page <= 1 || loading} aria-label="Previous page">
+                <i className="fas fa-angle-left" aria-hidden="true" />
+              </button>
+              <span className="rqt-pgnow">Page {page} of {totalPages}</span>
+              <button type="button" className="rqt-pgbtn" onClick={() => goto(page + 1)} disabled={page >= totalPages || loading} aria-label="Next page">
+                <i className="fas fa-angle-right" aria-hidden="true" />
+              </button>
+              <button type="button" className="rqt-pgbtn" onClick={() => goto(totalPages)} disabled={page >= totalPages || loading} aria-label="Last page">
+                <i className="fas fa-angles-right" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       <style>{`
@@ -351,7 +392,8 @@ export default function ReviewQueuePage() {
         .rqt-clear { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; color: var(--gold-dark); font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; cursor: pointer; padding: 0; }
         .rqt-clear:hover { color: var(--navy); }
 
-        .rqt-card { padding: 0; overflow: hidden; }
+        .rqt-card { padding: 0; overflow: hidden; transition: opacity 0.15s ease; }
+        .rqt-card.is-loading { opacity: 0.55; pointer-events: none; }
         .rqt-scroll { overflow-x: auto; }
         .rqt-table { width: 100%; border-collapse: collapse; }
         .rqt-table thead th { background: var(--off-white); border-bottom: 1px solid var(--gray-200); padding: 0; white-space: nowrap; }
@@ -375,12 +417,22 @@ export default function ReviewQueuePage() {
         .rqt-date { color: var(--gray-600); font-size: 0.82rem; white-space: nowrap; font-family: var(--font-heading); font-weight: 600; }
         .rqt-chevcell { width: 38px; text-align: right; }
         .rqt-chev { color: var(--gray-300); }
-        .rqt-norows { padding: 40px 16px; text-align: center; color: var(--gray-600); font-family: var(--font-body); }
+
+        /* Pager */
+        .rqt-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+        .rqt-pgsize { display: flex; align-items: center; gap: 8px; font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; color: var(--gray-600); }
+        .rqt-pgsize .dash-select { width: auto; min-width: 72px; }
+        .rqt-pgnav { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+        .rqt-pgnow { font-family: var(--font-heading); font-size: 0.8rem; font-weight: 700; color: var(--navy); padding: 0 8px; white-space: nowrap; }
+        .rqt-pgbtn { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--gray-200); background: var(--white); color: var(--navy); border-radius: var(--radius-sm); cursor: pointer; transition: var(--transition-fast); }
+        .rqt-pgbtn:hover:not(:disabled) { border-color: var(--gold); background: rgba(200,168,75,0.08); }
+        .rqt-pgbtn:disabled { color: var(--gray-300); cursor: not-allowed; background: var(--off-white); }
 
         @media (max-width: 720px) {
           .rqt-catname { display: none; }
           .rqt-meta { width: 100%; margin-left: 0; justify-content: space-between; }
           .rqt-controls .dash-select, .rq-lgu { flex: 1 1 auto; }
+          .rqt-pgnav { margin-left: 0; }
         }
       `}</style>
     </>
