@@ -126,14 +126,11 @@ export default function AssessorAdminPage() {
                         {r.categoryNumbers.length === 0 ? (
                           <span className="aa-none"><i className="fas fa-circle-info" aria-hidden="true" /> None — empty queue</span>
                         ) : (
-                          <div className="aa-cats-wrap">
-                            <span className="aa-count"><b>{r.categoryNumbers.length}</b> / {categories.length}</span>
-                            <span className="aa-chips">
-                              {r.categoryNumbers.map((n) => (
-                                <span key={n} className="aa-chip" title={nameByNumber.get(n) || `Category ${n}`}>#{n}</span>
-                              ))}
-                            </span>
-                          </div>
+                          <span className="aa-chips">
+                            {r.categoryNumbers.map((n) => (
+                              <span key={n} className="aa-chip"><span className="aa-chip-n">#{n}</span> {nameByNumber.get(n) || `Category ${n}`}</span>
+                            ))}
+                          </span>
                         )}
                       </td>
                       <td className="aa-actioncell">
@@ -212,12 +209,10 @@ export default function AssessorAdminPage() {
         .aa-rolescell { white-space: nowrap; }
         .aa-role { display: inline-block; font-family: var(--font-heading); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-dark); background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.3); padding: 3px 8px; border-radius: 999px; }
 
-        .aa-cats { min-width: 260px; }
-        .aa-cats-wrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-        .aa-count { font-family: var(--font-heading); font-size: 0.82rem; font-weight: 700; color: var(--gray-600); white-space: nowrap; }
-        .aa-count b { color: var(--navy); font-size: 0.95rem; }
-        .aa-chips { display: flex; flex-wrap: wrap; gap: 3px; }
-        .aa-chip { font-family: var(--font-heading); font-size: 0.66rem; font-weight: 700; line-height: 1.5; color: var(--gold-dark); background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.28); padding: 1px 6px; border-radius: 999px; cursor: default; }
+        .aa-cats { min-width: 340px; }
+        .aa-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+        .aa-chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-heading); font-size: 0.7rem; font-weight: 600; line-height: 1.5; color: var(--navy); background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.28); padding: 3px 9px; border-radius: 999px; white-space: nowrap; cursor: default; }
+        .aa-chip-n { font-weight: 800; color: var(--gold-dark); }
         .aa-none { display: inline-flex; align-items: center; gap: 7px; color: var(--gray-600); font-size: 0.84rem; font-style: italic; }
         .aa-actioncell { text-align: right; white-space: nowrap; }
 
