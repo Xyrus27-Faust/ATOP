@@ -69,6 +69,10 @@ const PROFILE = { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge
 // Sidebar nav grouped into role-based sections: [{ label, items }]. A user with several roles gets
 // several sections; the trailing section (label null) is the always-present general links. The shell
 // only renders section headers when there's more than one role section, so single-role users stay flat.
+// Pre-finals scoring (3PIC) is gated by a build flag so it can ship dark to prod (hidden until UAT).
+// Enabled by default; disabled only when VITE_FEATURE_SCORING is explicitly 'false'.
+export const SCORING_ENABLED = import.meta.env.VITE_FEATURE_SCORING !== 'false'
+
 export function navForRoles(roles = []) {
   const reviewer = isReviewer(roles)
   const assessor = isAssessor(roles)
@@ -79,8 +83,8 @@ export function navForRoles(roles = []) {
   const groups = []
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
   if (reviewer) groups.push({ label: 'Review', items: [SUMMARY, admin ? SUBMISSIONS : REVIEW] })
-  if (roles.includes('3PIC')) groups.push({ label: 'Scoring', items: [SCORING] }) // the assessor's own queue
-  if (admin) groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS] })
+  if (SCORING_ENABLED && roles.includes('3PIC')) groups.push({ label: 'Scoring', items: [SCORING] }) // the assessor's own queue
+  if (admin) groups.push({ label: 'Administration', items: SCORING_ENABLED ? [ACCESS, ASSESSORS, RESULTS] : [ACCESS] })
   groups.push({ label: null, items: [AWARDS, PROFILE] })
   return groups
 }

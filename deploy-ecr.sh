@@ -14,6 +14,8 @@ ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO}"
 # Staging build-time config (override by exporting before running).
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.staging.tourismofficersph.com}"
 VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-857948069033-p09evikg3rk754l0hj4e4gndcjrl5ed0.apps.googleusercontent.com}"
+# Pre-finals scoring is enabled by default (staging); prod builds pass VITE_FEATURE_SCORING=false.
+VITE_FEATURE_SCORING="${VITE_FEATURE_SCORING:-true}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
@@ -37,6 +39,7 @@ echo "==> Building (linux/amd64)..."
 docker build --platform linux/amd64 \
   --build-arg "VITE_API_BASE_URL=${VITE_API_BASE_URL}" \
   --build-arg "VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}" \
+  --build-arg "VITE_FEATURE_SCORING=${VITE_FEATURE_SCORING}" \
   -t "${ECR_URI}:${TAG}" \
   -t "${ECR_URI}:latest" \
   -f Dockerfile .

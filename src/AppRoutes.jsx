@@ -22,6 +22,7 @@ import ScoringQueuePage from './dashboard/pages/ScoringQueuePage'
 import ScoringEntryPage from './dashboard/pages/ScoringEntryPage'
 import AssessorAdminPage from './dashboard/pages/AssessorAdminPage'
 import ScoringResultsPage from './dashboard/pages/ScoringResultsPage'
+import { SCORING_ENABLED } from './dashboard/dashboardNav'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -37,7 +38,7 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
             chrome) — opened in a new tab from the scoring queue. Role-gated in-page. */}
-        <Route path="/scoring/:id" element={<ScoringEntryPage />} />
+        {SCORING_ENABLED && <Route path="/scoring/:id" element={<ScoringEntryPage />} />}
 
         {/* The submission flow lives outside the dashboard in a focused shell —
             composing an entry is an application, not a dashboard page. It's
@@ -57,11 +58,11 @@ export default function AppRoutes() {
           <Route path="summary" element={<SummaryPage />} />
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
-          <Route path="scoring" element={<ScoringQueuePage />} />
+          {SCORING_ENABLED && <Route path="scoring" element={<ScoringQueuePage />} />}
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
-            <Route path="admin/assessors" element={<AssessorAdminPage />} />
-            <Route path="admin/scoring" element={<ScoringResultsPage />} />
+            {SCORING_ENABLED && <Route path="admin/assessors" element={<AssessorAdminPage />} />}
+            {SCORING_ENABLED && <Route path="admin/scoring" element={<ScoringResultsPage />} />}
             <Route path="admin/access" element={<AdminAccessPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />

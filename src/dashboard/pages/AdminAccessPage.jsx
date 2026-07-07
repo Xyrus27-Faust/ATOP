@@ -16,12 +16,17 @@ export default function AdminAccessPage() {
     () => Promise.all([
       api.get('/admin/role-requests', { auth: true }),
       api.get('/admin/reviewers', { auth: true }),
-    ]).then(([requests, reviewers]) => ({ requests, reviewers })),
+      api.get('/award-categories/'),
+    ]).then(([requests, reviewers, catalog]) => ({ requests, reviewers, catalog })),
     [],
   )
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
   const [assignOpen, setAssignOpen] = useState(false)
+  const [assignFor, setAssignFor] = useState(null) // validator whose categories are being edited
+  const [assignDraft, setAssignDraft] = useState(() => new Set())
+  const [savingAssign, setSavingAssign] = useState(false)
+  const [assignError, setAssignError] = useState(null)
 
   if (!isAdmin(user?.roles)) return <Navigate to="/dashboard" replace />
   if (loading) return <Loading />
@@ -29,6 +34,8 @@ export default function AdminAccessPage() {
 
   const requests = data?.requests || []
   const validators = (data?.reviewers || []).filter((r) => (r.roles || []).includes('Validator'))
+  const categories = data?.catalog?.categories || []
+  const nameByNumber = new Map(categories.map((c) => [c.number, c.name]))
 
   async function decide(req, action) {
     setBusyId(req.id)
@@ -56,6 +63,35 @@ export default function AdminAccessPage() {
     }
   }
 
+  function openAssign(v) {
+    setAssignFor(v)
+    setAssignDraft(new Set(v.categoryNumbers || []))
+    setAssignError(null)
+  }
+
+  function toggleCat(n) {
+    setAssignDraft((d) => {
+      const next = new Set(d)
+      if (next.has(n)) next.delete(n)
+      else next.add(n)
+      return next
+    })
+  }
+
+  async function saveAssign() {
+    setSavingAssign(true)
+    setAssignError(null)
+    try {
+      await api.put(`/admin/reviewers/${assignFor.userId}/categories`, { categoryNumbers: [...assignDraft] }, { auth: true })
+      setAssignFor(null)
+      await reload()
+    } catch (e) {
+      setAssignError(e?.message || 'Could not save categories. Please try again.')
+    } finally {
+      setSavingAssign(false)
+    }
+  }
+
   return (
     <>
       <div className="dash-page-head">
@@ -63,8 +99,8 @@ export default function AdminAccessPage() {
           <span className="dash-eyebrow">Admin · Validators</span>
           <h1 className="dash-h1">Manage Validators</h1>
           <p className="dash-sub">
-            Approve validator requests or add one directly. Validators review submitted entries across
-            <strong> all award categories</strong>.
+            Approve validator requests or add one directly. A validator reviews <strong>all award
+            categories</strong> by default — assign categories to scope them to just those.
           </p>
         </div>
         <button type="button" className="dash-btn is-primary" onClick={() => setAssignOpen(true)}>
@@ -141,8 +177,21 @@ export default function AdminAccessPage() {
                   <tr key={v.userId}>
                     <td className="mv-name">{v.fullName || '—'}</td>
                     <td className="mv-email">{v.email}</td>
-                    <td><span className="mv-all"><i className="fas fa-layer-group" aria-hidden="true" /> All categories</span></td>
+                    <td className="mv-cov">
+                      {v.categoryNumbers?.length ? (
+                        <span className="mv-chips">
+                          {v.categoryNumbers.map((n) => (
+                            <span key={n} className="mv-chip"><span className="mv-chip-n">#{n}</span> {nameByNumber.get(n) || `Category ${n}`}</span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="mv-all"><i className="fas fa-layer-group" aria-hidden="true" /> All categories</span>
+                      )}
+                    </td>
                     <td className="mv-actions">
+                      <button type="button" className="dash-btn is-sm" onClick={() => openAssign(v)}>
+                        <i className="fas fa-list-check" aria-hidden="true" /> Categories
+                      </button>
                       <button type="button" className="dash-btn is-sm is-ghost" disabled={busyId === v.userId} onClick={() => removeValidator(v)}>
                         {busyId === v.userId ? 'Working…' : 'Remove'}
                       </button>
@@ -157,8 +206,39 @@ export default function AdminAccessPage() {
 
       {assignOpen && (
         <Modal title="Add validator" onClose={() => setAssignOpen(false)}>
-          <p className="mv-modal-note">Search for a user and grant the Validator role. They keep their existing roles, and review every category.</p>
+          <p className="mv-modal-note">Search for a user and grant the Validator role. They keep their existing roles and, by default, review every category — assign categories afterward to scope them.</p>
           <UserAssign />
+        </Modal>
+      )}
+
+      {assignFor && (
+        <Modal title="Assign categories" onClose={() => { if (!savingAssign) setAssignFor(null) }}>
+          <p className="mv-modal-note">
+            <strong>{assignFor.fullName || assignFor.email}</strong> — pick the categories they should review.
+            Leave everything unchecked to let them review <strong>every</strong> category.
+          </p>
+          <div className="mv-catgrid">
+            {categories.map((c) => {
+              const on = assignDraft.has(c.number)
+              return (
+                <label key={c.number} className={`mv-check${on ? ' is-on' : ''}`}>
+                  <input type="checkbox" checked={on} onChange={() => toggleCat(c.number)} />
+                  <span className="mv-check-n">#{c.number}</span>
+                  <span className="mv-check-name">{c.name}</span>
+                </label>
+              )
+            })}
+          </div>
+          {assignError && (
+            <div className="dash-banner tone-error" style={{ marginTop: 12 }}><i className="fas fa-circle-exclamation" aria-hidden="true" /> {assignError}</div>
+          )}
+          <div className="mv-modal-foot">
+            <span className="mv-selected">{assignDraft.size === 0 ? 'All categories' : `${assignDraft.size} of ${categories.length} selected`}</span>
+            <button type="button" className="dash-btn is-sm is-ghost" onClick={() => setAssignFor(null)} disabled={savingAssign}>Cancel</button>
+            <button type="button" className="dash-btn is-sm is-primary" onClick={saveAssign} disabled={savingAssign}>
+              {savingAssign ? 'Saving…' : 'Save'}
+            </button>
+          </div>
         </Modal>
       )}
 
@@ -180,6 +260,21 @@ export default function AdminAccessPage() {
         .mv-date { color: var(--gray-600); font-size: 0.84rem; white-space: nowrap; font-family: var(--font-heading); font-weight: 600; }
         .mv-actions { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
         .mv-all { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold-dark); background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.28); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+        .mv-cov { min-width: 220px; max-width: 460px; }
+        .mv-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+        .mv-chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 600; color: var(--navy); background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.28); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+        .mv-chip-n { font-weight: 800; color: var(--gold-dark); }
+
+        /* Assign-categories modal */
+        .mv-catgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 48vh; overflow-y: auto; }
+        .mv-check { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm, 8px); cursor: pointer; background: var(--white); transition: var(--transition-fast, all 0.12s ease); }
+        .mv-check:hover { border-color: var(--gold); }
+        .mv-check.is-on { border-color: var(--gold); background: rgba(200,168,75,0.1); }
+        .mv-check input { width: 16px; height: 16px; accent-color: var(--gold-dark); cursor: pointer; flex-shrink: 0; }
+        .mv-check-n { font-family: var(--font-heading); font-weight: 800; font-size: 0.76rem; color: var(--gold-dark); flex-shrink: 0; }
+        .mv-check-name { font-family: var(--font-body); font-size: 0.82rem; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mv-modal-foot { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gray-100); }
+        .mv-selected { font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: var(--gray-600); margin-right: auto; }
 
         /* Modal */
         .mv-modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(15,25,46,0.45); display: grid; place-items: center; padding: 20px; animation: mvFade 0.15s ease-out; }
