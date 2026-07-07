@@ -99,8 +99,8 @@ export default function AdminAccessPage() {
           <span className="dash-eyebrow">Admin · Validators</span>
           <h1 className="dash-h1">Manage Validators</h1>
           <p className="dash-sub">
-            Approve validator requests or add one directly. A validator reviews <strong>all award
-            categories</strong> by default — assign categories to scope them to just those.
+            Approve validator requests or add one directly. A new validator has <strong>no access</strong> until
+            you assign categories — they only see and review entries in their assigned categories.
           </p>
         </div>
         <button type="button" className="dash-btn is-primary" onClick={() => setAssignOpen(true)}>
@@ -185,7 +185,7 @@ export default function AdminAccessPage() {
                           ))}
                         </span>
                       ) : (
-                        <span className="mv-all"><i className="fas fa-layer-group" aria-hidden="true" /> All categories</span>
+                        <span className="mv-none"><i className="fas fa-ban" aria-hidden="true" /> Not assigned</span>
                       )}
                     </td>
                     <td className="mv-actions">
@@ -206,7 +206,7 @@ export default function AdminAccessPage() {
 
       {assignOpen && (
         <Modal title="Add validator" onClose={() => setAssignOpen(false)}>
-          <p className="mv-modal-note">Search for a user and grant the Validator role. They keep their existing roles and, by default, review every category — assign categories afterward to scope them.</p>
+          <p className="mv-modal-note">Search for a user and grant the Validator role. They keep their existing roles. A new validator has no access until you assign categories.</p>
           <UserAssign />
         </Modal>
       )}
@@ -215,7 +215,7 @@ export default function AdminAccessPage() {
         <Modal title="Assign categories" onClose={() => { if (!savingAssign) setAssignFor(null) }}>
           <p className="mv-modal-note">
             <strong>{assignFor.fullName || assignFor.email}</strong> — pick the categories they should review.
-            Leave everything unchecked to let them review <strong>every</strong> category.
+            With nothing checked they have <strong>no access</strong> (empty review queue).
           </p>
           <div className="mv-catgrid">
             {categories.map((c) => {
@@ -233,7 +233,7 @@ export default function AdminAccessPage() {
             <div className="dash-banner tone-error" style={{ marginTop: 12 }}><i className="fas fa-circle-exclamation" aria-hidden="true" /> {assignError}</div>
           )}
           <div className="mv-modal-foot">
-            <span className="mv-selected">{assignDraft.size === 0 ? 'All categories' : `${assignDraft.size} of ${categories.length} selected`}</span>
+            <span className="mv-selected">{assignDraft.size === 0 ? 'No access' : `${assignDraft.size} of ${categories.length} selected`}</span>
             <button type="button" className="dash-btn is-sm is-ghost" onClick={() => setAssignFor(null)} disabled={savingAssign}>Cancel</button>
             <button type="button" className="dash-btn is-sm is-primary" onClick={saveAssign} disabled={savingAssign}>
               {savingAssign ? 'Saving…' : 'Save'}
@@ -261,6 +261,7 @@ export default function AdminAccessPage() {
         .mv-actions { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
         .mv-all { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold-dark); background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.28); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
         .mv-cov { min-width: 220px; max-width: 460px; }
+        .mv-none { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gray-500); background: var(--gray-100); border: 1px solid var(--gray-200); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
         .mv-chips { display: flex; flex-wrap: wrap; gap: 4px; }
         .mv-chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 600; color: var(--navy); background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.28); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
         .mv-chip-n { font-weight: 800; color: var(--gold-dark); }
