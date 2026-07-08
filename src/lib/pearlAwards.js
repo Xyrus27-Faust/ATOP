@@ -83,9 +83,18 @@ export const SUBMISSION_KIND_LABELS = {
   Reference: 'Reference / link',
 }
 
-// Field limits enforced by the backend (Bidbook / NarrativeItem).
-export const EXEC_SUMMARY_MAX = 1800
-export const NARRATIVE_MAX = 1200
+// Word limits are the real cap, enforced by the backend at submit (Bidbook / NarrativeItem). They're
+// soft on save; a generous char backstop (mirrors the backend abuse cap) bounds a single draft.
+export const EXEC_SUMMARY_MAX_WORDS = 300
+export const NARRATIVE_MAX_WORDS = 200
+export const EXEC_SUMMARY_MAX_CHARS = 20000
+export const NARRATIVE_MAX_CHARS = 20000
+
+// Whitespace-token word count — the same rule the backend uses (runs of non-whitespace).
+export const countWords = (t) => {
+  const s = (t || '').trim()
+  return s ? s.split(/\s+/).length : 0
+}
 
 // Max size for an uploaded supporting-document file. Videos stay as external
 // links (e.g. YouTube) — hosting/serving video is too costly.
@@ -191,20 +200,20 @@ export function computeReadiness(entry, category) {
 
   items.push({ key: 'title', label: 'Entry title', done: !!entry?.title?.trim() })
 
-  const summary = (bidbook.executiveSummary || '').trim()
+  const summaryWords = countWords(bidbook.executiveSummary)
   items.push({
     key: 'summary',
     label: 'Executive summary',
-    done: summary.length > 0 && summary.length <= EXEC_SUMMARY_MAX,
-    detail: summary.length > EXEC_SUMMARY_MAX ? `${summary.length}/${EXEC_SUMMARY_MAX} — over limit` : undefined,
+    done: summaryWords > 0 && summaryWords <= EXEC_SUMMARY_MAX_WORDS,
+    detail: summaryWords > EXEC_SUMMARY_MAX_WORDS ? `${summaryWords}/${EXEC_SUMMARY_MAX_WORDS} words — over limit` : undefined,
   })
 
   if (category) {
-    const textByCriterion = new Map((bidbook.narratives || []).map((n) => [n.criterionId, (n.text || '').trim()]))
+    const textByCriterion = new Map((bidbook.narratives || []).map((n) => [n.criterionId, n.text || '']))
     const total = category.criteria.length
     const filled = category.criteria.filter((c) => {
-      const t = textByCriterion.get(c.id) || ''
-      return t.length > 0 && t.length <= NARRATIVE_MAX
+      const w = countWords(textByCriterion.get(c.id) || '')
+      return w > 0 && w <= NARRATIVE_MAX_WORDS
     }).length
     items.push({
       key: 'narratives',

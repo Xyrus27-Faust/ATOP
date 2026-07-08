@@ -14,8 +14,11 @@ import {
   submissionWindow,
   statusMeta,
   formatDate,
-  EXEC_SUMMARY_MAX,
-  NARRATIVE_MAX,
+  EXEC_SUMMARY_MAX_WORDS,
+  NARRATIVE_MAX_WORDS,
+  EXEC_SUMMARY_MAX_CHARS,
+  NARRATIVE_MAX_CHARS,
+  countWords,
   SUBMISSION_KIND_LABELS,
   STATUS_FLOW,
   COVERAGE_OPTIONS,
@@ -291,9 +294,11 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
     }
   }
 
-  const summaryOver = summary.length > EXEC_SUMMARY_MAX
-  const narrativeOver = Object.values(narratives).some((t) => (t || '').length > NARRATIVE_MAX)
-  const blocked = summaryOver || narrativeOver
+  const summaryWords = countWords(summary)
+  const summaryOver = summaryWords > EXEC_SUMMARY_MAX_WORDS // soft: warns, does not block save
+  // Only the generous char backstop (abuse guard) blocks a draft save — the word limit is soft on save.
+  const blocked = summary.length > EXEC_SUMMARY_MAX_CHARS
+    || Object.values(narratives).some((t) => (t || '').length > NARRATIVE_MAX_CHARS)
 
   function buildPayload() {
     return {
@@ -350,7 +355,7 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
           label="Executive summary"
           htmlFor="execSummary"
           hint="A concise overview of the program and its impact."
-          counter={{ text: `${summary.length}/${EXEC_SUMMARY_MAX}`, over: summaryOver }}
+          counter={{ text: `${summaryWords}/${EXEC_SUMMARY_MAX_WORDS} words`, over: summaryOver }}
         >
           <textarea
             id="execSummary"
@@ -369,7 +374,7 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
         <p className="dash-help" style={{ marginBottom: 6 }}>Address each scoring criterion. Points show how heavily each is weighted.</p>
         {criteria.map((c) => {
           const text = narratives[c.id] || ''
-          const over = text.length > NARRATIVE_MAX
+          const over = countWords(text) > NARRATIVE_MAX_WORDS
           const files = evidenceOf(c.id)
           const evBusy = uploadingEvidence === c.id
           return (
@@ -379,7 +384,7 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
                 <span className="dash-badge tone-progress">{c.points} pts</span>
               </div>
               {c.indicators && <p className="ed-criterion-ind">{c.indicators}</p>}
-              <Field counter={{ text: `${text.length}/${NARRATIVE_MAX}`, over }}>
+              <Field counter={{ text: `${countWords(text)}/${NARRATIVE_MAX_WORDS} words`, over }}>
                 <textarea
                   className={ctl('dash-textarea', over)}
                   value={text}
@@ -498,7 +503,7 @@ function BidbookSection({ entry, category, readOnly, onSaved }) {
 
       {!readOnly && (
         <SaveBar saving={saving} dirty={dirty} blocked={blocked} banner={banner} onSave={() => doSave(false)}
-          blockedMsg="Some fields are over their character limit." />
+          blockedMsg="A field is too long to save — please shorten it." />
       )}
     </div>
   )
