@@ -8,7 +8,7 @@ export const ROLE_LABELS = {
   Validator: 'Validator',
   Twg: 'Technical Working Group',
   '3PIC': 'Third-Party Independent Committee',
-  Judge: 'Judge',
+  Adjudicator: 'Adjudicator',
   Admin: 'Administrator',
 }
 
@@ -24,6 +24,18 @@ export const isAssessor = (roles = []) => roles.some((r) => ASSESSOR_ROLES.inclu
 export const isPureAssessor = (roles = []) =>
   roles.includes('3PIC') && !roles.includes('Applicant') && !isReviewer(roles)
 
+// Roles that rank finalists in the finals stage (mirrors the backend's /finals roles).
+// Adjudicators are the finals panel — deliberately separate from the 3PIC assessors who score
+// pre-finals; Admins can view/oversee and override.
+export const ADJUDICATOR_ROLES = ['Admin', 'Adjudicator']
+export const isAdjudicator = (roles = []) => roles.some((r) => ADJUDICATOR_ROLES.includes(r))
+// An adjudicator with no other working role belongs in the finals workspace.
+export const isPureAdjudicator = (roles = []) =>
+  roles.includes('Adjudicator') &&
+  !roles.includes('Applicant') &&
+  !roles.includes('3PIC') &&
+  !isReviewer(roles)
+
 // A reviewer with no applicant role belongs in the review workspace — they have
 // no entries of their own, so the applicant pages (overview, my entries, the
 // submission editor) are empty or unusable for them.
@@ -32,7 +44,7 @@ export const isPureReviewer = (roles = []) => isReviewer(roles) && !roles.includ
 export const isAdmin = (roles = []) => roles.includes('Admin')
 
 // Highest-privilege role wins for the badge shown in the shell.
-const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Judge', 'Applicant']
+const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'Applicant']
 
 export function primaryRole(roles = []) {
   for (const role of ROLE_PRECEDENCE) if (roles.includes(role)) return role
@@ -60,6 +72,10 @@ const SUBMISSIONS = { to: '/dashboard/review', label: 'Submissions', icon: 'fa-l
 const SCORING = { to: '/dashboard/scoring', label: 'Scoring', icon: 'fa-star-half-stroke' }
 const ASSESSORS = { to: '/dashboard/admin/assessors', label: 'Assessors', icon: 'fa-user-check' }
 const RESULTS = { to: '/dashboard/admin/scoring', label: 'Scoring Results', icon: 'fa-ranking-star' }
+// Finals adjudication workspace, and the admin management of it.
+const FINALS = { to: '/dashboard/finals', label: 'Finals', icon: 'fa-gavel' }
+const ADJUDICATORS = { to: '/dashboard/admin/adjudicators', label: 'Adjudicators', icon: 'fa-user-tie' }
+const WINNERS = { to: '/dashboard/admin/finals', label: 'Finals Results', icon: 'fa-trophy' }
 const ACCESS = { to: '/dashboard/admin/access', label: 'Manage Validators', icon: 'fa-user-shield' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
@@ -72,19 +88,29 @@ const PROFILE = { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge
 // Pre-finals scoring (3PIC) is gated by a build flag so it can ship dark to prod (hidden until UAT).
 // Enabled by default; disabled only when VITE_FEATURE_SCORING is explicitly 'false'.
 export const SCORING_ENABLED = import.meta.env.VITE_FEATURE_SCORING !== 'false'
+// Finals adjudication (M4b) is gated the same way, so it can ship dark ahead of the finals round.
+export const FINALS_ENABLED = import.meta.env.VITE_FEATURE_FINALS !== 'false'
 
 export function navForRoles(roles = []) {
   const reviewer = isReviewer(roles)
   const assessor = isAssessor(roles)
+  const adjudicator = isAdjudicator(roles)
   const admin = isAdmin(roles)
   // Default to the applicant view only for users with no back-office role.
-  const applicant = roles.includes('Applicant') || (!reviewer && !assessor)
+  const applicant = roles.includes('Applicant') || (!reviewer && !assessor && !adjudicator)
 
   const groups = []
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
   if (reviewer) groups.push({ label: 'Review', items: [SUMMARY, admin ? SUBMISSIONS : REVIEW] })
   if (SCORING_ENABLED && roles.includes('3PIC')) groups.push({ label: 'Scoring', items: [SCORING] }) // the assessor's own queue
-  if (admin) groups.push({ label: 'Administration', items: SCORING_ENABLED ? [ACCESS, ASSESSORS, RESULTS] : [ACCESS] })
+  if (FINALS_ENABLED && roles.includes('Adjudicator')) groups.push({ label: 'Finals', items: [FINALS] }) // the adjudicator's own queue
+
+  if (admin) {
+    const adminItems = [ACCESS]
+    if (SCORING_ENABLED) adminItems.push(ASSESSORS, RESULTS)
+    if (FINALS_ENABLED) adminItems.push(ADJUDICATORS, WINNERS)
+    groups.push({ label: 'Administration', items: adminItems })
+  }
   groups.push({ label: null, items: [AWARDS, PROFILE] })
   return groups
 }
@@ -100,6 +126,7 @@ export function isApplicantOnlyPath(path = '') {
 export function roleHome(roles = []) {
   if (isPureReviewer(roles)) return '/dashboard/review'
   if (isPureAssessor(roles)) return '/dashboard/scoring'
+  if (isPureAdjudicator(roles)) return '/dashboard/finals'
   return '/dashboard'
 }
 

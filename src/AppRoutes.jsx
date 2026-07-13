@@ -22,7 +22,11 @@ import ScoringQueuePage from './dashboard/pages/ScoringQueuePage'
 import ScoringEntryPage from './dashboard/pages/ScoringEntryPage'
 import AssessorAdminPage from './dashboard/pages/AssessorAdminPage'
 import ScoringResultsPage from './dashboard/pages/ScoringResultsPage'
-import { SCORING_ENABLED } from './dashboard/dashboardNav'
+import FinalsQueuePage from './dashboard/pages/FinalsQueuePage'
+import FinalsBracketPage from './dashboard/pages/FinalsBracketPage'
+import AdjudicatorAdminPage from './dashboard/pages/AdjudicatorAdminPage'
+import FinalsResultsPage from './dashboard/pages/FinalsResultsPage'
+import { SCORING_ENABLED, FINALS_ENABLED } from './dashboard/dashboardNav'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -39,6 +43,10 @@ export default function AppRoutes() {
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
             chrome) — opened in a new tab from the scoring queue. Role-gated in-page. */}
         {SCORING_ENABLED && <Route path="/scoring/:id" element={<ScoringEntryPage />} />}
+
+        {/* Ranking a bracket's finalists is likewise a focused, full-screen task — the adjudicator
+            orders the whole field in one sitting, so it gets its own shell. Role-gated in-page. */}
+        {FINALS_ENABLED && <Route path="/finals/:categoryNumber/:bracket" element={<FinalsBracketPage />} />}
 
         {/* The submission flow lives outside the dashboard in a focused shell —
             composing an entry is an application, not a dashboard page. It's
@@ -59,10 +67,13 @@ export default function AppRoutes() {
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
           {SCORING_ENABLED && <Route path="scoring" element={<ScoringQueuePage />} />}
+          {FINALS_ENABLED && <Route path="finals" element={<FinalsQueuePage />} />}
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
             {SCORING_ENABLED && <Route path="admin/assessors" element={<AssessorAdminPage />} />}
             {SCORING_ENABLED && <Route path="admin/scoring" element={<ScoringResultsPage />} />}
+            {FINALS_ENABLED && <Route path="admin/adjudicators" element={<AdjudicatorAdminPage />} />}
+            {FINALS_ENABLED && <Route path="admin/finals" element={<FinalsResultsPage />} />}
             <Route path="admin/access" element={<AdminAccessPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />

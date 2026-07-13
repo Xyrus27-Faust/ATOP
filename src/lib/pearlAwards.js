@@ -263,6 +263,45 @@ export function computeReadiness(entry, category) {
   return { items, completed, total: items.length, ready: completed === items.length }
 }
 
+// ---- Finals adjudication (M4b) --------------------------------------------
+// Adjudicators rank a bracket's finalists 1..N (1 = best). Lowest average rank wins:
+// 1st → Grand Winner, 2nd → First Runner-Up, 3rd → Second Runner-Up; the rest are
+// still recognised finalists. Mirrors the backend's FinalsPlacement enum.
+
+export const FINALS_PLACEMENT = {
+  GrandWinner: { label: 'Grand Winner', short: 'Grand Winner', tone: 'success', icon: 'fa-trophy' },
+  FirstRunnerUp: { label: 'First Runner-Up', short: '1st Runner-Up', tone: 'info', icon: 'fa-medal' },
+  SecondRunnerUp: { label: 'Second Runner-Up', short: '2nd Runner-Up', tone: 'info', icon: 'fa-medal' },
+  Finalist: { label: 'Finalist', short: 'Finalist', tone: 'neutral', icon: 'fa-star' },
+}
+
+export function placementMeta(placement) {
+  return FINALS_PLACEMENT[placement] || { label: placement || '—', short: '—', tone: 'neutral', icon: 'fa-circle' }
+}
+
+// What a given 0-based position in the ranked list would earn — lets the adjudicator see the
+// stakes of their ordering live, as they drag.
+export function placementForPosition(index) {
+  if (index === 0) return 'GrandWinner'
+  if (index === 1) return 'FirstRunnerUp'
+  if (index === 2) return 'SecondRunnerUp'
+  return 'Finalist'
+}
+
+// A finals bracket is a (category × LGU level) contest; level-less categories collapse to one
+// bracket keyed 'All'.
+export function bracketLabel(bracket) {
+  return bracket === 'All' ? 'All entrants' : labelFor(LGU_LEVELS, bracket)
+}
+
+// The adjudicator's own progress on a bracket's ballot.
+export const BALLOT_STATUS = {
+  NotStarted: { label: 'To rank', tone: 'neutral', icon: 'fa-circle-dot' },
+  Pending: { label: 'In progress', tone: 'progress', icon: 'fa-pen' },
+  Submitted: { label: 'Ranked', tone: 'success', icon: 'fa-circle-check' },
+}
+export const ballotMeta = (s) => BALLOT_STATUS[s] || BALLOT_STATUS.NotStarted
+
 // ---- Date formatting ------------------------------------------------------
 
 export function formatDate(value, opts = { month: 'short', day: 'numeric', year: 'numeric' }) {
