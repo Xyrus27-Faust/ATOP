@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 
@@ -30,8 +30,27 @@ const navItems = [
 
 export default function Header({ scrolled, currentPage, setCurrentPage }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  // Dismiss the user menu on an outside click or Escape.
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function onDocClick(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenuOpen]);
 
   return (
     <>
@@ -47,11 +66,45 @@ export default function Header({ scrolled, currentPage, setCurrentPage }) {
                 <i className="fas fa-gauge-high"></i>
                 Dashboard
               </a>
-              <span className="top-bar-user">
-                <i className="fas fa-circle-user"></i>
-                {user.firstName || user.fullName || user.email}
-              </span>
-              <button className="btn-join-topbar" id="top-bar-logout-btn" onClick={logout}>Logout</button>
+              <div className="top-bar-usermenu" ref={userMenuRef}>
+                <button
+                  type="button"
+                  className="top-bar-user"
+                  id="top-bar-user-btn"
+                  onClick={() => setUserMenuOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                >
+                  <i className="fas fa-circle-user"></i>
+                  {user.firstName || user.fullName || user.email}
+                  <i className={`fas fa-chevron-down top-bar-caret ${userMenuOpen ? 'is-open' : ''}`} aria-hidden="true"></i>
+                </button>
+
+                {userMenuOpen && (
+                  <div className="top-bar-menu" role="menu">
+                    <button
+                      type="button"
+                      className="top-bar-menu-item"
+                      role="menuitem"
+                      onClick={() => { setUserMenuOpen(false); navigate('/dashboard/profile'); }}
+                    >
+                      <i className="fas fa-id-badge" aria-hidden="true"></i>
+                      <span>My profile</span>
+                    </button>
+                    <div className="top-bar-menu-sep" role="separator" />
+                    <button
+                      type="button"
+                      className="top-bar-menu-item is-signout"
+                      id="top-bar-logout-btn"
+                      role="menuitem"
+                      onClick={logout}
+                    >
+                      <i className="fas fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>
@@ -131,15 +184,67 @@ export default function Header({ scrolled, currentPage, setCurrentPage }) {
       </header>
 
       <style>{`
+        .top-bar-usermenu { position: relative; }
         .top-bar-user {
           display: flex;
           align-items: center;
           gap: 8px;
+          background: none;
+          border: 1px solid transparent;
+          border-radius: 999px;
+          padding: 4px 12px;
+          cursor: pointer;
           color: rgba(255, 255, 255, 0.85);
           font-family: var(--font-heading);
+          font-size: inherit;
           font-weight: 600;
+          transition: var(--transition-fast);
         }
+        .top-bar-user:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.14); color: var(--white); }
         .top-bar-user i { color: var(--gold-light); font-size: 0.95rem; }
+        .top-bar-caret { font-size: 0.62rem !important; color: rgba(255,255,255,0.5) !important; transition: var(--transition-fast); }
+        .top-bar-caret.is-open { transform: rotate(180deg); }
+
+        /* User dropdown — must clear the sticky .header (z-index 1000) below it. */
+        .top-bar-menu {
+          position: absolute;
+          right: 0;
+          top: calc(100% + 10px);
+          z-index: 1100;
+          min-width: 200px;
+          padding: 6px;
+          background: var(--white);
+          border: 1px solid var(--gray-200);
+          border-radius: var(--radius-md);
+          box-shadow: 0 18px 44px rgba(15, 25, 46, 0.22);
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          animation: top-bar-menu-in 0.16s ease-out both;
+        }
+        @keyframes top-bar-menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .top-bar-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: var(--radius-sm);
+          background: none;
+          border: none;
+          cursor: pointer;
+          text-align: left;
+          font-family: var(--font-heading);
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: var(--navy);
+          transition: var(--transition-fast);
+        }
+        .top-bar-menu-item i { width: 18px; text-align: center; font-size: 0.9rem; color: var(--gray-400); }
+        .top-bar-menu-item:hover { background: var(--gray-100); }
+        .top-bar-menu-item.is-signout, .top-bar-menu-item.is-signout i { color: #B91C1C; }
+        .top-bar-menu-item.is-signout:hover { background: #FEF2F2; }
+        .top-bar-menu-sep { height: 1px; margin: 4px 6px; background: var(--gray-200); }
         .top-bar-dash { display: flex; align-items: center; gap: 7px; color: rgba(255,255,255,0.78); font-family: var(--font-heading); font-weight: 600; }
         .top-bar-dash i { color: var(--gold-light); }
         .top-bar-dash:hover { color: var(--white); }

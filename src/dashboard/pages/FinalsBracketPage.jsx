@@ -7,7 +7,7 @@ import { isAdjudicator } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import EntryDossier, { EntryFacts } from '../components/EntryDossier'
 import { useEntryFiles } from '@/lib/entryFiles'
-import { bracketLabel, placementForPosition, placementMeta } from '@/lib/pearlAwards'
+import { bracketLabel } from '@/lib/pearlAwards'
 import { DASH_CSS } from '../DashboardLayout'
 
 // Focused full-screen shell (no dashboard chrome) — ranking a bracket is a single sustained task.
@@ -165,22 +165,27 @@ export default function FinalsBracketPage() {
 
   if (!isAdjudicator(user?.roles)) return <Navigate to="/dashboard" replace />
 
-  const back = (
-    <button type="button" className="fb-back" onClick={() => navigate('/dashboard/finals')}>
-      <i className="fas fa-arrow-left" aria-hidden="true" /> Back to finals
+  // The way out is a breadcrumb above the bracket title rather than a button on the
+  // left. `trailing` draws the chevron only when a title follows it — the loading and
+  // error shells have none, so there it reads as a plain back link.
+  const crumb = (trailing) => (
+    <button type="button" className={`fb-crumb${trailing ? '' : ' is-alone'}`} onClick={() => navigate('/dashboard/finals')}>
+      {!trailing && <i className="fas fa-arrow-left" aria-hidden="true" />}
+      <span>Finals</span>
+      {trailing && <i className="fas fa-chevron-right" aria-hidden="true" />}
     </button>
   )
 
-  if (loading) return <Shell><header className="fb-top">{back}</header><div className="fb-loadwrap"><Loading /></div></Shell>
-  if (error) return <Shell><header className="fb-top">{back}</header><div className="fb-loadwrap"><ErrorState error={error} onRetry={reload} title="We couldn’t open this bracket" /></div></Shell>
+  if (loading) return <Shell><header className="fb-top">{crumb(false)}</header><div className="fb-loadwrap"><Loading /></div></Shell>
+  if (error) return <Shell><header className="fb-top">{crumb(false)}</header><div className="fb-loadwrap"><ErrorState error={error} onRetry={reload} title="We couldn’t open this bracket" /></div></Shell>
 
-  const podium = order.slice(0, 3).map((id) => byId.get(id)).filter(Boolean)
+  const ballot = order.map((id) => byId.get(id)).filter(Boolean)
 
   return (
     <Shell>
       <header className="fb-top">
-        {back}
         <div className="fb-top-id">
+          {crumb(true)}
           <span className="fb-top-cat">#{data.categoryNumber} · {data.categoryName}</span>
           <span className="fb-top-bracket"><i className="fas fa-layer-group" aria-hidden="true" /> {bracketLabel(data.bracket)}</span>
         </div>
@@ -229,9 +234,14 @@ export default function FinalsBracketPage() {
             <div className="fb-head">
               <h1 className="fb-h1">Rank the finalists</h1>
               <p className="fb-sub">
-                Put them in your order of merit — <b>the top of the list is your Grand Winner</b>. Every
-                adjudicator’s positions are averaged; the finalist with the <b>lowest average rank</b> wins.
-                Drag a card, or use the arrows.
+                Drag them into your order of merit, best at the top — or use the arrows.
+              </p>
+              {/* Said once, plainly, and never repeated on the cards: a ballot is not a verdict. */}
+              <p className="fb-caveat">
+                <i className="fas fa-circle-info" aria-hidden="true" />
+                This is your ballot, not the result. Every adjudicator ranks independently, and the
+                Grand Winner is the finalist with the lowest average position across all of them — so
+                it may not be your first choice.
               </p>
             </div>
 
@@ -245,12 +255,10 @@ export default function FinalsBracketPage() {
               {order.map((id, i) => {
                 const f = byId.get(id)
                 if (!f) return null
-                const pm = placementMeta(placementForPosition(i))
-                const top3 = i < 3
                 return (
                   <li
                     key={id}
-                    className={`fb-item${dragIndex === i ? ' is-dragging' : ''}${top3 ? ' is-podium' : ''}`}
+                    className={`fb-item${dragIndex === i ? ' is-dragging' : ''}`}
                     draggable={!readOnly}
                     onDragStart={() => setDragIndex(i)}
                     onDragEnd={() => setDragIndex(null)}
@@ -259,16 +267,11 @@ export default function FinalsBracketPage() {
                       if (dragIndex !== null && dragIndex !== i) { move(dragIndex, i); setDragIndex(i) }
                     }}
                   >
-                    <span className={`fb-rank-badge${i === 0 ? ' is-gold' : ''}`}>{i + 1}</span>
+                    <span className="fb-ord">{i + 1}</span>
 
                     <div className="fb-item-body">
                       <span className="fb-item-title">{f.title}</span>
                       <span className="fb-item-lgu">{f.lguName}{f.lguLevel ? ` · ${f.lguLevel}` : ''}</span>
-                      {top3 && (
-                        <span className={`fb-place tone-${pm.tone}`}>
-                          <i className={`fas ${pm.icon}`} aria-hidden="true" /> {pm.label} if you submit this order
-                        </span>
-                      )}
                     </div>
 
                     <button type="button" className="dash-btn is-ghost is-sm fb-review" onClick={() => setDossier(id)}>
@@ -336,32 +339,22 @@ export default function FinalsBracketPage() {
       {confirming && (
         <div className="fb-modal" role="dialog" aria-modal="true" aria-label="Confirm ranking" onMouseDown={() => !submitting && setConfirming(false)}>
           <div className="fb-modal-card" onMouseDown={(e) => e.stopPropagation()}>
-            <h3 className="fb-modal-title">Submit this ranking?</h3>
+            <h3 className="fb-modal-title">Submit your ranking?</h3>
             <p className="fb-modal-sub">
               {reordered
-                ? 'Once submitted your ballot locks — only an admin can reopen it.'
-                : 'You haven’t changed the order. Please confirm this really is your intended ranking — it locks once submitted.'}
+                ? 'Your ballot locks once submitted — only an admin can reopen it.'
+                : 'You haven’t changed the order. Confirm this really is your intended ranking — it locks once submitted.'}
             </p>
 
-            <ol className="fb-podium">
-              {podium.map((f, i) => {
-                const pm = placementMeta(placementForPosition(i))
-                return (
-                  <li key={f.entryId} className={i === 0 ? 'is-gold' : ''}>
-                    <span className="fb-rank-badge is-sm">{i + 1}</span>
-                    <span className="fb-podium-body">
-                      <b>{f.title}</b>
-                      <em><i className={`fas ${pm.icon}`} aria-hidden="true" /> {pm.label}</em>
-                    </span>
-                  </li>
-                )
-              })}
+            {/* A read-back of the ballot, in full. No placements: they aren't decided here. */}
+            <ol className="fb-review">
+              {ballot.map((f, i) => (
+                <li key={f.entryId}>
+                  <span className="fb-ord is-sm">{i + 1}</span>
+                  <span className="fb-review-title">{f.title}</span>
+                </li>
+              ))}
             </ol>
-            {order.length > 3 && (
-              <p className="fb-modal-rest">
-                + {order.length - 3} more finalist{order.length - 3 === 1 ? '' : 's'} ranked below, and still recognised.
-              </p>
-            )}
 
             <div className="fb-modal-foot">
               <button type="button" className="dash-btn is-ghost is-sm" onClick={() => setConfirming(false)} disabled={submitting}>
@@ -383,8 +376,11 @@ export default function FinalsBracketPage() {
 const FB_CSS = `
   .fb { min-height: 100vh; background: var(--off-white); }
   .fb-top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; padding: 12px 24px; background: var(--white); border-bottom: 1px solid var(--gray-200); }
-  .fb-back { display: inline-flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer; font-family: var(--font-heading); font-size: 0.82rem; font-weight: 700; color: var(--gray-600); padding: 6px 8px; border-radius: 8px; }
-  .fb-back:hover { color: var(--navy); background: var(--gray-100); }
+  .fb-crumb { display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; background: none; border: none; cursor: pointer; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-600); padding: 0; margin-bottom: 4px; transition: var(--transition-fast); white-space: nowrap; }
+  .fb-crumb i { font-size: 0.58rem; color: var(--gray-400); transition: var(--transition-fast); }
+  .fb-crumb:hover, .fb-crumb:hover i { color: var(--gold-dark); }
+  .fb-crumb:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
+  .fb-crumb.is-alone { font-size: 0.76rem; margin-bottom: 0; padding: 6px 0; }
   .fb-top-id { display: flex; flex-direction: column; min-width: 0; }
   .fb-top-cat { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fb-top-bracket { display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--gray-600); font-family: var(--font-heading); font-weight: 600; }
@@ -400,23 +396,27 @@ const FB_CSS = `
   .fb-h1 { font-family: var(--font-heading); font-size: 1.6rem; font-weight: 800; color: var(--navy); }
   .fb-sub { color: var(--gray-600); font-size: 0.92rem; line-height: 1.6; margin-top: 6px; max-width: 64ch; }
   .fb-sub b { color: var(--navy); }
+  .fb-caveat { display: flex; gap: 9px; align-items: flex-start; max-width: 66ch; margin-top: 12px; padding: 11px 14px; border-left: 2px solid var(--gray-200); color: var(--gray-600); font-size: 0.85rem; line-height: 1.6; }
+  .fb-caveat i { color: var(--gray-400); margin-top: 3px; flex-shrink: 0; }
 
   /* The ranked list — order IS the ranking, so a valid 1..N permutation is impossible to get wrong. */
   .fb-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 0 0 22px; padding: 0; }
   .fb-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(15,25,46,0.04); transition: var(--transition-fast); cursor: grab; }
   .fb-item:hover { border-color: var(--gold); box-shadow: 0 4px 14px rgba(15,25,46,0.08); }
   .fb-item.is-dragging { opacity: 0.55; cursor: grabbing; border-style: dashed; border-color: var(--gold-dark); }
-  .fb-item.is-podium { border-left: 3px solid var(--gold); }
+  /* The ordinal is the whole story: a ballot is an ordered list, not a podium. No chip, no accent
+     bar, no gold — gold is reserved for a *decided* outcome (the results board, the auto-win), and
+     nothing is decided here. */
+  .fb-ord { flex: 0 0 auto; min-width: 26px; text-align: center; font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; line-height: 1; color: var(--navy); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .fb-ord.is-sm { min-width: 20px; font-size: 0.95rem; }
 
+  /* Kept for the single-finalist auto-win, where the outcome IS decided and gold is earned. */
   .fb-rank-badge { flex-shrink: 0; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--gray-600); background: var(--gray-100); border: 1px solid var(--gray-200); }
   .fb-rank-badge.is-gold { color: var(--navy); background: linear-gradient(135deg, var(--gold-light), var(--gold)); border-color: var(--gold-dark); }
-  .fb-rank-badge.is-sm { width: 28px; height: 28px; font-size: 0.82rem; border-radius: 8px; }
 
   .fb-item-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
   .fb-item-title { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.95rem; }
   .fb-item-lgu { color: var(--gray-600); font-size: 0.8rem; }
-  .fb-place { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-family: var(--font-heading); font-size: 0.7rem; font-weight: 700; color: var(--gold-dark); }
-  .fb-place.tone-info { color: var(--gray-600); }
 
   .fb-review { flex-shrink: 0; }
   .fb-moves { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
@@ -442,18 +442,15 @@ const FB_CSS = `
   .fb-auto-name b { display: block; font-family: var(--font-heading); color: var(--navy); font-size: 0.98rem; }
   .fb-auto-name em { display: block; font-style: normal; color: var(--gray-600); font-size: 0.8rem; }
 
-  /* Confirm modal — spells out the podium so the consequence of the order is explicit. */
+  /* Confirm modal — a plain read-back of the ballot, so they submit what they meant to. */
   .fb-modal { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(15,25,46,0.55); backdrop-filter: blur(2px); }
   .fb-modal-card { width: 100%; max-width: 480px; background: var(--white); border-radius: var(--radius-md); box-shadow: 0 30px 70px rgba(15,25,46,0.4); padding: 24px; }
   .fb-modal-title { font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; color: var(--navy); }
   .fb-modal-sub { color: var(--gray-600); font-size: 0.86rem; line-height: 1.55; margin-top: 6px; }
-  .fb-podium { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 8px; }
-  .fb-podium li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
-  .fb-podium li.is-gold { border-color: var(--gold); background: rgba(200,168,75,0.08); }
-  .fb-podium-body { display: flex; flex-direction: column; min-width: 0; }
-  .fb-podium-body b { font-family: var(--font-heading); font-size: 0.88rem; color: var(--navy); }
-  .fb-podium-body em { font-style: normal; font-size: 0.74rem; color: var(--gray-600); display: inline-flex; align-items: center; gap: 5px; margin-top: 1px; }
-  .fb-modal-rest { font-size: 0.78rem; color: var(--gray-600); margin-top: 10px; }
+  .fb-review { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; }
+  .fb-review li { display: flex; align-items: center; gap: 12px; padding: 9px 2px; border-top: 1px solid var(--gray-100); }
+  .fb-review li:first-child { border-top: none; }
+  .fb-review-title { font-family: var(--font-heading); font-size: 0.88rem; font-weight: 600; color: var(--navy); }
   .fb-modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
   /* Dossier drawer — the bidbook the ranking is actually made on. */
@@ -469,7 +466,9 @@ const FB_CSS = `
   @media (max-width: 640px) {
     .fb-item { flex-wrap: wrap; }
     .fb-review { order: 3; }
-    .fb-top-id { display: none; }
+    /* Drop the category/bracket detail, but never the crumb — it's the only way out. */
+    .fb-top-cat, .fb-top-bracket { display: none; }
+    .fb-crumb { margin-bottom: 0; }
     .fb-submitbar { flex-direction: column; align-items: stretch; }
     .fb-submitbar .dash-btn { margin-left: 0; }
   }

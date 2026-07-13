@@ -279,14 +279,10 @@ export function placementMeta(placement) {
   return FINALS_PLACEMENT[placement] || { label: placement || '—', short: '—', tone: 'neutral', icon: 'fa-circle' }
 }
 
-// What a given 0-based position in the ranked list would earn — lets the adjudicator see the
-// stakes of their ordering live, as they drag.
-export function placementForPosition(index) {
-  if (index === 0) return 'GrandWinner'
-  if (index === 1) return 'FirstRunnerUp'
-  if (index === 2) return 'SecondRunnerUp'
-  return 'Finalist'
-}
+// NOTE: there is deliberately no position→placement helper. A position on ONE adjudicator's ballot
+// is not a placement: placements come from the tally, which averages every adjudicator's positions.
+// Labelling a ballot row "Grand Winner" told adjudicators their order decided the award. It doesn't.
+// Placements are only ever read from the server (`placementMeta(row.placement)`), never inferred.
 
 // A finals bracket is a (category × LGU level) contest; level-less categories collapse to one
 // bracket keyed 'All'.

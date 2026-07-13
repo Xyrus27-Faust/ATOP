@@ -177,14 +177,19 @@ export default function ScoringEntryPage() {
 
   if (!isAssessor(user?.roles)) return <Navigate to="/dashboard" replace />
 
-  const back = (
-    <button type="button" className="scf-back" onClick={() => navigate('/dashboard/scoring')}>
-      <i className="fas fa-arrow-left" aria-hidden="true" /> Back to queue
+  // The way out is a breadcrumb, not a button: it sits above the entry title so the
+  // top bar leads with the entry itself. `trailing` draws the chevron only when a
+  // title actually follows it (i.e. not on the loading/error shells).
+  const crumb = (trailing) => (
+    <button type="button" className={`scf-crumb${trailing ? '' : ' is-alone'}`} onClick={() => navigate('/dashboard/scoring')}>
+      {!trailing && <i className="fas fa-arrow-left" aria-hidden="true" />}
+      <span>Scoring queue</span>
+      {trailing && <i className="fas fa-chevron-right" aria-hidden="true" />}
     </button>
   )
 
-  if (loading) return <Shell><header className="scf-top">{back}</header><div className="scf-loadwrap"><Loading /></div></Shell>
-  if (error) return <Shell><header className="scf-top">{back}</header><div className="scf-loadwrap"><ErrorState error={error} onRetry={reload} title="We couldn’t open this entry" /></div></Shell>
+  if (loading) return <Shell><header className="scf-top">{crumb(false)}</header><div className="scf-loadwrap"><Loading /></div></Shell>
+  if (error) return <Shell><header className="scf-top">{crumb(false)}</header><div className="scf-loadwrap"><ErrorState error={error} onRetry={reload} title="We couldn’t open this entry" /></div></Shell>
 
   const bb = entry.bidbook || { executiveSummary: '', narratives: [], supportingDocuments: [], evidence: [] }
   const narrativeByCriterion = new Map(bb.narratives.map((n) => [n.criterionId, n]))
@@ -226,10 +231,10 @@ export default function ScoringEntryPage() {
   return (
     <Shell>
       <header className="scf-top">
-        {back}
         <div className="scf-id">
           <span className="scf-cat">#{entry.categoryNumber}</span>
           <div className="scf-id-main">
+            {crumb(true)}
             <span className="scf-title">{entry.title}</span>
             <span className="scf-meta">{entry.lguName} · {entry.lguLevel} · {entry.lguRegion} · {labelFor(COVERAGE_OPTIONS, entry.coverage)}</span>
           </div>
@@ -326,11 +331,15 @@ const SCF_CSS = `
     background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--gray-200);
   }
-  .scf-back { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; background: none; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); color: var(--gray-600); font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; padding: 9px 14px; cursor: pointer; transition: var(--transition-fast); white-space: nowrap; }
-  .scf-back:hover { border-color: var(--navy); color: var(--navy); background: var(--white); }
+  .scf-crumb { display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-600); transition: var(--transition-fast); white-space: nowrap; }
+  .scf-crumb i { font-size: 0.58rem; color: var(--gray-400); transition: var(--transition-fast); }
+  .scf-crumb:hover, .scf-crumb:hover i { color: var(--gold-dark); }
+  .scf-crumb:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
+  .scf-crumb.is-alone { font-size: 0.76rem; padding: 6px 0; }
   .scf-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .scf-cat { flex-shrink: 0; display: inline-grid; place-items: center; min-width: 40px; height: 34px; padding: 0 10px; border-radius: 9px; font-family: var(--font-heading); font-weight: 800; font-size: 0.9rem; color: var(--gold-dark); background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.22); }
   .scf-id-main { display: flex; flex-direction: column; min-width: 0; }
+  .scf-id-main .scf-crumb { margin-bottom: 4px; }
   .scf-title { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 1rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .scf-meta { font-size: 0.76rem; color: var(--gray-600); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .scf-top-r { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
