@@ -236,13 +236,6 @@ export default function FinalsBracketPage() {
               <p className="fb-sub">
                 Drag them into your order of merit, best at the top — or use the arrows.
               </p>
-              {/* Said once, plainly, and never repeated on the cards: a ballot is not a verdict. */}
-              <p className="fb-caveat">
-                <i className="fas fa-circle-info" aria-hidden="true" />
-                This is your ballot, not the result. Every adjudicator ranks independently, and the
-                Grand Winner is the finalist with the lowest average position across all of them — so
-                it may not be your first choice.
-              </p>
             </div>
 
             {readOnly && (
@@ -321,11 +314,22 @@ export default function FinalsBracketPage() {
               />
             </section>
 
+            {/* Sits below the list, not above it: the cards are the task, this is the fine print you
+                want in view at the moment you commit. Said once, never on the cards themselves. */}
+            <p className="fb-caveat">
+              <i className="fas fa-circle-info" aria-hidden="true" />
+              <span>
+                <b>This is your ballot, not the result.</b> Every adjudicator ranks independently, and no
+                one else sees yours. The Grand Winner is the finalist with the lowest average position
+                across all of them — so it may not be your first choice.
+              </span>
+            </p>
+
             {!readOnly && (
               <div className="fb-submitbar">
                 <p className="fb-submitnote">
-                  <i className="fas fa-circle-info" aria-hidden="true" />
-                  Your ranking locks once submitted. Other adjudicators never see it.
+                  <i className="fas fa-lock" aria-hidden="true" />
+                  Your ranking locks once submitted.
                 </p>
                 <button type="button" className="dash-btn is-primary" onClick={() => setConfirming(true)}>
                   <i className="fas fa-check" aria-hidden="true" /> Submit ranking
@@ -396,19 +400,21 @@ const FB_CSS = `
   .fb-h1 { font-family: var(--font-heading); font-size: 1.6rem; font-weight: 800; color: var(--navy); }
   .fb-sub { color: var(--gray-600); font-size: 0.92rem; line-height: 1.6; margin-top: 6px; max-width: 64ch; }
   .fb-sub b { color: var(--navy); }
-  .fb-caveat { display: flex; gap: 9px; align-items: flex-start; max-width: 66ch; margin-top: 12px; padding: 11px 14px; border-left: 2px solid var(--gray-200); color: var(--gray-600); font-size: 0.85rem; line-height: 1.6; }
-  .fb-caveat i { color: var(--gray-400); margin-top: 3px; flex-shrink: 0; }
+  /* Fine print, not a callout — no bar, no tint, nothing competing with the cards above it. */
+  .fb-caveat { display: flex; gap: 10px; align-items: flex-start; max-width: 70ch; margin: 0 2px 18px; color: var(--gray-600); font-size: 0.84rem; line-height: 1.65; }
+  .fb-caveat i { color: var(--gray-400); margin-top: 4px; flex-shrink: 0; }
+  .fb-caveat b { color: var(--navy); font-weight: 700; }
 
   /* The ranked list — order IS the ranking, so a valid 1..N permutation is impossible to get wrong. */
   .fb-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 0 0 22px; padding: 0; }
-  .fb-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(15,25,46,0.04); transition: var(--transition-fast); cursor: grab; }
+  .fb-item { display: flex; align-items: center; gap: 16px; padding: 16px 18px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(15,25,46,0.04); transition: var(--transition-fast); cursor: grab; }
   .fb-item:hover { border-color: var(--gold); box-shadow: 0 4px 14px rgba(15,25,46,0.08); }
   .fb-item.is-dragging { opacity: 0.55; cursor: grabbing; border-style: dashed; border-color: var(--gold-dark); }
-  /* The ordinal is the whole story: a ballot is an ordered list, not a podium. No chip, no accent
-     bar, no gold — gold is reserved for a *decided* outcome (the results board, the auto-win), and
-     nothing is decided here. */
-  .fb-ord { flex: 0 0 auto; min-width: 26px; text-align: center; font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; line-height: 1; color: var(--navy); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-  .fb-ord.is-sm { min-width: 20px; font-size: 0.95rem; }
+  /* The rank IS the value being set, so it carries the card — big, tabular, unmissable. But it stays
+     navy: a ballot is an ordered list, not a podium, and gold is reserved for a *decided* outcome
+     (the results board, the single-finalist auto-win). Emphasis comes from scale, not colour. */
+  .fb-ord { flex: 0 0 auto; min-width: 44px; text-align: center; font-family: var(--font-heading); font-weight: 800; font-size: 2rem; line-height: 1; color: var(--navy); font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
+  .fb-ord.is-sm { min-width: 24px; font-size: 1.05rem; letter-spacing: -0.02em; }
 
   /* Kept for the single-finalist auto-win, where the outcome IS decided and gold is earned. */
   .fb-rank-badge { flex-shrink: 0; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--gray-600); background: var(--gray-100); border: 1px solid var(--gray-200); }
