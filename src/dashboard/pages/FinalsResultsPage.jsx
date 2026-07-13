@@ -49,6 +49,8 @@ export default function FinalsResultsPage() {
   const [tied, setTied] = useState(null)       // finalists tied on every automatic key
   const [expanded, setExpanded] = useState(() => new Set())
   const [breakdowns, setBreakdowns] = useState({})
+  // The tiebreak dialog: the tied set of one bracket, in the order the admin is putting them.
+  const [tb, setTb] = useState(null) // { bracket, rows, order: entryId[], reason, saving, error }
 
   const catalogQ = useAsync(() => api.get('/award-categories/'), [])
   const categories = catalogQ.data?.categories || []
@@ -102,6 +104,63 @@ export default function FinalsResultsPage() {
       return next
     })
     if (!isOpen) loadBreakdown(entryId)
+  }
+
+  // A finalist needs an admin decision if the automatic keys left it tied, or if a pin already placed
+  // it (so an existing tiebreak can be revised — the tie itself never goes away, only the decision).
+  function tiedRowsOf(rows) {
+    return rows.filter((r) => r.tiedUnresolved || r.tiebreakPosition != null)
+  }
+
+  function openTiebreak(bracket, rows) {
+    const set = tiedRowsOf(rows)
+    // Seed the dialog with the standing decision when there is one, else the board's current order.
+    const order = set
+      .slice()
+      .sort((a, b) => (a.tiebreakPosition ?? 1e9) - (b.tiebreakPosition ?? 1e9) || (a.rank ?? 1e9) - (b.rank ?? 1e9))
+      .map((r) => r.entryId)
+    setTb({ bracket, rows: set, order, reason: set[0]?.tiebreakReason || '', saving: false, error: null })
+  }
+
+  function moveTb(from, to) {
+    setTb((prev) => {
+      if (!prev || to < 0 || to >= prev.order.length) return prev
+      const order = [...prev.order]
+      const [id] = order.splice(from, 1)
+      order.splice(to, 0, id)
+      return { ...prev, order }
+    })
+  }
+
+  async function saveTiebreak() {
+    if (!tb) return
+    setTb((p) => ({ ...p, saving: true, error: null }))
+    try {
+      await api.put(
+        `/admin/finals/${selected}/${encodeURIComponent(tb.bracket)}/tiebreak`,
+        { order: tb.order, reason: tb.reason.trim() },
+        { auth: true },
+      )
+      setTb(null)
+      setTied(null)
+      await resultsQ.reload()
+      setBanner({ tone: 'success', text: 'Tiebreak recorded. Finalize can now close this category.' })
+    } catch (e) {
+      setTb((p) => ({ ...p, saving: false, error: e?.message || 'We couldn’t record the tiebreak.' }))
+    }
+  }
+
+  async function clearTiebreak() {
+    if (!tb) return
+    setTb((p) => ({ ...p, saving: true, error: null }))
+    try {
+      await api.delete(`/admin/finals/${selected}/${encodeURIComponent(tb.bracket)}/tiebreak`, { auth: true })
+      setTb(null)
+      await resultsQ.reload()
+      setBanner({ tone: 'warn', text: 'Tiebreak withdrawn — the tie is unresolved again and finalize will block.' })
+    } catch (e) {
+      setTb((p) => ({ ...p, saving: false, error: e?.message || 'We couldn’t withdraw the tiebreak.' }))
+    }
   }
 
   async function finalize() {
@@ -208,7 +267,8 @@ export default function FinalsResultsPage() {
                   <h3 className="fr-block-h"><i className="fas fa-scale-balanced" aria-hidden="true" /> Unresolved tie</h3>
                   <p className="fr-block-sub">
                     These finalists are level on average rank, first-place votes <em>and</em> head-to-head — no automatic
-                    key can separate them. Resolve it with the 3PIC (e.g. an extra ballot or an agreed order), then re-run.
+                    key can separate them. Record a tiebreak on the bracket below (an explicit order, with your reason),
+                    then re-run finalize. A tiebreak never rewrites a ballot.
                   </p>
                   <ul className="fr-block-list">
                     {tied.map((t) => (
@@ -234,6 +294,10 @@ export default function FinalsResultsPage() {
                   // back tied on a placeholder average. Showing "Grand Winner" then would be a lie, so
                   // hold the projection until at least one adjudicator has submitted.
                   const noBallots = !auto && (rows[0]?.submittedBallots ?? 0) === 0
+                  // Only offer a tiebreak once the ballots are actually in — before that, everything is
+                  // "tied" on a placeholder average and the button would be meaningless.
+                  const needsTiebreak = !noBallots && tiedRowsOf(rows).length > 0
+                  const decided = needsTiebreak && rows.some((r) => r.tiebreakPosition != null)
                   return (
                     <div key={bracket} className="dash-card fr-tablecard">
                       <div className="fr-bracket-head">
@@ -242,6 +306,16 @@ export default function FinalsResultsPage() {
                           {rows.length} finalist{rows.length === 1 ? '' : 's'}
                           {auto ? ' · automatic Grand Winner' : ` · ${rows[0]?.submittedBallots ?? 0}/${rows[0]?.assignedAdjudicators ?? 0} ballots in`}
                         </span>
+                        {needsTiebreak && (
+                          <button
+                            type="button"
+                            className={`dash-btn is-sm fr-tb-btn${decided ? '' : ' is-primary'}`}
+                            onClick={() => openTiebreak(bracket, rows)}
+                          >
+                            <i className="fas fa-scale-balanced" aria-hidden="true" />
+                            {decided ? ' Revise tiebreak' : ' Resolve tie'}
+                          </button>
+                        )}
                       </div>
                       <div className="fr-scroll">
                         <table className="fr-table">
@@ -289,6 +363,14 @@ export default function FinalsResultsPage() {
                                               <i className="fas fa-scale-balanced" aria-hidden="true" /> tied
                                             </span>
                                           )}
+                                          {r.tiebreakPosition != null && (
+                                            <span
+                                              className="fr-pinchip"
+                                              title={`Admin tiebreak — placed ${r.tiebreakPosition} within the tie. Reason: ${r.tiebreakReason || '—'}`}
+                                            >
+                                              <i className="fas fa-thumbtack" aria-hidden="true" /> tiebreak {r.tiebreakPosition}
+                                            </span>
+                                          )}
                                         </>
                                       )}
                                     </td>
@@ -333,6 +415,107 @@ export default function FinalsResultsPage() {
         </div>
       )}
 
+      {tb && (
+        <div
+          className="fr-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Record a tiebreak"
+          onMouseDown={() => !tb.saving && setTb(null)}
+        >
+          <div className="fr-modal-card is-wide" onMouseDown={(e) => e.stopPropagation()}>
+            <h3 className="fr-modal-title">Break the tie — {bracketLabel(tb.bracket)}</h3>
+            <p className="fr-modal-sub">
+              The ballots can’t separate these finalists: they’re level on average rank, first-place votes and
+              head-to-head. Put them in the order you’re awarding them, best at the top. This records an
+              <b> admin decision</b> — no adjudicator’s ballot is changed.
+            </p>
+
+            <ol className="fr-tb-list">
+              {tb.order.map((id, i) => {
+                const row = tb.rows.find((r) => r.entryId === id)
+                return (
+                  <li key={id} className="fr-tb-item">
+                    <span className={`fr-rank${i === 0 ? ' is-gold' : ''}`}>{i + 1}</span>
+                    <span className="fr-tb-id">
+                      <span className="fr-title">{row?.title}</span>
+                      <span className="fr-lgu">{row?.lguName}</span>
+                    </span>
+                    <span className="fr-tb-moves">
+                      <button
+                        type="button"
+                        className="fr-tb-move"
+                        onClick={() => moveTb(i, i - 1)}
+                        disabled={i === 0 || tb.saving}
+                        aria-label={`Move ${row?.title} up`}
+                      >
+                        <i className="fas fa-chevron-up" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="fr-tb-move"
+                        onClick={() => moveTb(i, i + 1)}
+                        disabled={i === tb.order.length - 1 || tb.saving}
+                        aria-label={`Move ${row?.title} down`}
+                      >
+                        <i className="fas fa-chevron-down" aria-hidden="true" />
+                      </button>
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+
+            <div className="dash-field fr-tb-reason">
+              <label className="dash-label" htmlFor="fr-tb-reason">
+                Reason <span className="req">*</span>
+              </label>
+              <textarea
+                id="fr-tb-reason"
+                className="dash-textarea"
+                value={tb.reason}
+                onChange={(e) => setTb((p) => ({ ...p, reason: e.target.value }))}
+                placeholder="e.g. Panel deliberated on 12 Jul and agreed to place Baguio first on strength of the interview."
+                maxLength={500}
+                disabled={tb.saving}
+              />
+              <span className="dash-help">Recorded with your name and the time. It’s the audit trail for a human decision.</span>
+            </div>
+
+            {tb.error && (
+              <div className="dash-banner tone-error">
+                <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{tb.error}</span>
+              </div>
+            )}
+
+            <div className="fr-modal-foot">
+              {tb.rows.some((r) => r.tiebreakPosition != null) && (
+                <button
+                  type="button"
+                  className="dash-btn is-danger is-sm fr-tb-withdraw"
+                  onClick={clearTiebreak}
+                  disabled={tb.saving}
+                >
+                  Withdraw tiebreak
+                </button>
+              )}
+              <button type="button" className="dash-btn is-ghost is-sm" onClick={() => setTb(null)} disabled={tb.saving}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="dash-btn is-primary is-sm"
+                onClick={saveTiebreak}
+                disabled={tb.saving || !tb.reason.trim()}
+                title={tb.reason.trim() ? 'Record this order' : 'A reason is required'}
+              >
+                {tb.saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : 'Record tiebreak'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         .fr-pick { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
         .fr-pick .dash-select { max-width: 420px; }
@@ -363,7 +546,9 @@ export default function FinalsResultsPage() {
         .fr-table { width: 100%; border-collapse: collapse; }
         .fr-table thead th { background: var(--off-white); border-bottom: 1px solid var(--gray-200); padding: 11px 16px; text-align: left; white-space: nowrap; font-family: var(--font-heading); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); }
         .fr-th-rank { width: 66px; }
-        .fr-num { text-align: right; width: 78px; }
+        /* Must out-specify the thead th rule above, which sets text-align: left. */
+        .fr-table thead th.fr-num { text-align: right; }
+        .fr-num { text-align: right; width: 78px; font-variant-numeric: tabular-nums; }
         .fr-table td { padding: 12px 16px; vertical-align: middle; border-bottom: 1px solid var(--gray-100); }
         .fr-table tbody tr:last-child td { border-bottom: none; }
         .fr-row { cursor: pointer; transition: var(--transition-fast); }
@@ -378,6 +563,8 @@ export default function FinalsResultsPage() {
         .fr-lgu { display: block; color: var(--gray-600); font-size: 0.78rem; margin-top: 2px; }
         .fr-avg { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 0.95rem; }
         .fr-tiechip { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 0.66rem; font-weight: 700; color: #B91C1C; }
+        /* A placement an admin decided, not one the ballots produced — say so on the row. */
+        .fr-pinchip { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 0.66rem; font-weight: 700; color: var(--gold-dark); cursor: help; }
         .fr-awaiting { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--gray-400); font-style: italic; }
         .fr-chevcell { width: 38px; text-align: right; }
         .fr-chev { color: var(--gray-300); }
@@ -395,6 +582,19 @@ export default function FinalsResultsPage() {
 
         .fr-modal { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(15,25,46,0.55); backdrop-filter: blur(2px); }
         .fr-modal-card { width: 100%; max-width: 460px; background: var(--white); border-radius: var(--radius-md); box-shadow: 0 30px 70px rgba(15,25,46,0.4); padding: 24px; }
+        .fr-modal-card.is-wide { max-width: 560px; max-height: 88vh; overflow-y: auto; }
+
+        /* ---- Tiebreak dialog: order the tied set, best at the top ---- */
+        .fr-tb-btn { flex-shrink: 0; }
+        .fr-tb-list { display: flex; flex-direction: column; gap: 8px; margin: 18px 0 4px; padding: 0; list-style: none; }
+        .fr-tb-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--off-white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+        .fr-tb-id { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+        .fr-tb-moves { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+        .fr-tb-move { background: none; border: 1px solid var(--gray-200); border-radius: 6px; width: 26px; height: 20px; display: grid; place-items: center; cursor: pointer; color: var(--gray-600); font-size: 0.6rem; transition: var(--transition-fast); }
+        .fr-tb-move:hover:not(:disabled) { border-color: var(--navy); color: var(--navy); background: var(--white); }
+        .fr-tb-move:disabled { opacity: 0.35; cursor: not-allowed; }
+        .fr-tb-reason { margin-top: 16px; }
+        .fr-tb-withdraw { margin-right: auto; }
         .fr-modal-title { font-family: var(--font-heading); font-size: 1.12rem; font-weight: 800; color: var(--navy); }
         .fr-modal-sub { color: var(--gray-600); font-size: 0.86rem; line-height: 1.6; margin-top: 8px; }
         .fr-modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }

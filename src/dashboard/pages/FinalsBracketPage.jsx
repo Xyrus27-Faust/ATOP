@@ -202,6 +202,12 @@ export default function FinalsBracketPage() {
       </header>
 
       <main className="fb-main">
+        {/* A real back button at the head of the page — the crumb in the bar is the trail,
+            this is the affordance you reach for before you start ranking. */}
+        <button type="button" className="fb-back" onClick={() => navigate('/dashboard/finals')}>
+          <i className="fas fa-arrow-left" aria-hidden="true" /> Back to finals
+        </button>
+
         {banner && (
           <div className="dash-banner tone-error fb-banner">
             <i className="fas fa-circle-exclamation" aria-hidden="true" /> {banner}
@@ -385,6 +391,10 @@ const FB_CSS = `
   .fb-crumb:hover, .fb-crumb:hover i { color: var(--gold-dark); }
   .fb-crumb:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
   .fb-crumb.is-alone { font-size: 0.76rem; margin-bottom: 0; padding: 6px 0; }
+  .fb-back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px; background: none; border: 1px solid var(--gray-200); border-radius: 999px; color: var(--gray-600); font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; padding: 8px 15px; cursor: pointer; transition: var(--transition-fast); }
+  .fb-back i { font-size: 0.75rem; transition: var(--transition-fast); }
+  .fb-back:hover { border-color: var(--navy); color: var(--navy); background: var(--white); }
+  .fb-back:hover i { transform: translateX(-2px); }
   .fb-top-id { display: flex; flex-direction: column; min-width: 0; }
   .fb-top-cat { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fb-top-bracket { display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--gray-600); font-family: var(--font-heading); font-weight: 600; }
