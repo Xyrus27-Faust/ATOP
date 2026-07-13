@@ -1,3 +1,5 @@
+import { FINALS_ENABLED } from '@/dashboard/dashboardNav';
+
 export default function ResourcesPage() {
   const documents = [
     {
@@ -18,6 +20,16 @@ export default function ResourcesPage() {
       link: '/guides/validator-guide.pdf',
       desc: 'How to register as a validator and review submitted entries — request access, get approved, then validate.',
     },
+    // Listed only where the finals round is live: publishing an adjudicator guide while finals is
+    // still dark would advertise a stage of judging nobody can reach yet.
+    ...(FINALS_ENABLED
+      ? [{
+          title: 'Pearl Awards — Adjudicator Guide',
+          type: 'PDF Document',
+          link: '/guides/adjudicator-guide.pdf',
+          desc: 'How the finals are judged: read each finalist’s dossier, rank the bracket in your order of merit, and submit — the lowest average rank wins.',
+        }]
+      : []),
   ];
 
   return (
