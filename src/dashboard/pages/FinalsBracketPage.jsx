@@ -5,7 +5,9 @@ import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { isAdjudicator } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
-import { bracketLabel, placementForPosition, placementMeta, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
+import EntryDossier, { EntryFacts } from '../components/EntryDossier'
+import { useEntryFiles } from '@/lib/entryFiles'
+import { bracketLabel, placementForPosition, placementMeta } from '@/lib/pearlAwards'
 import { DASH_CSS } from '../DashboardLayout'
 
 // Focused full-screen shell (no dashboard chrome) — ranking a bracket is a single sustained task.
@@ -20,14 +22,22 @@ function Shell({ children }) {
   )
 }
 
-// The finalist's full bidbook — what the manual says the ranking is actually made on
-// ("narratives, videos, documents"). Opened on demand so the ranking stays the focus.
+// The finalist's full bidbook — what the manual says the ranking is actually made on ("narratives,
+// videos, documents"). Opened on demand so the ranking stays the focus. Renders the SAME shared
+// dossier a reviewer or assessor sees: inline video, evidence, declaration, LCE endorsement.
 function Dossier({ entryId, onClose }) {
   const { loading, error, data, reload } = useAsync(
-    () => api.get(`/finals/entries/${entryId}`, { auth: true }),
+    () =>
+      api.get(`/finals/entries/${entryId}`, { auth: true }).then(async (detail) => {
+        // The rubric's requiredSubmissions tell us which links are *meant* to be videos, so an
+        // unplayable one can say so instead of failing silently.
+        const catalog = await api.get('/award-categories/')
+        const category = catalog.categories.find((c) => c.number === detail.entry.categoryNumber) || null
+        return { ...detail, category }
+      }),
     [entryId],
   )
-  const [banner, setBanner] = useState(null)
+  const files = useEntryFiles(`/finals/entries/${entryId}`)
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -35,20 +45,7 @@ function Dossier({ entryId, onClose }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  async function open(path, label) {
-    try {
-      const { url } = await api.get(path, { auth: true })
-      window.open(url, '_blank', 'noopener')
-    } catch {
-      setBanner(`We couldn’t open ${label}.`)
-    }
-  }
-
   const entry = data?.entry
-  const criteria = data?.criteria || []
-  const bb = entry?.bidbook
-  const narrativeBy = new Map((bb?.narratives || []).map((n) => [n.criterionId, n]))
-  const evidenceBy = (bb?.evidence || []).reduce((m, e) => { (m[e.criterionId] ||= []).push(e); return m }, {})
 
   return (
     <div className="fb-drawer" role="dialog" aria-modal="true" aria-label="Finalist dossier" onMouseDown={onClose}>
@@ -57,7 +54,7 @@ function Dossier({ entryId, onClose }) {
           <div className="fb-drawer-id">
             <span className="dash-eyebrow">Finalist dossier</span>
             <h2 className="fb-drawer-title">{entry?.title || 'Loading…'}</h2>
-            {entry && <p className="fb-drawer-sub">{entry.lguName} · {entry.lguLevel}</p>}
+            {entry && <EntryFacts entry={entry} category={data.category} />}
           </div>
           <button type="button" className="fb-drawer-x" onClick={onClose} aria-label="Close dossier">
             <i className="fas fa-xmark" aria-hidden="true" />
@@ -65,82 +62,9 @@ function Dossier({ entryId, onClose }) {
         </header>
 
         <div className="fb-drawer-body">
-          {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={reload} title="We couldn’t open this dossier" /> : (
-            <>
-              {banner && <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {banner}</div>}
-
-              <section className="fb-doc-sec">
-                <h3 className="fb-doc-h">Executive summary</h3>
-                <p className="fb-prose">{bb?.executiveSummary || <em className="fb-muted">No executive summary provided.</em>}</p>
-              </section>
-
-              {criteria.map((c, i) => {
-                const n = narrativeBy.get(c.criterionId)
-                const files = evidenceBy[c.criterionId] || []
-                return (
-                  <section key={c.criterionId} className="fb-doc-sec">
-                    <h3 className="fb-doc-h">
-                      <span className="fb-doc-n">{i + 1}</span> {c.name}
-                      <span className="fb-doc-pts">{c.points} pts</span>
-                    </h3>
-                    <p className="fb-prose">{n?.text || <em className="fb-muted">No narrative provided.</em>}</p>
-                    {files.length > 0 && (
-                      <div className="fb-doc-files">
-                        {files.map((f) => (
-                          <button
-                            key={f.fileKey}
-                            type="button"
-                            className="dash-btn is-ghost is-sm"
-                            onClick={() => open(`/finals/entries/${entryId}/evidence/url?fileKey=${encodeURIComponent(f.fileKey)}`, 'that evidence file')}
-                          >
-                            <i className="fas fa-paperclip" aria-hidden="true" /> {f.fileName || 'Evidence'}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                )
-              })}
-
-              {(bb?.supportingDocuments || []).length > 0 && (
-                <section className="fb-doc-sec">
-                  <h3 className="fb-doc-h">Submissions</h3>
-                  {bb.supportingDocuments.map((d) => {
-                    const embed = d.link ? videoEmbed(d.link) : null
-                    return (
-                      <div key={d.label} className="fb-sub">
-                        <span className="fb-sub-label">{d.label}</span>
-                        {embed ? (
-                          <div className="fb-video">
-                            <iframe
-                              src={embed.embedUrl}
-                              title={d.label}
-                              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          </div>
-                        ) : d.fileKey ? (
-                          <button
-                            type="button"
-                            className="dash-btn is-ghost is-sm"
-                            onClick={() => open(`/finals/entries/${entryId}/documents/url?label=${encodeURIComponent(d.label)}`, 'that document')}
-                          >
-                            <i className="fas fa-file-lines" aria-hidden="true" /> {d.fileName || 'Open document'}
-                          </button>
-                        ) : d.link ? (
-                          <a className="dash-btn is-ghost is-sm" href={d.link} target="_blank" rel="noopener noreferrer">
-                            <i className={`fas ${looksLikeVideo(d.link) ? 'fa-video' : 'fa-arrow-up-right-from-square'}`} aria-hidden="true" /> Open link
-                          </a>
-                        ) : (
-                          <span className="fb-muted">Not provided.</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </section>
-              )}
-            </>
-          )}
+          {loading ? <Loading />
+            : error ? <ErrorState error={error} onRetry={reload} title="We couldn’t open this dossier" />
+              : <EntryDossier entry={entry} category={data.category} criteria={data.criteria} files={files} />}
         </div>
       </aside>
     </div>
@@ -538,22 +462,9 @@ const FB_CSS = `
   @keyframes fb-slide { from { transform: translateX(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
   .fb-drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--gray-200); }
   .fb-drawer-title { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 800; color: var(--navy); margin-top: 2px; }
-  .fb-drawer-sub { color: var(--gray-600); font-size: 0.8rem; margin-top: 2px; }
   .fb-drawer-x { background: none; border: none; cursor: pointer; color: var(--gray-400); font-size: 1.05rem; padding: 4px 8px; border-radius: 6px; line-height: 1; }
   .fb-drawer-x:hover { color: var(--navy); background: var(--gray-100); }
-  .fb-drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px 40px; }
-  .fb-doc-sec { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--gray-100); }
-  .fb-doc-sec:last-child { border-bottom: none; }
-  .fb-doc-h { display: flex; align-items: center; gap: 8px; font-family: var(--font-heading); font-size: 0.92rem; font-weight: 800; color: var(--navy); margin-bottom: 8px; }
-  .fb-doc-n { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; font-size: 0.72rem; color: var(--gold-dark); background: rgba(200,168,75,0.14); }
-  .fb-doc-pts { margin-left: auto; font-size: 0.7rem; font-weight: 700; color: var(--gray-400); }
-  .fb-prose { color: var(--text-body); font-size: 0.88rem; line-height: 1.65; white-space: pre-wrap; }
-  .fb-muted { color: var(--gray-400); }
-  .fb-doc-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .fb-sub { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-  .fb-sub-label { font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: var(--gray-600); }
-  .fb-video { position: relative; padding-top: 56.25%; border-radius: var(--radius-sm); overflow: hidden; background: #000; }
-  .fb-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .fb-drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px 40px; background: var(--off-white); }
 
   @media (max-width: 640px) {
     .fb-item { flex-wrap: wrap; }

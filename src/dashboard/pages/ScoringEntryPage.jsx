@@ -6,6 +6,11 @@ import { useAsync } from '../useAsync'
 import { isAssessor } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
+import {
+  EvidenceRow, ExecutiveSummarySection, DocumentsSection,
+  DeclarationSection, EndorsementSection, DOSSIER_CSS,
+} from '../components/EntryDossier'
+import { useEntryFiles } from '@/lib/entryFiles'
 import { labelFor, COVERAGE_OPTIONS } from '@/lib/pearlAwards'
 import { DASH_CSS } from '../DashboardLayout'
 
@@ -54,16 +59,7 @@ function Criterion({ index, c, narrative, evidence, rating, onRate, disabled, on
         <p className="sc-prose">{narrative?.text || <em className="sc-emptytext">No narrative provided.</em>}</p>
       </div>
 
-      {evidence.length > 0 && (
-        <div className="sc-crit-evidence">
-          <span className="sc-evidence-label"><i className="fas fa-paperclip" aria-hidden="true" /> Evidence</span>
-          {evidence.map((f) => (
-            <button key={f.fileKey} type="button" className="dash-btn is-ghost is-sm" onClick={() => onViewEvidence(f.fileKey)}>
-              <i className="fas fa-file-lines" aria-hidden="true" /> {f.fileName || 'View file'}
-            </button>
-          ))}
-        </div>
-      )}
+      <EvidenceRow files={evidence} onViewEvidence={onViewEvidence} />
 
       <div className="sc-rate">
         <RatingScale value={rating} onChange={onRate} disabled={disabled} />
@@ -80,6 +76,7 @@ function Shell({ children }) {
     <div className="scf">
       {children}
       <style>{DASH_CSS}</style>
+      <style>{DOSSIER_CSS}</style>
       <style>{SCF_CSS}</style>
     </div>
   )
@@ -91,9 +88,19 @@ export default function ScoringEntryPage() {
   const { user } = useAuth()
 
   const { loading, error, data, reload } = useAsync(
-    () => api.get(`/scoring/entries/${id}`, { auth: true }),
+    async () => {
+      const [detail, catalog] = await Promise.all([
+        api.get(`/scoring/entries/${id}`, { auth: true }),
+        api.get('/award-categories/'),
+      ])
+      // The rubric's requiredSubmissions say which links are *meant* to be videos, so an unplayable
+      // one can flag itself rather than failing silently.
+      const category = catalog.categories.find((c) => c.number === detail.entry.categoryNumber) || null
+      return { ...detail, category }
+    },
     [id],
   )
+  const files = useEntryFiles(`/scoring/entries/${id}`)
 
   const [scores, setScores] = useState({}) // criterionId -> rating (0..5)
   const [myStatus, setMyStatus] = useState('NotStarted')
@@ -162,19 +169,6 @@ export default function ScoringEntryPage() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  async function viewEvidence(fileKey) {
-    try {
-      const { url } = await api.get(`/scoring/entries/${id}/evidence/url?fileKey=${encodeURIComponent(fileKey)}`, { auth: true })
-      window.open(url, '_blank', 'noopener')
-    } catch { setBanner('We couldn’t open that evidence file.') }
-  }
-  async function viewDoc(label) {
-    try {
-      const { url } = await api.get(`/scoring/entries/${id}/documents/url?label=${encodeURIComponent(label)}`, { auth: true })
-      window.open(url, '_blank', 'noopener')
-    } catch { setBanner('We couldn’t open that document.') }
   }
 
   function scrollToCrit(cid) {
@@ -260,10 +254,11 @@ export default function ScoringEntryPage() {
           )}
           {banner && <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{banner}</span></div>}
 
-          <section className="dash-card dash-card-pad">
-            <div className="sc-section-title"><i className="fas fa-book-open" aria-hidden="true" /> Executive summary</div>
-            <p className="sc-prose">{bb.executiveSummary || <em className="sc-emptytext">Not provided.</em>}</p>
-          </section>
+          {files.fileError && (
+            <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{files.fileError}</span></div>
+          )}
+
+          <ExecutiveSummarySection entry={entry} />
 
           <div className="sc-rubric-intro">
             <div className="sc-section-title" style={{ marginBottom: 4 }}><i className="fas fa-list-check" aria-hidden="true" /> Score the criteria</div>
@@ -280,29 +275,14 @@ export default function ScoringEntryPage() {
               rating={scores[c.criterionId]}
               onRate={(v) => setRating(c.criterionId, v)}
               disabled={readOnly}
-              onViewEvidence={viewEvidence}
+              onViewEvidence={files.viewEvidence}
             />
           ))}
 
-          {bb.supportingDocuments.length > 0 && (
-            <section className="dash-card dash-card-pad">
-              <div className="sc-section-title"><i className="fas fa-paperclip" aria-hidden="true" /> Supporting documents</div>
-              {bb.supportingDocuments.map((d) => (
-                <div key={d.label} className="sc-doc">
-                  <span className="sc-doc-label">{d.label}</span>
-                  {d.fileKey ? (
-                    <button type="button" className="dash-btn is-ghost is-sm" onClick={() => viewDoc(d.label)}>
-                      <i className="fas fa-file-lines" aria-hidden="true" /> {d.fileName || 'View file'}
-                    </button>
-                  ) : d.link ? (
-                    <a className="dash-btn is-ghost is-sm" href={d.link} target="_blank" rel="noopener noreferrer">
-                      <i className="fas fa-up-right-from-square" aria-hidden="true" /> Open link
-                    </a>
-                  ) : <span className="sc-emptytext">—</span>}
-                </div>
-              ))}
-            </section>
-          )}
+          {/* The same evidence a reviewer sees — inline video, documents, declaration, endorsement. */}
+          <DocumentsSection entry={entry} category={data.category} onViewDoc={files.viewDoc} />
+          <DeclarationSection entry={entry} />
+          <EndorsementSection entry={entry} onViewEndorsement={files.viewEndorsement} />
         </div>
 
         {/* Rail: criteria checklist + progress + submit. Condenses to a sticky bottom bar on mobile. */}

@@ -7,7 +7,9 @@ import { isReviewer } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
 import CommentThread from '../components/CommentThread'
-import { statusMeta, formatDate, labelFor, COVERAGE_OPTIONS, EDITABLE_STATUSES, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
+import EntryDossier from '../components/EntryDossier'
+import { useEntryFiles } from '@/lib/entryFiles'
+import { statusMeta, formatDate, labelFor, COVERAGE_OPTIONS, EDITABLE_STATUSES } from '@/lib/pearlAwards'
 
 export default function ReviewEntryPage() {
   const { id } = useParams()
@@ -25,6 +27,7 @@ export default function ReviewEntryPage() {
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [banner, setBanner] = useState(null)
+  const files = useEntryFiles(`/review/entries/${id}`)
 
   if (!isReviewer(user?.roles)) return <Navigate to="/dashboard" replace />
   if (loading) return <Loading />
@@ -34,12 +37,6 @@ export default function ReviewEntryPage() {
   const status = override?.status || entry.status
   const decisionReason = override ? override.decisionReason : entry.decisionReason
   const underReview = status === 'Submitted' || status === 'UnderValidation'
-  const bb = entry.bidbook || { executiveSummary: '', narratives: [], supportingDocuments: [], evidence: [] }
-  const kindByLabel = new Map((category?.requiredSubmissions || []).map((r) => [r.label, r.kind]))
-  const evidenceByCriterion = (bb.evidence || []).reduce((map, e) => {
-    ;(map[e.criterionId] ||= []).push(e)
-    return map
-  }, {})
 
   async function decide(type) {
     setSubmitting(true); setBanner(null)
@@ -53,33 +50,6 @@ export default function ReviewEntryPage() {
       setBanner(err instanceof ApiError ? err.message : 'We couldn’t record that decision. Please try again.')
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  async function viewDoc(label) {
-    try {
-      const { url } = await api.get(`/review/entries/${id}/documents/url?label=${encodeURIComponent(label)}`, { auth: true })
-      window.open(url, '_blank', 'noopener')
-    } catch {
-      setBanner('We couldn’t open that document.')
-    }
-  }
-
-  async function viewEvidence(fileKey) {
-    try {
-      const { url } = await api.get(`/review/entries/${id}/evidence/url?fileKey=${encodeURIComponent(fileKey)}`, { auth: true })
-      window.open(url, '_blank', 'noopener')
-    } catch {
-      setBanner('We couldn’t open that evidence file.')
-    }
-  }
-
-  async function viewEndorsement() {
-    try {
-      const { url } = await api.get(`/review/entries/${id}/endorsement/url`, { auth: true })
-      window.open(url, '_blank', 'noopener')
-    } catch {
-      setBanner('We couldn’t open the endorsement document.')
     }
   }
 
@@ -115,124 +85,8 @@ export default function ReviewEntryPage() {
       {banner && <div className="dash-banner tone-error" style={{ marginTop: 14 }}><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{banner}</span></div>}
 
       <div className="rv-stack">
-        {/* Nominator */}
-        <Section icon="fa-user-tie" title="Nominator">
-          <Grid items={[
-            ['Name', `${entry.nominator.firstName} ${entry.nominator.lastName}`.trim()],
-            ['Designation', entry.nominator.designation],
-            ['Office', entry.nominator.office],
-            ['Email', entry.nominator.email],
-            ['Mobile', entry.nominator.mobile],
-            ['Official LGU email', entry.nominator.officialLguEmail],
-            ['Official address', entry.nominator.officialAddress],
-            ['Third-party nominator', entry.nominator.isThirdParty ? 'Yes' : 'No'],
-          ]} />
-        </Section>
-
-        {/* Bidbook */}
-        <Section icon="fa-book-open" title="Executive summary">
-          <p className="rv-prose">{bb.executiveSummary || <em className="rv-empty">Not provided.</em>}</p>
-        </Section>
-
-        <Section icon="fa-list-check" title="Criteria narratives">
-          {bb.narratives.length === 0 ? <p className="rv-empty">No narratives provided.</p> : bb.narratives.map((n) => {
-            const files = evidenceByCriterion[n.criterionId] || []
-            return (
-              <div key={n.criterionId} className="rv-narr">
-                <div className="rv-narr-head">
-                  <span className="rv-narr-name">{n.criterionName}</span>
-                  <span className="dash-badge tone-progress">{n.criterionPoints} pts</span>
-                </div>
-                <p className="rv-prose">{n.text}</p>
-                {files.length > 0 && (
-                  <div className="rv-evidence">
-                    <span className="rv-evidence-label"><i className="fas fa-paperclip" aria-hidden="true" /> Supporting evidence</span>
-                    {files.map((f) => (
-                      <button key={f.fileKey} type="button" className="dash-btn is-ghost is-sm" onClick={() => viewEvidence(f.fileKey)}>
-                        <i className="fas fa-file-lines" aria-hidden="true" /> {f.fileName || 'View file'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </Section>
-
-        <Section icon="fa-paperclip" title="Supporting documents">
-          {bb.supportingDocuments.length === 0 ? <p className="rv-empty">No documents attached.</p> : bb.supportingDocuments.map((d) => {
-            const embed = !d.fileKey ? videoEmbed(d.link) : null
-            const brokenVideo = !d.fileKey && !embed && (kindByLabel.get(d.label) === 'VideoLink' || looksLikeVideo(d.link))
-            return (
-              <div key={d.label} className="rv-doc-item">
-                <div className="rv-doc">
-                  <span className="rv-doc-label">{d.label}</span>
-                  {embed ? (
-                    <a className="dash-btn is-ghost is-sm" href={d.link} target="_blank" rel="noopener noreferrer">
-                      <i className="fas fa-up-right-from-square" aria-hidden="true" /> Open in {embed.provider}
-                    </a>
-                  ) : (
-                    <button type="button" className="dash-btn is-ghost is-sm" onClick={() => viewDoc(d.label)}>
-                      <i className={`fas ${d.fileKey ? 'fa-file-lines' : 'fa-link'}`} aria-hidden="true" /> {d.fileName || (d.fileKey ? 'View file' : 'Open link')}
-                    </button>
-                  )}
-                </div>
-                {embed && (
-                  <div className="rv-video">
-                    <iframe
-                      src={embed.embedUrl}
-                      title={d.label}
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerPolicy="strict-origin-when-cross-origin"
-                      allowFullScreen
-                    />
-                  </div>
-                )}
-                {brokenVideo && (
-                  <div className="rv-video-fallback">
-                    <i className="fas fa-circle-exclamation" aria-hidden="true" />
-                    <div>
-                      <strong>This video cannot be previewed.</strong>
-                      {d.link
-                        ? <a href={d.link} target="_blank" rel="noopener noreferrer" className="rv-video-link">{d.link}</a>
-                        : <span className="rv-empty">No link was provided.</span>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </Section>
-
-        {/* Declaration & endorsement */}
-        <Section icon="fa-file-signature" title="Declaration">
-          {entry.declaration ? (
-            <Grid items={[
-              ['Certified', entry.declaration.certified ? 'Yes' : 'No'],
-              ['Certified at', formatDate(entry.declaration.signedAt, { dateStyle: 'medium', timeStyle: 'short' })],
-            ]} />
-          ) : <p className="rv-empty">Not certified.</p>}
-        </Section>
-
-        <Section icon="fa-stamp" title="LCE endorsement">
-          {entry.lceEndorsement ? (
-            <>
-              <Grid items={[
-                ['Endorsed', entry.lceEndorsement.endorsed ? 'Yes' : 'No'],
-                ['Recorded', formatDate(entry.lceEndorsement.signedAt, { dateStyle: 'medium', timeStyle: 'short' })],
-              ]} />
-              {entry.lceEndorsement.fileKey && (
-                <div className="rv-doc" style={{ marginTop: 10 }}>
-                  <span className="rv-doc-label">Signed endorsement</span>
-                  <button type="button" className="dash-btn is-ghost is-sm" onClick={viewEndorsement}>
-                    <i className="fas fa-file-lines" aria-hidden="true" /> {entry.lceEndorsement.fileName || 'View document'}
-                  </button>
-                </div>
-              )}
-            </>
-          ) : <p className="rv-empty">Not endorsed.</p>}
-        </Section>
+        {/* The bidbook itself — one shared renderer, identical for reviewers, assessors and adjudicators. */}
+        <EntryDossier entry={entry} category={category} files={files} />
 
         {!underReview && (
           <div className={`dash-banner tone-${status === 'Validated' ? 'success' : status === 'Disqualified' ? 'error' : status === 'ReturnedForRevision' ? 'warn' : 'info'}`}>
@@ -275,63 +129,13 @@ export default function ReviewEntryPage() {
         .rv-title { font-family: var(--font-heading); font-size: clamp(1.3rem, 2.4vw, 1.7rem); font-weight: 800; color: var(--navy); line-height: 1.18; }
         .rv-sub { color: var(--gray-600); font-size: 0.9rem; margin-top: 6px; }
         .rv-stack { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; padding-bottom: 72px; }
-        .rv-section-title { font-family: var(--font-heading); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy); display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
-        .rv-section-title i { color: var(--gold-dark); }
-        .rv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; }
-        .rv-grid dt { font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gray-600); margin-bottom: 2px; }
-        .rv-grid dd { color: var(--navy); font-size: 0.9rem; word-break: break-word; }
-        .rv-prose { color: var(--text-body); line-height: 1.7; white-space: pre-wrap; }
-        .rv-empty { color: var(--gray-400); font-style: italic; }
-        .rv-narr { padding: 14px 0; border-top: 1px solid var(--gray-100); }
-        .rv-narr:first-of-type { border-top: none; padding-top: 0; }
-        .rv-narr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-        .rv-narr-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; }
-        .rv-evidence { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .rv-evidence-label { font-family: var(--font-heading); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray-600); display: inline-flex; align-items: center; gap: 6px; margin-right: 2px; }
-        .rv-evidence-label i { color: var(--gold-dark); }
-        .rv-doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--gray-100); }
-        .rv-doc:first-of-type { border-top: none; padding-top: 0; }
-        .rv-doc-label { font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.9rem; }
-        .rv-doc-item { padding: 12px 0; border-top: 1px solid var(--gray-100); }
-        .rv-doc-item:first-of-type { border-top: none; padding-top: 0; }
-        .rv-doc-item .rv-doc { border-top: none; padding: 0; }
-        .rv-video { margin-top: 12px; width: 100%; max-width: 680px; aspect-ratio: 16 / 9; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--gray-200); }
-        .rv-video iframe { width: 100%; height: 100%; border: 0; display: block; }
-        .rv-video-fallback { margin-top: 12px; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-md); background: var(--gray-100); border: 1px solid var(--gray-200); font-size: 0.88rem; }
-        .rv-video-fallback i { color: var(--gold-dark); margin-top: 2px; }
-        .rv-video-fallback strong { color: var(--navy); display: block; margin-bottom: 2px; }
-        .rv-video-link { color: var(--gold-dark); word-break: break-all; font-size: 0.84rem; text-decoration: underline; text-underline-offset: 2px; }
         .rv-decide { position: sticky; bottom: 12px; margin-top: 16px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 9px 12px; }
         .rv-buttons { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
         .rv-reason { display: flex; flex-direction: column; gap: 10px; }
         .rv-reason-actions { display: flex; justify-content: flex-end; gap: 10px; }
-        @media (max-width: 620px) {
-          .rv-grid { grid-template-columns: 1fr; }
-          .rv-buttons .dash-btn { flex: 1; }
-        }
+        @media (max-width: 620px) { .rv-buttons .dash-btn { flex: 1; } }
       `}</style>
     </>
   )
 }
 
-function Section({ icon, title, children }) {
-  return (
-    <section className="dash-card dash-card-pad">
-      <div className="rv-section-title"><i className={`fas ${icon}`} aria-hidden="true" /> {title}</div>
-      {children}
-    </section>
-  )
-}
-
-function Grid({ items }) {
-  return (
-    <dl className="rv-grid">
-      {items.map(([k, v]) => (
-        <div key={k}>
-          <dt>{k}</dt>
-          <dd>{v || <span className="rv-empty">—</span>}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}
