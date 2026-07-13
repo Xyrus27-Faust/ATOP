@@ -14,8 +14,10 @@ ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO}"
 # Staging build-time config (override by exporting before running).
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.staging.tourismofficersph.com}"
 VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-857948069033-p09evikg3rk754l0hj4e4gndcjrl5ed0.apps.googleusercontent.com}"
-# Pre-finals scoring is enabled by default (staging); prod builds pass VITE_FEATURE_SCORING=false.
+# Feature slices are enabled by default (staging). PROD builds must pass "false" explicitly to ship
+# a slice dark — the code checks `!== 'false'`, so a flag that is merely UNSET means ENABLED.
 VITE_FEATURE_SCORING="${VITE_FEATURE_SCORING:-true}"
+VITE_FEATURE_FINALS="${VITE_FEATURE_FINALS:-true}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
@@ -25,6 +27,7 @@ TAG="${1:-$(git rev-parse --short HEAD 2>/dev/null || echo nogit)-$(date +%Y%m%d
 echo "==> ECR:        ${ECR_URI}"
 echo "==> Tag:        ${TAG} (+ latest)"
 echo "==> API base:   ${VITE_API_BASE_URL}"
+echo "==> Features:   scoring=${VITE_FEATURE_SCORING}  finals=${VITE_FEATURE_FINALS}"
 
 aws ecr describe-repositories --repository-names "$REPO" --region "$AWS_REGION" >/dev/null 2>&1 \
   || aws ecr create-repository --repository-name "$REPO" --region "$AWS_REGION" \
@@ -40,6 +43,7 @@ docker build --platform linux/amd64 \
   --build-arg "VITE_API_BASE_URL=${VITE_API_BASE_URL}" \
   --build-arg "VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}" \
   --build-arg "VITE_FEATURE_SCORING=${VITE_FEATURE_SCORING}" \
+  --build-arg "VITE_FEATURE_FINALS=${VITE_FEATURE_FINALS}" \
   -t "${ECR_URI}:${TAG}" \
   -t "${ECR_URI}:latest" \
   -f Dockerfile .

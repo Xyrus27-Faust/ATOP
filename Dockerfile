@@ -19,9 +19,13 @@ COPY . ./
 ARG VITE_API_BASE_URL
 ARG VITE_GOOGLE_CLIENT_ID
 ARG VITE_FEATURE_SCORING
+# Both feature flags default to ENABLED in code (the check is `!== 'false'`), so an unpassed flag
+# ships the feature VISIBLE. Prod must pass them explicitly as "false" to keep a slice dark.
+ARG VITE_FEATURE_FINALS
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
-    VITE_FEATURE_SCORING=$VITE_FEATURE_SCORING
+    VITE_FEATURE_SCORING=$VITE_FEATURE_SCORING \
+    VITE_FEATURE_FINALS=$VITE_FEATURE_FINALS
 RUN npm run build
 
 # --- Static server ---
