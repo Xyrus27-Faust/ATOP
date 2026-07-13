@@ -410,11 +410,13 @@ const FB_CSS = `
   .fb-item { display: flex; align-items: center; gap: 16px; padding: 16px 18px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(15,25,46,0.04); transition: var(--transition-fast); cursor: grab; }
   .fb-item:hover { border-color: var(--gold); box-shadow: 0 4px 14px rgba(15,25,46,0.08); }
   .fb-item.is-dragging { opacity: 0.55; cursor: grabbing; border-style: dashed; border-color: var(--gold-dark); }
-  /* The rank IS the value being set, so it carries the card — big, tabular, unmissable. But it stays
-     navy: a ballot is an ordered list, not a podium, and gold is reserved for a *decided* outcome
-     (the results board, the single-finalist auto-win). Emphasis comes from scale, not colour. */
-  .fb-ord { flex: 0 0 auto; min-width: 44px; text-align: center; font-family: var(--font-heading); font-weight: 800; font-size: 2rem; line-height: 1; color: var(--navy); font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
-  .fb-ord.is-sm { min-width: 24px; font-size: 1.05rem; letter-spacing: -0.02em; }
+  /* The rank IS the value being set, so it carries the card — big, tabular, in the brand's primary
+     gold. Every ordinal is gold *equally*: what implied a podium before was gold on #1 alone, not
+     the hue itself. Uniform means no row is privileged, which is exactly true of a ballot.
+     gold-dark (not gold) because #C8A84B on white is ~2.3:1 — unreadable; gold-dark is 3.9:1, which
+     clears AA for large text, so both sizes below stay in large-text territory (>=19px bold). */
+  .fb-ord { flex: 0 0 auto; min-width: 44px; text-align: center; font-family: var(--font-heading); font-weight: 800; font-size: 2rem; line-height: 1; color: var(--gold-dark); font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
+  .fb-ord.is-sm { min-width: 26px; font-size: 1.2rem; letter-spacing: -0.02em; }
 
   /* Kept for the single-finalist auto-win, where the outcome IS decided and gold is earned. */
   .fb-rank-badge { flex-shrink: 0; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--gray-600); background: var(--gray-100); border: 1px solid var(--gray-200); }
