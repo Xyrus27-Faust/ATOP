@@ -62,6 +62,8 @@ export default function FinalsResultsPage() {
   )
 
   const results = resultsQ.data
+  // A tie the ballots can't break blocks finalize even when every ballot is in.
+  const deadlocked = !!results?.rows?.some((r) => r.tiedUnresolved && (r.submittedBallots ?? 0) > 0)
   const brackets = useMemo(() => {
     if (!results) return []
     const groups = new Map()
@@ -217,6 +219,10 @@ export default function FinalsResultsPage() {
                   <div className="fr-status-row">
                     {results.finalized ? (
                       <span className="dash-badge tone-success"><i className="fas fa-lock" aria-hidden="true" /> Finalized</span>
+                    ) : deadlocked ? (
+                      // `complete` only means every ballot is in — a tie still blocks finalize, so
+                      // saying "Ready to finalize" here would promise something that will 409.
+                      <span className="dash-badge tone-danger"><i className="fas fa-scale-balanced" aria-hidden="true" /> Tie — needs a decision</span>
                     ) : results.complete ? (
                       <span className="dash-badge tone-progress"><i className="fas fa-circle-check" aria-hidden="true" /> Ready to finalize</span>
                     ) : (
