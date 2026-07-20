@@ -11,29 +11,94 @@ import {
   DeclarationSection, EndorsementSection, DOSSIER_CSS,
 } from '../components/EntryDossier'
 import { useEntryFiles } from '@/lib/entryFiles'
-import { labelFor, COVERAGE_OPTIONS } from '@/lib/pearlAwards'
+import {
+  labelFor, COVERAGE_OPTIONS,
+  RATING_MIN, RATING_MAX, RATING_STEP, RATING_BANDS,
+  toRatingStep, formatRating, ratingBand, bandRange,
+} from '@/lib/pearlAwards'
 import { DASH_CSS } from '../DashboardLayout'
 
-const SCALE = [0, 1, 2, 3, 4, 5]
+// The rating control. The manual's scale is 0–5 in 0.2 increments — 26 stops, not six buttons — so
+// a slider is the honest control for it, with the exact value shown in a box beside it (and typeable,
+// because dragging to a precise 3.4 is fiddly). The band label reads out what the number *means*
+// under the manual's rubric, so the assessor sees "Very Good" as they land on it.
+function RatingScale({ value, onChange, disabled, inputId }) {
+  const band = ratingBand(value)
+  // The slider needs a concrete position; an unscored criterion sits at 0 but stays visually "unset".
+  const sliderValue = value ?? RATING_MIN
 
-// A 0–5 segmented rating control — the core scoring gesture. One tap per criterion.
-function RatingScale({ value, onChange, disabled }) {
   return (
-    <div className="sc-scale" role="radiogroup" aria-label="Score 0 to 5">
-      {SCALE.map((v) => (
-        <button
-          key={v}
-          type="button"
-          role="radio"
-          aria-checked={value === v}
-          className={`sc-dot${value === v ? ' is-on' : ''}`}
+    <div className="sc-rating">
+      <div className="sc-rating-controls">
+        <input
+          id={inputId}
+          className={`sc-slider${value == null ? ' is-unset' : ''}`}
+          type="range"
+          min={RATING_MIN}
+          max={RATING_MAX}
+          step={RATING_STEP}
+          value={sliderValue}
           disabled={disabled}
-          onClick={() => onChange(v)}
-        >
-          {v}
-        </button>
-      ))}
+          onChange={(e) => onChange(toRatingStep(Number(e.target.value)))}
+          aria-label={`Rating, ${RATING_MIN} to ${RATING_MAX} in steps of ${RATING_STEP}`}
+          aria-valuetext={value == null ? 'Not scored' : `${formatRating(value)} — ${band.label}`}
+        />
+        <input
+          className={`sc-ratebox${value == null ? ' is-unset' : ''}`}
+          type="number"
+          min={RATING_MIN}
+          max={RATING_MAX}
+          step={RATING_STEP}
+          value={value == null ? '' : formatRating(value)}
+          disabled={disabled}
+          placeholder="—"
+          aria-label="Rating value"
+          onChange={(e) => {
+            const raw = e.target.value
+            if (raw === '') return
+            onChange(toRatingStep(Number(raw)))
+          }}
+        />
+      </div>
+
+      <div className="sc-rating-foot">
+        <span className="sc-ticks" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map((n) => <span key={n}>{n}</span>)}
+        </span>
+        {value == null
+          ? <span className="sc-band is-unset">Not scored</span>
+          : <span className="sc-band"><b>{band.label}</b> <span className="sc-band-mean">{band.meaning}</span></span>}
+      </div>
     </div>
+  )
+}
+
+// The manual's descriptor table, shown once at the top of the scoresheet so the assessor can
+// calibrate before they start rating rather than guessing what a 3.4 means.
+function RatingGuide() {
+  return (
+    <details className="dash-card dash-card-pad sc-guide">
+      <summary className="sc-guide-summary">
+        <span className="sc-section-title" style={{ margin: 0 }}>
+          <i className="fas fa-ruler" aria-hidden="true" /> Rating scale: 0 to 5, in 0.2 increments
+        </span>
+        <i className="fas fa-chevron-down sc-guide-chev" aria-hidden="true" />
+      </summary>
+      <table className="sc-guide-table">
+        <tbody>
+          {RATING_BANDS.map((b) => (
+            <tr key={b.label}>
+              <td className="sc-guide-range">{bandRange(b)}</td>
+              <td className="sc-guide-label">{b.label}</td>
+              <td className="sc-guide-mean">{b.meaning}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="sc-guide-note">
+        Weighted score = rating ÷ 5 × criterion points. A 4.0 on a 20-point criterion earns 16.
+      </p>
+    </details>
   )
 }
 
@@ -48,7 +113,9 @@ function Criterion({ index, c, narrative, evidence, rating, onRate, disabled, on
           <h3 className="sc-crit-name">{c.name}</h3>
         </div>
         <span className={`sc-crit-mark${rating != null ? ' is-on' : ''}`}>
-          {rating != null ? <><i className="fas fa-circle-check" aria-hidden="true" /> Rated {rating}</> : 'Not scored'}
+          {rating != null
+            ? <><i className="fas fa-circle-check" aria-hidden="true" /> Rated {formatRating(rating)}</>
+            : 'Not scored'}
         </span>
       </div>
 
@@ -62,8 +129,7 @@ function Criterion({ index, c, narrative, evidence, rating, onRate, disabled, on
       <EvidenceRow files={evidence} onViewEvidence={onViewEvidence} />
 
       <div className="sc-rate">
-        <RatingScale value={rating} onChange={onRate} disabled={disabled} />
-        <div className="sc-rate-legend"><span>Poor</span><span>Excellent</span></div>
+        <RatingScale value={rating} onChange={onRate} disabled={disabled} inputId={`rate-${c.criterionId}`} />
       </div>
     </section>
   )
@@ -265,9 +331,14 @@ export default function ScoringEntryPage() {
 
           <ExecutiveSummarySection entry={entry} />
 
+          <RatingGuide />
+
           <div className="sc-rubric-intro">
             <div className="sc-section-title" style={{ marginBottom: 4 }}><i className="fas fa-list-check" aria-hidden="true" /> Score the criteria</div>
-            <p className="dash-help">Read each narrative and rate it 0 (poor) to 5 (excellent). Your ratings autosave.</p>
+            <p className="dash-help">
+              Read each narrative, then set a rating from 0 to 5 in steps of 0.2 — drag the slider or type the
+              exact value. Your ratings autosave.
+            </p>
           </div>
 
           {criteria.map((c, i) => (
@@ -302,7 +373,7 @@ export default function ScoringEntryPage() {
                     <button type="button" className={`sc-rail-item${r != null ? ' is-scored' : ''}`} onClick={() => scrollToCrit(c.criterionId)}>
                       <span className="sc-rail-idx">{i + 1}</span>
                       <span className="sc-rail-name">{c.name}</span>
-                      <span className={`sc-rail-mark${r != null ? ' is-on' : ''}`}>{r != null ? r : '—'}</span>
+                      <span className={`sc-rail-mark${r != null ? ' is-on' : ''}`}>{r != null ? formatRating(r) : '—'}</span>
                     </button>
                   </li>
                 )
@@ -373,13 +444,47 @@ const SCF_CSS = `
   .sc-evidence-label i { color: var(--gold-dark); }
 
   .sc-rate { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--gray-100); }
-  .sc-scale { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; max-width: 520px; }
-  .sc-dot { height: 58px; border-radius: var(--radius-sm); border: 1.5px solid var(--gray-200); background: var(--white); font-family: var(--font-heading); font-weight: 800; font-size: 1.3rem; color: var(--gray-600); cursor: pointer; transition: var(--transition-fast); }
-  .sc-dot:hover:not(:disabled) { border-color: var(--gold); color: var(--navy); transform: translateY(-2px); }
-  .sc-dot.is-on { background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%); color: var(--white); border-color: var(--gold); box-shadow: 0 5px 16px rgba(200,168,75,0.36); }
-  .sc-dot:disabled { cursor: default; opacity: 0.75; }
-  .sc-dot.is-on:disabled { opacity: 1; }
-  .sc-rate-legend { display: flex; justify-content: space-between; max-width: 520px; margin-top: 8px; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray-400); }
+
+  /* 0–5 in 0.2 steps: a slider for the gesture, a number box for the exact value. */
+  .sc-rating { max-width: 560px; }
+  .sc-rating-controls { display: flex; align-items: center; gap: 16px; }
+
+  .sc-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; background: var(--gray-200); cursor: pointer; }
+  .sc-slider:disabled { cursor: default; opacity: 0.6; }
+  .sc-slider.is-unset { background: var(--gray-200); }
+  .sc-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%); border: 2px solid var(--white); box-shadow: 0 2px 8px rgba(15,25,46,0.28); cursor: grab; }
+  .sc-slider::-webkit-slider-thumb:active { cursor: grabbing; }
+  .sc-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%); border: 2px solid var(--white); box-shadow: 0 2px 8px rgba(15,25,46,0.28); cursor: grab; }
+  .sc-slider.is-unset::-webkit-slider-thumb { background: var(--gray-300); }
+  .sc-slider.is-unset::-moz-range-thumb { background: var(--gray-300); }
+  .sc-slider:focus-visible { outline: 2px solid var(--gold-dark); outline-offset: 4px; }
+
+  .sc-ratebox { flex: 0 0 auto; width: 82px; padding: 10px 8px; text-align: center; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); font-family: var(--font-heading); font-weight: 800; font-size: 1.35rem; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .sc-ratebox:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.18); }
+  .sc-ratebox.is-unset { color: var(--gray-300); }
+  .sc-ratebox:disabled { background: var(--gray-100); opacity: 0.8; }
+
+  .sc-rating-foot { margin-top: 8px; }
+  .sc-ticks { display: flex; justify-content: space-between; padding-right: 98px; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; color: var(--gray-400); font-variant-numeric: tabular-nums; }
+  .sc-band { display: block; margin-top: 8px; font-size: 0.82rem; color: var(--gray-600); line-height: 1.5; }
+  .sc-band b { font-family: var(--font-heading); color: var(--gold-dark); font-size: 0.86rem; }
+  .sc-band-mean { color: var(--gray-600); }
+  .sc-band.is-unset { color: var(--gray-400); font-style: italic; }
+
+  /* The manual's descriptor table, collapsed by default — calibration, not clutter. */
+  .sc-guide { padding: 0; margin-bottom: 4px; }
+  .sc-guide-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; cursor: pointer; list-style: none; }
+  .sc-guide-summary::-webkit-details-marker { display: none; }
+  .sc-guide-chev { color: var(--gray-400); font-size: 0.8rem; transition: transform 0.15s ease; }
+  .sc-guide[open] .sc-guide-chev { transform: rotate(180deg); }
+  .sc-guide-table { width: 100%; border-collapse: collapse; }
+  .sc-guide-table td { padding: 8px 12px; border-top: 1px solid var(--gray-100); font-size: 0.84rem; vertical-align: top; }
+  .sc-guide-table tr td:first-child { padding-left: 20px; }
+  .sc-guide-table tr td:last-child { padding-right: 20px; }
+  .sc-guide-range { white-space: nowrap; font-family: var(--font-heading); font-weight: 800; color: var(--gold-dark); font-variant-numeric: tabular-nums; }
+  .sc-guide-label { white-space: nowrap; font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
+  .sc-guide-mean { color: var(--gray-600); }
+  .sc-guide-note { padding: 12px 20px 16px; font-size: 0.8rem; color: var(--gray-600); border-top: 1px solid var(--gray-100); }
 
   .sc-doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--gray-100); }
   .sc-doc:first-of-type { border-top: none; }
@@ -393,7 +498,7 @@ const SCF_CSS = `
   .sc-rail-item:hover { background: var(--gray-100); }
   .sc-rail-idx { flex-shrink: 0; width: 20px; font-family: var(--font-heading); font-weight: 700; font-size: 0.74rem; color: var(--gray-400); }
   .sc-rail-name { flex: 1; min-width: 0; font-family: var(--font-body); font-size: 0.82rem; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sc-rail-mark { flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; font-family: var(--font-heading); font-weight: 800; font-size: 0.8rem; color: var(--gray-400); background: var(--gray-100); border: 1px solid var(--gray-200); }
+  .sc-rail-mark { flex-shrink: 0; min-width: 34px; height: 24px; padding: 0 5px; display: grid; place-items: center; border-radius: 7px; font-family: var(--font-heading); font-weight: 800; font-size: 0.76rem; color: var(--gray-400); background: var(--gray-100); border: 1px solid var(--gray-200); font-variant-numeric: tabular-nums; }
   .sc-rail-mark.is-on { color: var(--white); background: linear-gradient(135deg, var(--gold), var(--gold-dark)); border-color: var(--gold); }
   .sc-rail-foot { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--gray-100); display: flex; flex-direction: column; gap: 10px; }
   .sc-rail-count { font-family: var(--font-body); font-size: 0.84rem; color: var(--gray-600); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -419,6 +524,7 @@ const SCF_CSS = `
   }
   @media (max-width: 620px) {
     .scf-meta { display: none; }
-    .sc-scale, .sc-rate-legend { max-width: none; }
+    .sc-rating { max-width: none; }
+    .sc-ticks { padding-right: 90px; }
   }
 `

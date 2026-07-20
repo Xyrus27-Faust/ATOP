@@ -7,7 +7,7 @@ import { isAdmin } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
-import { formatDate } from '@/lib/pearlAwards'
+import { formatDate, formatRating } from '@/lib/pearlAwards'
 
 const LEVEL_ORDER = ['All', 'Province', 'HUC', 'ComponentCity', 'Municipality']
 const bracketRank = (b) => { const i = LEVEL_ORDER.indexOf(b); return i === -1 ? 99 : i }
@@ -49,7 +49,7 @@ function AssessorMatrix({ data }) {
                     {a.status !== 'Submitted' && <span className="sr-bd-status">{a.status}</span>}
                   </td>
                   {data.criteria.map((c) => (
-                    <td key={c.criterionId}>{byCrit.has(c.criterionId) ? byCrit.get(c.criterionId) : '—'}</td>
+                    <td key={c.criterionId}>{byCrit.has(c.criterionId) ? formatRating(byCrit.get(c.criterionId)) : '—'}</td>
                   ))}
                   <td className="sr-bd-total">
                     {Math.round(a.total)}

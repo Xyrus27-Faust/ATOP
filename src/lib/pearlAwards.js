@@ -263,6 +263,43 @@ export function computeReadiness(entry, category) {
   return { items, completed, total: items.length, ready: completed === items.length }
 }
 
+// ---- Criterion rating scale (pre-finals scoring) ---------------------------
+// The Guidelines Manual: "Assessors shall rate each criterion using a scale of 0 to 5, with a
+// minimum decimal increment of 0.2." So the scale has 26 stops, not six whole numbers.
+
+export const RATING_MIN = 0
+export const RATING_MAX = 5
+export const RATING_STEP = 0.2
+
+// Ratings land on a 0.2 grid. Do the arithmetic in fifths (integers) — 0.1 + 0.2 !== 0.3 in binary
+// floating point, so accumulating by 0.2 would drift and print values like 3.4000000000000004.
+export const toRatingStep = (n) => Math.round(Math.min(RATING_MAX, Math.max(RATING_MIN, n)) * 5) / 5
+export const formatRating = (n) => (n == null ? '—' : Number(n).toFixed(1))
+
+// The manual's descriptor bands (p. 5), verbatim. `from` is the band's lowest rating; a rating
+// belongs to the highest band whose `from` it reaches. 0 is its own band — "no relevant evidence".
+export const RATING_BANDS = [
+  { from: 4.2, label: 'Excellent', meaning: 'Complete, well-documented, highly relevant, innovative, measurable, and clearly superior.' },
+  { from: 3.2, label: 'Very Good', meaning: 'Strong and mostly complete, with clear evidence and only minor gaps.' },
+  { from: 2.2, label: 'Good', meaning: 'Meets the basic requirements but with moderate gaps in evidence, scale, or results.' },
+  { from: 1.2, label: 'Fair', meaning: 'Partially meets the criterion but lacks clarity, depth, documentation, or measurable impact.' },
+  { from: 0.2, label: 'Weak', meaning: 'Minimal evidence or weak connection to the criterion.' },
+  { from: 0, label: 'Not demonstrated', meaning: 'No relevant evidence provided.' },
+]
+
+export function ratingBand(rating) {
+  if (rating == null) return null
+  return RATING_BANDS.find((b) => rating >= b.from) || RATING_BANDS[RATING_BANDS.length - 1]
+}
+
+// The band's display range, e.g. "4.2–5.0" (and plain "0" for the bottom band).
+export function bandRange(band) {
+  const i = RATING_BANDS.indexOf(band)
+  if (i === -1 || band.from === 0) return '0'
+  const upper = i === 0 ? RATING_MAX : RATING_BANDS[i - 1].from - RATING_STEP
+  return `${band.from.toFixed(1)}–${upper.toFixed(1)}`
+}
+
 // ---- Finals adjudication (M4b) --------------------------------------------
 // Adjudicators rank a bracket's finalists 1..N (1 = best). Lowest average rank wins:
 // 1st → Grand Winner, 2nd → First Runner-Up, 3rd → Second Runner-Up; the rest are
