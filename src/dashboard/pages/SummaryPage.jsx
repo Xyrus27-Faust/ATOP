@@ -91,6 +91,18 @@ function SummaryBoard({ buckets, categories, year, admin, dim, setDim }) {
   // canonical vocab order so the table reads consistently regardless of what's populated.
   const rows = useMemo(() => {
     const map = pivot(buckets, dim)
+
+    // Seed every in-scope category, so one with no submissions still gets a row. Rows are otherwise
+    // derived from entries alone, which made an empty category vanish entirely — and that's the most
+    // actionable thing on this board: a category sitting at zero is who the secretariat needs to
+    // chase before the deadline. (Only for the category pivot: the server sends the authoritative
+    // scoped list. Seeding all 18 regions with zeros would just be noise.)
+    if (dim === 'category') {
+      for (const c of categories) {
+        if (!map.has(c.number)) map.set(c.number, { key: c.number, counts: {}, total: 0 })
+      }
+    }
+
     const order = (key) => {
       if (dim === 'category') return key
       const list = dim === 'level' ? LGU_LEVELS : REGIONS
@@ -104,7 +116,7 @@ function SummaryBoard({ buckets, categories, year, admin, dim, setDim }) {
     return [...map.values()]
       .sort((a, b) => order(a.key) - order(b.key))
       .map((r) => ({ ...r, label: label(r.key) }))
-  }, [buckets, dim, nameByNumber])
+  }, [buckets, dim, nameByNumber, categories])
 
   const cards = [
     { label: 'Total entries', value: totals.total, icon: 'fa-layer-group', tone: 'neutral' },
