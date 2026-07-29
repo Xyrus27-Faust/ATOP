@@ -65,7 +65,7 @@ export default function OverviewPage() {
         </button>
       </div>
 
-      {win && <WindowBanner win={win} catalog={catalog} />}
+      {win && <WindowBanner win={win} catalog={catalog} returnedCount={returned.length} />}
 
       {returned.length > 0 && (
         <div className="dash-banner tone-warn" style={{ marginTop: 16 }}>
@@ -148,7 +148,7 @@ export default function OverviewPage() {
   )
 }
 
-function WindowBanner({ win, catalog }) {
+function WindowBanner({ win, catalog, returnedCount = 0 }) {
   let icon
   let tone = 'info'
   let text
@@ -166,11 +166,20 @@ function WindowBanner({ win, catalog }) {
     tone = 'warn'
     text = `Submissions closed on ${formatDate(win.closes)}.`
   }
+  // Someone holding a returned entry is on a later clock. Without this the banner would flatly say
+  // submissions are closed while their entry is, in fact, still resubmittable.
+  const grace = returnedCount > 0 ? submissionWindow(catalog, new Date(), 'ReturnedForRevision') : null
+  const graceNote =
+    grace?.extended && grace.state === 'open'
+      ? ` Your returned ${returnedCount === 1 ? 'entry' : 'entries'} can still be fixed and resubmitted until ${formatDate(grace.closes)}.`
+      : null
+
   return (
-    <div className={`dash-banner tone-${tone}`} style={{ marginTop: 4 }}>
-      <i className={`fas ${icon}`} aria-hidden="true" />
+    <div className={`dash-banner tone-${graceNote ? 'info' : tone}`} style={{ marginTop: 4 }}>
+      <i className={`fas ${graceNote ? 'fa-calendar-day' : icon}`} aria-hidden="true" />
       <span>
         <strong>Pearl Awards {catalog.year}</strong> · coverage year {catalog.coverageYear}. {text}
+        {graceNote && <strong>{graceNote}</strong>}
       </span>
     </div>
   )

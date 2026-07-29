@@ -177,16 +177,25 @@ export function looksLikeVideo(link) {
 
 // ---- Submission window ----------------------------------------------------
 
-export function submissionWindow(catalog, now = new Date()) {
+/**
+ * The window an entry is actually held to. Pass the entry's `status` to get its own deadline.
+ *
+ * Mirrors `Entry.ClosesAt` on the server: an entry **returned for revision** may be given until a
+ * later grace deadline, so a nominator asked to fix something isn't cut off while fixing it.
+ * Everything else — including a draft that was never submitted — closes on the original date.
+ * Omitting `status` gives the general window, which is what the public and overview pages want.
+ */
+export function submissionWindow(catalog, now = new Date(), status = null) {
   if (!catalog) return null
   const opens = new Date(catalog.submissionOpensAt)
-  const closes = new Date(catalog.submissionClosesAt)
+  const extended = status === 'ReturnedForRevision' && !!catalog.resubmissionClosesAt
+  const closes = new Date(extended ? catalog.resubmissionClosesAt : catalog.submissionClosesAt)
   let state = 'open'
   if (now < opens) state = 'upcoming'
   else if (now >= closes) state = 'closed'
   const day = 24 * 60 * 60 * 1000
   const daysToClose = Math.ceil((closes - now) / day)
-  return { opens, closes, state, daysToClose }
+  return { opens, closes, state, daysToClose, extended }
 }
 
 // ---- Readiness (mirrors Entry.ValidateForSubmission) ----------------------

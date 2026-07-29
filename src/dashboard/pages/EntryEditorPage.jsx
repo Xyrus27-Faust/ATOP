@@ -61,7 +61,7 @@ export default function EntryEditorPage() {
   if (error) return <ErrorState error={error} onRetry={reload} title="We couldn’t open this entry" />
 
   const readOnly = !isEditable(workingEntry.status)
-  const win = submissionWindow(catalog)
+  const win = submissionWindow(catalog, new Date(), workingEntry.status)
   const readiness = computeReadiness(workingEntry, category)
   const doneByKey = Object.fromEntries(readiness.items.map((i) => [i.key, i.done]))
 
@@ -687,7 +687,9 @@ function ReviewSection({ entry, catalog, readiness, readOnly, onSaved, goTo }) {
   const [submitting, setSubmitting] = useState(false)
   const [blockers, setBlockers] = useState(null)
   const [banner, setBanner] = useState(null)
-  const win = submissionWindow(catalog)
+  // A returned entry is held to its own (later) deadline, so the submit button has to follow the
+  // same rule the server enforces — otherwise it stays greyed out through the grace period.
+  const win = submissionWindow(catalog, new Date(), entry.status)
   const windowOpen = win?.state === 'open'
 
   async function submit() {
@@ -747,7 +749,21 @@ function ReviewSection({ entry, catalog, readiness, readOnly, onSaved, goTo }) {
           <span>
             {win.state === 'upcoming'
               ? `Submissions open ${formatDate(win.opens)}. You can prepare your entry now and submit once the window opens.`
-              : `The submission window closed on ${formatDate(win.closes)}.`}
+              : win.extended
+                ? `The deadline to resubmit returned entries passed on ${formatDate(win.closes)}.`
+                : `The submission window closed on ${formatDate(win.closes)}.`}
+          </span>
+        </div>
+      )}
+
+      {/* This entry was sent back and is running on the grace deadline — say so plainly, because the
+          general close has either passed or is about to, and they'd reasonably assume they're late. */}
+      {win?.extended && windowOpen && (
+        <div className="dash-banner tone-info">
+          <i className="fas fa-calendar-day" aria-hidden="true" />
+          <span>
+            This entry was returned for revision, so you have until <strong>{formatDate(win.closes)}</strong> to
+            fix and resubmit it — {win.daysToClose <= 0 ? 'that is today' : `${win.daysToClose} day${win.daysToClose === 1 ? '' : 's'} left`}.
           </span>
         </div>
       )}
