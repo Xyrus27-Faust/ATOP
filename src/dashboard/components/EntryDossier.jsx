@@ -12,6 +12,13 @@
 //
 // Review and Finals render <EntryDossier> whole. Scoring composes the sections instead, because its
 // per-criterion block has to host the 0–5 rating control between the narrative and the evidence.
+//
+// Two layouts, because a reviewer and a judge are doing different jobs:
+//   "full"    — the reviewer/TWG validates technical compliance, so they see every required
+//               submission listed against the rubric's slots.
+//   "judging" — assessors and adjudicators judge the work, so the entry video leads the page and
+//               the "Supporting documents" block is gone: the material a judgment rests on is the
+//               video, the narratives, and the evidence attached to each criterion.
 
 import { formatDate, labelFor, COVERAGE_OPTIONS, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
 
@@ -71,9 +78,23 @@ export function DossierGrid({ items }) {
   )
 }
 
-/** Evidence files attached to a single criterion. */
-export function EvidenceRow({ files, onViewEvidence }) {
-  if (!files?.length) return null
+/**
+ * Evidence files attached to a single criterion.
+ *
+ * `showEmpty` spells out "none attached" instead of rendering nothing. Judges need that: with the
+ * supporting-documents block gone, silence on a criterion is ambiguous — nothing attached, or
+ * something failed to load? A reviewer reading the full dossier doesn't need the noise.
+ */
+export function EvidenceRow({ files, onViewEvidence, showEmpty = false }) {
+  if (!files?.length) {
+    if (!showEmpty) return null
+    return (
+      <div className="ed-evidence">
+        <span className="ed-evidence-label"><i className="fas fa-paperclip" aria-hidden="true" /> Supporting evidence</span>
+        <span className="ed-empty">None attached to this criterion.</span>
+      </div>
+    )
+  }
   return (
     <div className="ed-evidence">
       <span className="ed-evidence-label"><i className="fas fa-paperclip" aria-hidden="true" /> Supporting evidence</span>
@@ -90,7 +111,7 @@ export function EvidenceRow({ files, onViewEvidence }) {
  * One criterion: its narrative and evidence. `children` is a slot beneath the narrative — the
  * scoring page drops its 0–5 rating control in there.
  */
-export function NarrativeBlock({ item, onViewEvidence, children, id, className = '' }) {
+export function NarrativeBlock({ item, onViewEvidence, children, id, className = '', showEmptyEvidence = false }) {
   return (
     <div id={id} className={`ed-narr ${className}`}>
       <div className="ed-narr-head">
@@ -99,7 +120,7 @@ export function NarrativeBlock({ item, onViewEvidence, children, id, className =
       </div>
       {item.indicators && <p className="ed-indicators">{item.indicators}</p>}
       <p className="ed-prose">{item.text || <em className="ed-empty">No narrative provided.</em>}</p>
-      <EvidenceRow files={item.evidence} onViewEvidence={onViewEvidence} />
+      <EvidenceRow files={item.evidence} onViewEvidence={onViewEvidence} showEmpty={showEmptyEvidence} />
       {children}
     </div>
   )
@@ -133,70 +154,107 @@ export function ExecutiveSummarySection({ entry }) {
   )
 }
 
-export function NarrativesSection({ entry, criteria, onViewEvidence }) {
+export function NarrativesSection({ entry, criteria, onViewEvidence, showEmptyEvidence = false }) {
   const items = criteriaView(entry, criteria)
   return (
     <DossierSection icon="fa-list-check" title="Criteria narratives">
       {items.length === 0
         ? <p className="ed-empty">No narratives provided.</p>
-        : items.map((item) => <NarrativeBlock key={item.id} item={item} onViewEvidence={onViewEvidence} />)}
+        : items.map((item) => (
+          <NarrativeBlock key={item.id} item={item} onViewEvidence={onViewEvidence} showEmptyEvidence={showEmptyEvidence} />
+        ))}
     </DossierSection>
   )
 }
 
 /**
- * Supporting documents. A recognised video link is embedded inline; a link that is *meant* to be a
- * video but can't be previewed says so rather than failing silently.
+ * One submitted document. A recognised video link is embedded inline; a link that is *meant* to be
+ * a video but can't be previewed says so rather than failing silently.
  */
+function DocumentItem({ doc, kind, onViewDoc }) {
+  const embed = !doc.fileKey ? videoEmbed(doc.link) : null
+  const brokenVideo = !doc.fileKey && !embed && (kind === 'VideoLink' || looksLikeVideo(doc.link))
+
+  return (
+    <div className="ed-doc-item">
+      <div className="ed-doc">
+        <span className="ed-doc-label">{doc.label}</span>
+        {embed ? (
+          <a className="dash-btn is-ghost is-sm" href={doc.link} target="_blank" rel="noopener noreferrer">
+            <i className="fas fa-up-right-from-square" aria-hidden="true" /> Open in {embed.provider}
+          </a>
+        ) : (
+          <button type="button" className="dash-btn is-ghost is-sm" onClick={() => onViewDoc(doc.label)}>
+            <i className={`fas ${doc.fileKey ? 'fa-file-lines' : 'fa-link'}`} aria-hidden="true" /> {doc.fileName || (doc.fileKey ? 'View file' : 'Open link')}
+          </button>
+        )}
+      </div>
+      {embed && (
+        <div className="ed-video">
+          <iframe
+            src={embed.embedUrl}
+            title={doc.label}
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
+        </div>
+      )}
+      {brokenVideo && (
+        <div className="ed-video-fallback">
+          <i className="fas fa-circle-exclamation" aria-hidden="true" />
+          <div>
+            <strong>This video cannot be previewed.</strong>
+            {doc.link
+              ? <a href={doc.link} target="_blank" rel="noopener noreferrer" className="ed-video-link">{doc.link}</a>
+              : <span className="ed-empty">No link was provided.</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Which of the submitted documents are the entry's video?
+ *
+ * A document is the video when the rubric slot it fills is a VideoLink — including one an entrant
+ * satisfied by uploading a file rather than pasting a link, which must still reach a judge now that
+ * nothing else lists it. The link test is the fallback for a label that has drifted from the catalog.
+ */
+function videosOf(entry, category) {
+  const bb = entry?.bidbook || emptyBidbook
+  const kindByLabel = new Map((category?.requiredSubmissions || []).map((r) => [r.label, r.kind]))
+  return (bb.supportingDocuments || []).filter(
+    (d) => kindByLabel.get(d.label) === 'VideoLink' || (!d.fileKey && looksLikeVideo(d.link)),
+  )
+}
+
+/** The entry video — first thing a judge sees, because it's the closest thing to seeing the work. */
+export function VideoSection({ entry, category, onViewDoc }) {
+  const videos = videosOf(entry, category)
+  return (
+    <DossierSection icon="fa-circle-play" title={videos.length > 1 ? 'Entry videos' : 'Entry video'}>
+      {videos.length === 0
+        ? <p className="ed-empty">No video was submitted with this entry.</p>
+        : videos.map((d) => <DocumentItem key={d.label} doc={d} kind="VideoLink" onViewDoc={onViewDoc} />)}
+    </DossierSection>
+  )
+}
+
+/** Every submitted document, against the rubric's slots — what the reviewer validates compliance on. */
 export function DocumentsSection({ entry, category, onViewDoc }) {
   const bb = entry.bidbook || emptyBidbook
   const kindByLabel = new Map((category?.requiredSubmissions || []).map((r) => [r.label, r.kind]))
 
   return (
     <DossierSection icon="fa-paperclip" title="Supporting documents">
-      {bb.supportingDocuments.length === 0 ? <p className="ed-empty">No documents attached.</p> : bb.supportingDocuments.map((d) => {
-        const embed = !d.fileKey ? videoEmbed(d.link) : null
-        const brokenVideo = !d.fileKey && !embed && (kindByLabel.get(d.label) === 'VideoLink' || looksLikeVideo(d.link))
-        return (
-          <div key={d.label} className="ed-doc-item">
-            <div className="ed-doc">
-              <span className="ed-doc-label">{d.label}</span>
-              {embed ? (
-                <a className="dash-btn is-ghost is-sm" href={d.link} target="_blank" rel="noopener noreferrer">
-                  <i className="fas fa-up-right-from-square" aria-hidden="true" /> Open in {embed.provider}
-                </a>
-              ) : (
-                <button type="button" className="dash-btn is-ghost is-sm" onClick={() => onViewDoc(d.label)}>
-                  <i className={`fas ${d.fileKey ? 'fa-file-lines' : 'fa-link'}`} aria-hidden="true" /> {d.fileName || (d.fileKey ? 'View file' : 'Open link')}
-                </button>
-              )}
-            </div>
-            {embed && (
-              <div className="ed-video">
-                <iframe
-                  src={embed.embedUrl}
-                  title={d.label}
-                  loading="lazy"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  allowFullScreen
-                />
-              </div>
-            )}
-            {brokenVideo && (
-              <div className="ed-video-fallback">
-                <i className="fas fa-circle-exclamation" aria-hidden="true" />
-                <div>
-                  <strong>This video cannot be previewed.</strong>
-                  {d.link
-                    ? <a href={d.link} target="_blank" rel="noopener noreferrer" className="ed-video-link">{d.link}</a>
-                    : <span className="ed-empty">No link was provided.</span>}
-                </div>
-              </div>
-            )}
-          </div>
-        )
-      })}
+      {bb.supportingDocuments.length === 0
+        ? <p className="ed-empty">No documents attached.</p>
+        : bb.supportingDocuments.map((d) => (
+          <DocumentItem key={d.label} doc={d} kind={kindByLabel.get(d.label)} onViewDoc={onViewDoc} />
+        ))}
     </DossierSection>
   )
 }
@@ -249,20 +307,28 @@ export function EntryFacts({ entry, category }) {
 }
 
 /**
- * The whole bidbook, in reading order. Used by Review and by the Adjudicator's dossier.
- * `files` is the object from useEntryFiles().
+ * The whole bidbook, in reading order. Used by Review ("full") and by the Adjudicator's dossier
+ * ("judging" — video first, no supporting-documents block). `files` is the object from
+ * useEntryFiles().
  */
-export default function EntryDossier({ entry, category, criteria, files }) {
+export default function EntryDossier({ entry, category, criteria, files, layout = 'full' }) {
+  const judging = layout === 'judging'
   return (
     <>
       {files.fileError && (
         <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{files.fileError}</span></div>
       )}
       <div className="ed-stack">
+        {judging && <VideoSection entry={entry} category={category} onViewDoc={files.viewDoc} />}
         <NominatorSection entry={entry} />
         <ExecutiveSummarySection entry={entry} />
-        <NarrativesSection entry={entry} criteria={criteria} onViewEvidence={files.viewEvidence} />
-        <DocumentsSection entry={entry} category={category} onViewDoc={files.viewDoc} />
+        <NarrativesSection
+          entry={entry}
+          criteria={criteria}
+          onViewEvidence={files.viewEvidence}
+          showEmptyEvidence={judging}
+        />
+        {!judging && <DocumentsSection entry={entry} category={category} onViewDoc={files.viewDoc} />}
         <DeclarationSection entry={entry} />
         <EndorsementSection entry={entry} onViewEndorsement={files.viewEndorsement} />
       </div>

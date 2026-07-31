@@ -7,7 +7,7 @@ import { isAssessor } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
 import {
-  EvidenceRow, ExecutiveSummarySection, DocumentsSection,
+  EvidenceRow, ExecutiveSummarySection, VideoSection,
   DeclarationSection, EndorsementSection, DOSSIER_CSS,
 } from '../components/EntryDossier'
 import { useEntryFiles } from '@/lib/entryFiles'
@@ -126,7 +126,7 @@ function Criterion({ index, c, narrative, evidence, rating, onRate, disabled, on
         <p className="sc-prose">{narrative?.text || <em className="sc-emptytext">No narrative provided.</em>}</p>
       </div>
 
-      <EvidenceRow files={evidence} onViewEvidence={onViewEvidence} />
+      <EvidenceRow files={evidence} onViewEvidence={onViewEvidence} showEmpty />
 
       <div className="sc-rate">
         <RatingScale value={rating} onChange={onRate} disabled={disabled} inputId={`rate-${c.criterionId}`} />
@@ -329,6 +329,10 @@ export default function ScoringEntryPage() {
             <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{files.fileError}</span></div>
           )}
 
+          {/* Video first: it's the closest an assessor gets to seeing the work itself, so it leads
+              the scoresheet rather than sitting under the criteria they've already rated. */}
+          <VideoSection entry={entry} category={data.category} onViewDoc={files.viewDoc} />
+
           <ExecutiveSummarySection entry={entry} />
 
           <RatingGuide />
@@ -355,8 +359,9 @@ export default function ScoringEntryPage() {
             />
           ))}
 
-          {/* The same evidence a reviewer sees — inline video, documents, declaration, endorsement. */}
-          <DocumentsSection entry={entry} category={data.category} onViewDoc={files.viewDoc} />
+          {/* No supporting-documents block: an assessor scores on the video, the narratives, and the
+              evidence attached to each criterion above. Compliance with the rubric's required
+              submissions is the reviewer's job, and they see the full list. */}
           <DeclarationSection entry={entry} />
           <EndorsementSection entry={entry} onViewEndorsement={files.viewEndorsement} />
         </div>
@@ -439,10 +444,6 @@ const SCF_CSS = `
   .sc-crit-indicators { color: var(--gray-600); font-size: 0.84rem; line-height: 1.55; margin-top: 10px; }
   .sc-crit-narr { margin-top: 12px; padding: 13px 15px; background: var(--off-white); border: 1px solid var(--gray-100); border-radius: var(--radius-sm); }
   .sc-crit-narr-label { display: block; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); margin-bottom: 6px; }
-  .sc-crit-evidence { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .sc-evidence-label { font-family: var(--font-heading); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray-600); display: inline-flex; align-items: center; gap: 6px; }
-  .sc-evidence-label i { color: var(--gold-dark); }
-
   .sc-rate { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--gray-100); }
 
   /* 0–5 in 0.2 steps: a slider for the gesture, a number box for the exact value. */
@@ -485,10 +486,6 @@ const SCF_CSS = `
   .sc-guide-label { white-space: nowrap; font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
   .sc-guide-mean { color: var(--gray-600); }
   .sc-guide-note { padding: 12px 20px 16px; font-size: 0.8rem; color: var(--gray-600); border-top: 1px solid var(--gray-100); }
-
-  .sc-doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--gray-100); }
-  .sc-doc:first-of-type { border-top: none; }
-  .sc-doc-label { font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.9rem; }
 
   .scf-rail { position: sticky; top: 72px; }
   .sc-rail-card { padding: 16px; }

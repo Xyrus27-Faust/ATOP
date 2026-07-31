@@ -22,9 +22,10 @@ function Shell({ children }) {
   )
 }
 
-// The finalist's full bidbook — what the manual says the ranking is actually made on ("narratives,
-// videos, documents"). Opened on demand so the ranking stays the focus. Renders the SAME shared
-// dossier a reviewer or assessor sees: inline video, evidence, declaration, LCE endorsement.
+// The finalist's bidbook — what the ranking is actually made on. Opened on demand so the ranking
+// stays the focus. Renders the shared dossier in its "judging" layout, the same shape the 3PIC
+// assessor scores against: the entry video first, then the narratives with each criterion's own
+// evidence, then declaration and LCE endorsement.
 function Dossier({ entryId, onClose }) {
   const { loading, error, data, reload } = useAsync(
     () =>
@@ -64,7 +65,7 @@ function Dossier({ entryId, onClose }) {
         <div className="fb-drawer-body">
           {loading ? <Loading />
             : error ? <ErrorState error={error} onRetry={reload} title="We couldn’t open this dossier" />
-              : <EntryDossier entry={entry} category={data.category} criteria={data.criteria} files={files} />}
+              : <EntryDossier entry={entry} category={data.category} criteria={data.criteria} files={files} layout="judging" />}
         </div>
       </aside>
     </div>
