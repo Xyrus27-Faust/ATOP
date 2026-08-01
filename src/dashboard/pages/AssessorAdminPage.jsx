@@ -13,6 +13,127 @@ function initialsOf(name, email) {
   return base.slice(0, 2).toUpperCase()
 }
 
+function Modal({ title, sub, onClose, busy, children, foot }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="aa-modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={onClose}>
+      <div className="aa-modal-card" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="aa-modal-head">
+          <div>
+            <h3 className="aa-modal-title">{title}</h3>
+            {sub && <p className="aa-modal-sub">{sub}</p>}
+          </div>
+          <button type="button" className="aa-modal-x" onClick={onClose} disabled={busy} aria-label="Close">
+            <i className="fas fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="aa-modal-body">{children}</div>
+        {foot && <div className="aa-modal-foot">{foot}</div>}
+      </div>
+    </div>
+  )
+}
+
+// Search any user and grant/revoke the 3PIC role. Without this, an admin could only assign
+// categories to assessors who already existed — there'd be no way to create one in the app.
+function AddAssessor({ onChanged }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(null)
+
+  useEffect(() => {
+    const term = q.trim()
+    if (term.length < 2) return
+    const t = setTimeout(() => {
+      setLoading(true)
+      api.get(`/admin/users?q=${encodeURIComponent(term)}`, { auth: true })
+        .then(setResults)
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [q])
+
+  async function toggle(u, grant) {
+    setBusy(u.userId)
+    try {
+      const updated = grant
+        ? await api.post(`/admin/users/${u.userId}/roles`, { role: '3PIC' }, { auth: true })
+        : await api.delete(`/admin/users/${u.userId}/roles/3PIC`, { auth: true })
+      setResults((rs) => rs.map((r) => (r.userId === u.userId ? updated : r)))
+      onChanged()
+    } catch {
+      // a transient failure leaves the row unchanged; the admin can retry
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const term = q.trim()
+  return (
+    <>
+      <p className="aa-hint">
+        Assessors are appointed, not self-service — grant the 3PIC role here. They keep their existing roles,
+        and see an empty scoring queue until you assign them categories. The role takes effect on their next
+        sign-in.
+      </p>
+      <div className="aa-search">
+        <i className="fas fa-magnifying-glass" aria-hidden="true" />
+        <input
+          className="dash-input"
+          type="search"
+          placeholder="Search by name or email…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Search users"
+          autoFocus
+        />
+      </div>
+
+      {term.length < 2 ? (
+        <p className="aa-searchnote">Type at least two characters to search.</p>
+      ) : loading ? (
+        <p className="aa-searchnote"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Searching…</p>
+      ) : results.length === 0 ? (
+        <p className="aa-searchnote">No users match “{term}”.</p>
+      ) : (
+        <ul className="aa-results">
+          {results.map((u) => {
+            const has = (u.roles || []).includes('3PIC')
+            return (
+              <li key={u.userId} className="aa-result">
+                <span className="aa-avatar" aria-hidden="true">{initialsOf(u.fullName, u.email)}</span>
+                <span className="aa-id">
+                  <span className="aa-name">{u.fullName || u.email}</span>
+                  <span className="aa-email">{u.email}</span>
+                </span>
+                <button
+                  type="button"
+                  className={`dash-btn is-sm${has ? ' is-ghost' : ' is-primary'}`}
+                  disabled={busy === u.userId}
+                  onClick={() => toggle(u, !has)}
+                >
+                  {busy === u.userId
+                    ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> …</>
+                    : has
+                      ? <><i className="fas fa-user-minus" aria-hidden="true" /> Remove</>
+                      : <><i className="fas fa-user-plus" aria-hidden="true" /> Make assessor</>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </>
+  )
+}
+
 // Admin management of 3PIC assessor ↔ award-category assignments. A tabular roster (better for
 // scanning than cards); Edit opens a focused modal for the category checklist.
 export default function AssessorAdminPage() {
@@ -21,6 +142,7 @@ export default function AssessorAdminPage() {
   const [draft, setDraft] = useState(() => new Set())
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [adding, setAdding] = useState(false)
 
   const { loading, error, data, reload } = useAsync(
     () =>
@@ -31,16 +153,11 @@ export default function AssessorAdminPage() {
   )
 
   const close = () => { if (!saving) setEditing(null) }
-  useEffect(() => {
-    if (!editing) return
-    const onKey = (e) => { if (e.key === 'Escape') close() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, saving])
 
   if (!isAdmin(user?.roles)) return <Navigate to="/dashboard" replace />
-  if (loading) return <Loading />
+  // Only blank the page on the *first* load. A reload() after granting a role also flips `loading`,
+  // and swapping in <Loading /> there would unmount the open modal and wipe the admin's search.
+  if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
   const { list, catalog } = data
@@ -87,13 +204,19 @@ export default function AssessorAdminPage() {
             of ~5 assessors per category so the average is meaningful.
           </p>
         </div>
+        <button type="button" className="dash-btn is-primary" onClick={() => setAdding(true)}>
+          <i className="fas fa-user-plus" aria-hidden="true" /> Add assessor
+        </button>
       </div>
 
       {list.length === 0 ? (
         <div className="dash-card dash-empty">
           <div className="dash-empty-icon"><i className="fas fa-user-check" aria-hidden="true" /></div>
           <h3>No assessors yet</h3>
-          <p>Give a user the 3PIC role first — they’ll then appear here for category assignment.</p>
+          <p>Use <strong>Add assessor</strong> to grant the 3PIC role, then assign the categories they’ll score.</p>
+          <button type="button" className="dash-btn is-primary" onClick={() => setAdding(true)}>
+            <i className="fas fa-user-plus" aria-hidden="true" /> Add assessor
+          </button>
         </div>
       ) : (
         <div className="dash-card aa-tablecard">
@@ -147,49 +270,46 @@ export default function AssessorAdminPage() {
         </div>
       )}
 
+      {adding && (
+        <Modal title="Add an assessor" onClose={() => { setAdding(false); reload() }}>
+          <AddAssessor onChanged={reload} />
+        </Modal>
+      )}
+
       {editRow && (
-        <div className="aa-modal" role="dialog" aria-modal="true" aria-label={`Assign categories for ${editRow.fullName || editRow.email}`} onMouseDown={close}>
-          <div className="aa-modal-card" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="aa-modal-head">
-              <div>
-                <h3 className="aa-modal-title">Assign categories</h3>
-                <p className="aa-modal-sub">{editRow.fullName || editRow.email}</p>
-              </div>
-              <button type="button" className="aa-modal-x" onClick={close} disabled={saving} aria-label="Close">
-                <i className="fas fa-xmark" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="aa-modal-body">
-              <div className="aa-grid">
-                {categories.map((c) => {
-                  const on = draft.has(c.number)
-                  return (
-                    <label key={c.number} className={`aa-check${on ? ' is-on' : ''}`}>
-                      <input type="checkbox" checked={on} onChange={() => toggle(c.number)} />
-                      <span className="aa-num">#{c.number}</span>
-                      <span className="aa-cname">{c.name}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            </div>
-
-            {saveError && (
-              <div className="dash-banner tone-error aa-modal-err">
-                <i className="fas fa-circle-exclamation" aria-hidden="true" /> {saveError}
-              </div>
-            )}
-
-            <div className="aa-modal-foot">
+        <Modal
+          title="Assign categories"
+          sub={editRow.fullName || editRow.email}
+          onClose={close}
+          busy={saving}
+          foot={
+            <>
               <span className="aa-selected">{draft.size} of {categories.length} selected</span>
               <button type="button" className="dash-btn is-ghost is-sm" onClick={close} disabled={saving}>Cancel</button>
               <button type="button" className="dash-btn is-primary is-sm" onClick={() => save(editRow)} disabled={saving}>
                 {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : 'Save assignments'}
               </button>
-            </div>
+            </>
+          }
+        >
+          <div className="aa-grid">
+            {categories.map((c) => {
+              const on = draft.has(c.number)
+              return (
+                <label key={c.number} className={`aa-check${on ? ' is-on' : ''}`}>
+                  <input type="checkbox" checked={on} onChange={() => toggle(c.number)} />
+                  <span className="aa-num">#{c.number}</span>
+                  <span className="aa-cname">{c.name}</span>
+                </label>
+              )
+            })}
           </div>
-        </div>
+          {saveError && (
+            <div className="dash-banner tone-error aa-modal-err">
+              <i className="fas fa-circle-exclamation" aria-hidden="true" /> {saveError}
+            </div>
+          )}
+        </Modal>
       )}
 
       <style>{`
@@ -233,9 +353,19 @@ export default function AssessorAdminPage() {
         .aa-check input { width: 17px; height: 17px; accent-color: var(--gold-dark); cursor: pointer; flex-shrink: 0; }
         .aa-num { font-family: var(--font-heading); font-weight: 800; font-size: 0.8rem; color: var(--gold-dark); flex-shrink: 0; }
         .aa-cname { font-family: var(--font-body); font-size: 0.84rem; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .aa-modal-err { margin: 0 24px; }
+        .aa-modal-err { margin-top: 14px; }
         .aa-modal-foot { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-top: 1px solid var(--gray-100); background: var(--off-white); }
         .aa-selected { font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: var(--gray-600); margin-right: auto; }
+
+        /* Add-assessor search */
+        .aa-hint { font-size: 0.84rem; color: var(--gray-600); line-height: 1.55; margin-bottom: 14px; }
+        .aa-search { position: relative; margin-bottom: 12px; }
+        .aa-search i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }
+        .aa-search .dash-input { padding-left: 36px; }
+        .aa-searchnote { font-size: 0.84rem; color: var(--gray-600); padding: 10px 2px; }
+        .aa-results { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+        .aa-result { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+        .aa-result .dash-btn { margin-left: auto; flex-shrink: 0; }
 
         @media (max-width: 640px) { .aa-chips { display: none; } }
       `}</style>
