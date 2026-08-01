@@ -202,9 +202,9 @@ export default function ScoringQueuePage() {
                     <tr>
                       <th className="sc-th-num">#</th>
                       <th>Entry</th>
-                      <th>LGU</th>
-                      <th>My scoresheet</th>
-                      <th>Submitted</th>
+                      <th className="sc-th-lgu">LGU</th>
+                      <th className="sc-th-sheet">My scoresheet</th>
+                      <th className="sc-th-date">Submitted</th>
                       <th aria-hidden="true" />
                     </tr>
                   </thead>
@@ -258,7 +258,12 @@ export default function ScoringQueuePage() {
         .sc-scroll { overflow-x: auto; }
         .sc-table { width: 100%; border-collapse: collapse; }
         .sc-table thead th { background: var(--off-white); border-bottom: 1px solid var(--gray-200); padding: 12px 16px; text-align: left; white-space: nowrap; font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); }
+        /* Each cluster is its own table, so the columns are pinned — otherwise every section sizes
+           independently and the headers stop lining up down the page. */
         .sc-th-num { width: 56px; }
+        .sc-th-lgu { width: 210px; }
+        .sc-th-sheet { width: 175px; }
+        .sc-th-date { width: 130px; }
         .sc-table tbody tr { border-bottom: 1px solid var(--gray-100); cursor: pointer; transition: var(--transition-fast); }
         .sc-table tbody tr:last-child { border-bottom: none; }
         .sc-row:hover { background: rgba(200,168,75,0.06); }

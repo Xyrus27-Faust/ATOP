@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
@@ -83,7 +83,7 @@ export default function FinalsQueuePage() {
   if (error) return <ErrorState error={error} onRetry={reload} />
 
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0
-  const open = (b) => navigate(`/finals/${b.categoryNumber}/${encodeURIComponent(b.bracket)}`)
+  const bracketPath = (b) => `/finals/${b.categoryNumber}/${encodeURIComponent(b.bracket)}`
 
   return (
     <>
@@ -161,44 +161,51 @@ export default function FinalsQueuePage() {
               {c.autoWins > 0 && `${c.autoWins} automatic`}
             </span>
           </header>
-        <div className="fq-grid">
-          {c.items.map((b) => {
-            const mm = ballotMeta(b.myBallotStatus)
-            const auto = b.singleFinalistAutoWin
-            const key = `${b.categoryNumber}-${b.bracket}`
-            return (
-              <article
-                key={key}
-                className={`dash-card fq-card${auto ? ' is-auto' : ''}`}
-                onClick={() => open(b)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(b) } }}
-                role="button"
-                tabIndex={0}
-              >
-                <div className="fq-card-top">
-                  <span className="fq-cat">#{b.categoryNumber}</span>
-                  {auto ? (
-                    <span className="dash-badge tone-success"><i className="fas fa-trophy" aria-hidden="true" /> Automatic winner</span>
-                  ) : (
-                    <span className={`dash-badge tone-${mm.tone}`}><i className={`fas ${mm.icon}`} aria-hidden="true" /> {mm.label}</span>
-                  )}
-                </div>
-
-                <h3 className="fq-card-title">{b.categoryName}</h3>
-
-                <div className="fq-card-foot">
-                  <span className="fq-finalists">
-                    <i className="fas fa-users" aria-hidden="true" />
-                    {b.finalistCount} finalist{b.finalistCount === 1 ? '' : 's'}
-                  </span>
-                  <span className="fq-cta">
-                    {auto ? 'View' : b.myBallotStatus === 'Submitted' ? 'View ranking' : 'Rank finalists'}
-                    <i className="fas fa-arrow-right" aria-hidden="true" />
-                  </span>
-                </div>
-              </article>
-            )
-          })}
+          <div className="dash-card fq-tablecard">
+            <div className="fq-scroll">
+              <table className="fq-table">
+                <thead>
+                  <tr>
+                    <th className="fq-th-num">#</th>
+                    <th>Award</th>
+                    <th className="fq-th-finalists">Finalists</th>
+                    <th className="fq-th-ballot">My ballot</th>
+                    <th aria-hidden="true" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.items.map((b) => {
+                    const mm = ballotMeta(b.myBallotStatus)
+                    const auto = b.singleFinalistAutoWin
+                    const to = bracketPath(b)
+                    return (
+                      <tr
+                        key={`${b.categoryNumber}-${b.bracket}`}
+                        className={`fq-row${auto ? ' is-auto' : ''}`}
+                        onClick={(ev) => { if (!ev.target.closest('a')) navigate(to) }}
+                      >
+                        <td className="fq-num"><span className="fq-cat">#{b.categoryNumber}</span></td>
+                        <td className="fq-award">
+                          <Link to={to} className="fq-title">{b.categoryName}</Link>
+                        </td>
+                        <td className="fq-finalists">
+                          <i className="fas fa-users" aria-hidden="true" />
+                          {b.finalistCount} finalist{b.finalistCount === 1 ? '' : 's'}
+                        </td>
+                        <td>
+                          {auto ? (
+                            <span className="dash-badge tone-success"><i className="fas fa-trophy" aria-hidden="true" /> Automatic winner</span>
+                          ) : (
+                            <span className={`dash-badge tone-${mm.tone}`}><i className={`fas ${mm.icon}`} aria-hidden="true" /> {mm.label}</span>
+                          )}
+                        </td>
+                        <td className="fq-chevcell"><i className="fas fa-chevron-right fq-chev" aria-hidden="true" /></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
         ))
@@ -224,17 +231,27 @@ export default function FinalsQueuePage() {
         .fq-cluster-count { margin-left: auto; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--gray-600); white-space: nowrap; }
         .fq-cluster-count.is-complete { color: #15803D; }
 
-        .fq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 14px; }
-        .fq-card { padding: 18px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: var(--transition-fast); }
-        .fq-card:hover, .fq-card:focus-visible { border-color: var(--gold); box-shadow: 0 8px 24px rgba(15,25,46,0.1); transform: translateY(-2px); outline: none; }
-        .fq-card.is-auto { background: linear-gradient(180deg, rgba(200,168,75,0.07), var(--white) 60%); }
-        .fq-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .fq-tablecard { padding: 0; overflow: hidden; }
+        .fq-scroll { overflow-x: auto; }
+        .fq-table { width: 100%; border-collapse: collapse; }
+        .fq-table thead th { background: var(--off-white); border-bottom: 1px solid var(--gray-200); padding: 12px 16px; text-align: left; white-space: nowrap; font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); }
+        /* Each cluster is its own table, so the columns are pinned — otherwise every section sizes
+           independently and the headers stop lining up down the page. */
+        .fq-th-num { width: 56px; }
+        .fq-th-finalists { width: 150px; }
+        .fq-th-ballot { width: 200px; }
+        .fq-table tbody tr { border-bottom: 1px solid var(--gray-100); cursor: pointer; transition: var(--transition-fast); }
+        .fq-table tbody tr:last-child { border-bottom: none; }
+        .fq-row:hover { background: rgba(200,168,75,0.06); }
+        .fq-row.is-auto { background: rgba(200,168,75,0.04); }
+        .fq-table td { padding: 13px 16px; vertical-align: middle; }
         .fq-cat { display: inline-grid; place-items: center; min-width: 36px; height: 28px; padding: 0 8px; border-radius: 8px; font-family: var(--font-heading); font-weight: 800; font-size: 0.8rem; color: var(--gold-dark); background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.22); }
-        .fq-card-title { font-family: var(--font-heading); font-size: 1rem; font-weight: 800; color: var(--navy); line-height: 1.35; }
-        .fq-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--gray-100); }
-        .fq-finalists { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--gray-600); }
-        .fq-cta { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: var(--gold-dark); }
-        .fq-card:hover .fq-cta i { transform: translateX(2px); transition: var(--transition-fast); }
+        .fq-award { min-width: 220px; }
+        .fq-title { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; text-decoration: none; }
+        .fq-title:hover { color: var(--gold-dark); text-decoration: underline; }
+        .fq-finalists { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--gray-600); white-space: nowrap; }
+        .fq-chevcell { width: 38px; text-align: right; }
+        .fq-chev { color: var(--gray-300); }
       `}</style>
     </>
   )
