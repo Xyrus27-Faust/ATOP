@@ -471,7 +471,8 @@ const SCF_CSS = `
   .sc-rate { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--gray-100); }
 
   /* 0–5 in 0.2 steps: a slider for the gesture, a number box for the exact value. */
-  .sc-rating { max-width: 560px; }
+  /* Full width: the slider is the control the whole card exists for, and a longer track makes the
+     0.2 steps easier to land on — 26 stops across 560px is ~21px each, across the full card ~29px. */
   .sc-rating-controls { display: flex; align-items: center; gap: 16px; }
 
   .sc-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; background: var(--gray-200); cursor: pointer; }
@@ -560,7 +561,6 @@ const SCF_CSS = `
   }
   @media (max-width: 620px) {
     .scf-meta { display: none; }
-    .sc-rating { max-width: none; }
     .sc-ticks { padding-right: 90px; }
   }
 `
