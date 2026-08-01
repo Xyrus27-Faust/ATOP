@@ -37,18 +37,28 @@ VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-857948069033-p09evikg3rk754l0hj4
 
 # A bundle pointed at the prod API with a feature switched on would publish that feature to real
 # users the moment it rolled out. Refuse, rather than trust whoever is at the keyboard to remember.
+#
+# Launching a slice for real is a legitimate thing to do, so the refusal is overridable — but only
+# by PUBLISH_LIVE_FEATURES=1, typed on the command line. Deliberate, greppable in shell history, and
+# impossible to reach by forgetting a flag, which is the failure this guard exists to prevent.
 if [[ "$VITE_API_BASE_URL" == "$PROD_API" ]]; then
-  for flag in SCORING FINALS; do
-    val="VITE_FEATURE_${flag}"
-    if [[ "${!val}" != "false" ]]; then
-      echo "REFUSING: building against the PROD API with VITE_FEATURE_${flag}=${!val}." >&2
-      echo "          That would ship that slice live to real users." >&2
-      echo "          Set VITE_FEATURE_${flag}=false, or build for staging (drop --prod)." >&2
-      exit 1
-    fi
-  done
+  if [[ "${PUBLISH_LIVE_FEATURES:-0}" == "1" ]]; then
+    echo "!! PUBLISH_LIVE_FEATURES=1 — prod bundle with scoring=${VITE_FEATURE_SCORING} finals=${VITE_FEATURE_FINALS}" >&2
+    echo "!! Any slice not 'false' above goes LIVE to real users the moment this rolls out." >&2
+  else
+    for flag in SCORING FINALS; do
+      val="VITE_FEATURE_${flag}"
+      if [[ "${!val}" != "false" ]]; then
+        echo "REFUSING: building against the PROD API with VITE_FEATURE_${flag}=${!val}." >&2
+        echo "          That would ship that slice live to real users." >&2
+        echo "          Set VITE_FEATURE_${flag}=false, build for staging (drop --prod)," >&2
+        echo "          or, if you mean to launch it, re-run with PUBLISH_LIVE_FEATURES=1." >&2
+        exit 1
+      fi
+    done
+  fi
   # :latest is what staging rolls out — pushing it from a prod build would put a prod-API bundle
-  # (features dark) onto staging.
+  # onto staging. Not overridable: that's tag hygiene, never an intentional launch.
   if [[ "$MOVING_TAG" == "latest" ]]; then
     echo "REFUSING: a prod-API build must not push :latest (that tag is staging's). Use --prod." >&2
     exit 1
