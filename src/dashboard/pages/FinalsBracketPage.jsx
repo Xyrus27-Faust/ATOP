@@ -225,14 +225,16 @@ export default function FinalsBracketPage() {
               This bracket has only one finalist, so under the Guidelines Manual they are declared
               Grand Winner automatically. There is nothing to rank — no interview or ballot is needed.
             </p>
-            <div className="fb-auto-name">
+            {/* The winner box is block-level, so the action falls to its own line below and centres
+                on the heading — rather than sharing a line as centred inline content. */}
+            <div className="fb-auto-winner">
               <span className="fb-rank-badge is-gold">1</span>
-              <span>
+              <span className="fb-auto-name">
                 <b>{finalists[0]?.title}</b>
                 <em>{finalists[0]?.lguName}</em>
               </span>
             </div>
-            <button type="button" className="dash-btn is-ghost is-sm" onClick={() => setDossier(finalists[0]?.entryId)}>
+            <button type="button" className="dash-btn is-ghost is-sm fb-auto-review" onClick={() => setDossier(finalists[0]?.entryId)}>
               <i className="fas fa-folder-open" aria-hidden="true" /> Review dossier
             </button>
           </section>
@@ -457,7 +459,13 @@ const FB_CSS = `
   .fb-auto-icon { width: 64px; height: 64px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 50%; font-size: 1.6rem; color: var(--navy); background: linear-gradient(135deg, var(--gold-light), var(--gold)); }
   .fb-auto-title { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--navy); }
   .fb-auto-sub { color: var(--gray-600); font-size: 0.92rem; line-height: 1.6; max-width: 52ch; margin: 8px auto 20px; }
-  .fb-auto-name { display: inline-flex; align-items: center; gap: 12px; text-align: left; padding: 12px 18px; border: 1px solid var(--gold); background: rgba(200,168,75,0.08); border-radius: var(--radius-md); margin-bottom: 16px; }
+  /* A flex row rather than inline-level children: as inline content in a text-align:center block,
+     the name box and the button flowed onto one line and centred as a pair, which left the box
+     itself off the heading's centre line. */
+  /* display:flex (not inline-flex) makes the box block-level, so it takes its own line and the
+     action below centres on the heading — as inline content the two shared a line and centred
+     together, leaving the box off-centre. */
+  .fb-auto-winner { display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; margin: 0 auto 16px; text-align: left; padding: 12px 18px; border: 1px solid var(--gold); background: rgba(200,168,75,0.08); border-radius: var(--radius-md); }
   .fb-auto-name b { display: block; font-family: var(--font-heading); color: var(--navy); font-size: 0.98rem; }
   .fb-auto-name em { display: block; font-style: normal; color: var(--gray-600); font-size: 0.8rem; }
 
