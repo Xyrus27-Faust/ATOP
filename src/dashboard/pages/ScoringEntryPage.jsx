@@ -15,6 +15,7 @@ import {
   labelFor, COVERAGE_OPTIONS,
   RATING_MIN, RATING_MAX, RATING_STEP, RATING_BANDS,
   toRatingStep, formatRating, ratingBand, bandRange,
+  weightedScore, formatWeighted, weightedTotal,
 } from '@/lib/pearlAwards'
 import { DASH_CSS } from '../DashboardLayout'
 
@@ -22,8 +23,9 @@ import { DASH_CSS } from '../DashboardLayout'
 // a slider is the honest control for it, with the exact value shown in a box beside it (and typeable,
 // because dragging to a precise 3.4 is fiddly). The band label reads out what the number *means*
 // under the manual's rubric, so the assessor sees "Very Good" as they land on it.
-function RatingScale({ value, onChange, disabled, inputId }) {
+function RatingScale({ value, onChange, disabled, inputId, points }) {
   const band = ratingBand(value)
+  const weighted = weightedScore(value, points)
   // The slider needs a concrete position; an unscored criterion sits at 0 but stays visually "unset".
   const sliderValue = value ?? RATING_MIN
 
@@ -65,9 +67,17 @@ function RatingScale({ value, onChange, disabled, inputId }) {
         <span className="sc-ticks" aria-hidden="true">
           {[0, 1, 2, 3, 4, 5].map((n) => <span key={n}>{n}</span>)}
         </span>
-        {value == null
-          ? <span className="sc-band is-unset">Not scored</span>
-          : <span className="sc-band"><b>{band.label}</b> <span className="sc-band-mean">{band.meaning}</span></span>}
+        <div className="sc-rating-readout">
+          {value == null
+            ? <span className="sc-band is-unset">Not scored</span>
+            : <span className="sc-band"><b>{band.label}</b> <span className="sc-band-mean">{band.meaning}</span></span>}
+          {points != null && (
+            <span className={`sc-weighted${value == null ? ' is-unset' : ''}`}>
+              <span className="sc-weighted-val">{formatWeighted(weighted)}</span>
+              <span className="sc-weighted-max">of {points}</span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -102,15 +112,18 @@ function RatingGuide() {
   )
 }
 
-// One criterion: the applicant's narrative + evidence, then the 0–5 scale. No weighting shown —
-// assessors judge each criterion on its merits; the weighting is applied downstream (admin board).
+// One criterion: the applicant's narrative + evidence, then the 0–5 scale. The criterion's weight is
+// shown up front and its earned share under the slider, so the assessor can see what a rating is
+// worth as they set it — the rating is still the only thing they choose, and the arithmetic below is
+// the same rating ÷ 5 × points the server applies.
 function Criterion({ index, c, narrative, evidence, rating, onRate, disabled, onViewEvidence }) {
   return (
-    <section id={`crit-${c.criterionId}`} className={`dash-card dash-card-pad sc-crit${rating != null ? ' is-scored' : ''}`}>
+    <section id={`crit-${c.criterionId}`} className="dash-card dash-card-pad sc-crit">
       <div className="sc-crit-head">
         <div className="sc-crit-heading">
           <span className="sc-crit-idx">{index + 1}</span>
           <h3 className="sc-crit-name">{c.name}</h3>
+          {c.points != null && <span className="sc-crit-pts">{c.points} pts</span>}
         </div>
         <span className={`sc-crit-mark${rating != null ? ' is-on' : ''}`}>
           {rating != null
@@ -129,7 +142,7 @@ function Criterion({ index, c, narrative, evidence, rating, onRate, disabled, on
       <EvidenceRow files={evidence} onViewEvidence={onViewEvidence} showEmpty />
 
       <div className="sc-rate">
-        <RatingScale value={rating} onChange={onRate} disabled={disabled} inputId={`rate-${c.criterionId}`} />
+        <RatingScale value={rating} onChange={onRate} disabled={disabled} inputId={`rate-${c.criterionId}`} points={c.points} />
       </div>
     </section>
   )
@@ -220,6 +233,10 @@ export default function ScoringEntryPage() {
     [criteria, scores],
   )
   const allScored = criteria.length > 0 && scoredCount === criteria.length
+  // Running weighted total. Partial until every criterion is rated, so it's labelled "so far" —
+  // an assessor comparing a half-finished 40 against the manual's 80 floor would be reading a
+  // number that doesn't mean what it looks like.
+  const total = useMemo(() => weightedTotal(criteria, scores), [criteria, scores])
 
   async function submit() {
     setSubmitting(true)
@@ -378,6 +395,7 @@ export default function ScoringEntryPage() {
                     <button type="button" className={`sc-rail-item${r != null ? ' is-scored' : ''}`} onClick={() => scrollToCrit(c.criterionId)}>
                       <span className="sc-rail-idx">{i + 1}</span>
                       <span className="sc-rail-name">{c.name}</span>
+                      <span className="sc-rail-weighted">{r != null ? formatWeighted(weightedScore(r, c.points)) : '—'}</span>
                       <span className={`sc-rail-mark${r != null ? ' is-on' : ''}`}>{r != null ? formatRating(r) : '—'}</span>
                     </button>
                   </li>
@@ -385,6 +403,12 @@ export default function ScoringEntryPage() {
               })}
             </ul>
             <div className="sc-rail-foot">
+              <div className="sc-rail-total">
+                <span className="sc-rail-total-label">{allScored ? 'Weighted total' : 'Weighted total so far'}</span>
+                <span className="sc-rail-total-val">
+                  <b>{formatWeighted(total.earned)}</b> <span className="sc-rail-total-max">/ {total.max}</span>
+                </span>
+              </div>
               <div className="sc-rail-count"><b>{scoredCount}</b> / {criteria.length} scored {saveIndicator}</div>
               <div className="dash-meter sc-rail-meter"><div className={`dash-meter-fill${allScored ? ' is-complete' : ''}`} style={{ width: `${pct}%` }} /></div>
               {submitControl}
@@ -433,12 +457,12 @@ const SCF_CSS = `
   .sc-emptytext { color: var(--gray-400); font-style: italic; }
   .sc-rubric-intro { margin-top: 4px; }
 
-  .sc-crit { border-left: 3px solid var(--gray-200); scroll-margin-top: 72px; transition: var(--transition-fast); }
-  .sc-crit.is-scored { border-left-color: var(--gold); }
+  .sc-crit { scroll-margin-top: 72px; transition: var(--transition-fast); }
   .sc-crit-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
   .sc-crit-heading { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
   .sc-crit-idx { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-family: var(--font-heading); font-weight: 800; font-size: 0.82rem; color: var(--gold-dark); background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.22); margin-top: 1px; }
   .sc-crit-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 1rem; line-height: 1.3; }
+  .sc-crit-pts { flex-shrink: 0; align-self: center; padding: 2px 9px; border-radius: 999px; background: var(--gray-100); border: 1px solid var(--gray-200); font-family: var(--font-heading); font-weight: 700; font-size: 0.7rem; color: var(--gray-600); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .sc-crit-mark { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; color: var(--gray-400); white-space: nowrap; }
   .sc-crit-mark.is-on { color: #15803D; }
   .sc-crit-indicators { color: var(--gray-600); font-size: 0.84rem; line-height: 1.55; margin-top: 10px; }
@@ -467,6 +491,14 @@ const SCF_CSS = `
 
   .sc-rating-foot { margin-top: 8px; }
   .sc-ticks { display: flex; justify-content: space-between; padding-right: 98px; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; color: var(--gray-400); font-variant-numeric: tabular-nums; }
+  /* Band on the left, what it earned on the right — the descriptor is the judgement, the number
+     is its consequence, so they read in that order. */
+  .sc-rating-readout { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .sc-weighted { flex-shrink: 0; margin-top: 8px; display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 10px; border-radius: 999px; background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.22); font-variant-numeric: tabular-nums; }
+  .sc-weighted-val { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--gold-dark); }
+  .sc-weighted-max { font-size: 0.74rem; color: var(--gray-600); }
+  .sc-weighted.is-unset { background: var(--gray-100); border-color: var(--gray-200); }
+  .sc-weighted.is-unset .sc-weighted-val { color: var(--gray-300); }
   .sc-band { display: block; margin-top: 8px; font-size: 0.82rem; color: var(--gray-600); line-height: 1.5; }
   .sc-band b { font-family: var(--font-heading); color: var(--gold-dark); font-size: 0.86rem; }
   .sc-band-mean { color: var(--gray-600); }
@@ -497,7 +529,14 @@ const SCF_CSS = `
   .sc-rail-name { flex: 1; min-width: 0; font-family: var(--font-body); font-size: 0.82rem; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sc-rail-mark { flex-shrink: 0; min-width: 34px; height: 24px; padding: 0 5px; display: grid; place-items: center; border-radius: 7px; font-family: var(--font-heading); font-weight: 800; font-size: 0.76rem; color: var(--gray-400); background: var(--gray-100); border: 1px solid var(--gray-200); font-variant-numeric: tabular-nums; }
   .sc-rail-mark.is-on { color: var(--white); background: linear-gradient(135deg, var(--gold), var(--gold-dark)); border-color: var(--gold); }
+  .sc-rail-weighted { flex-shrink: 0; min-width: 26px; text-align: right; font-family: var(--font-heading); font-weight: 700; font-size: 0.74rem; color: var(--gray-600); font-variant-numeric: tabular-nums; }
   .sc-rail-foot { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--gray-100); display: flex; flex-direction: column; gap: 10px; }
+  /* The number the tally actually uses, so it's the biggest thing in the rail. */
+  .sc-rail-total { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .sc-rail-total-label { font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gray-600); }
+  .sc-rail-total-val { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sc-rail-total-val b { font-family: var(--font-heading); font-weight: 800; font-size: 1.5rem; color: var(--navy); letter-spacing: -0.02em; }
+  .sc-rail-total-max { font-size: 0.8rem; color: var(--gray-400); }
   .sc-rail-count { font-family: var(--font-body); font-size: 0.84rem; color: var(--gray-600); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .sc-rail-count b { font-family: var(--font-heading); font-weight: 800; color: var(--navy); }
   .sc-submit-btn { width: 100%; }

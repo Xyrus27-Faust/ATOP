@@ -301,6 +301,29 @@ export function ratingBand(rating) {
   return RATING_BANDS.find((b) => rating >= b.from) || RATING_BANDS[RATING_BANDS.length - 1]
 }
 
+// What a rating is actually worth: rating ÷ 5 × points. Mirrors CriterionScore.Weighted on the
+// server, which is what the tally sums — this is a readout of the server's arithmetic, never the
+// source of it. Same fifths trick as toRatingStep: multiply before dividing so a 0.2 rating on a
+// 15-point criterion is exactly 0.6, not 0.6000000000000001.
+export const weightedScore = (rating, points) =>
+  rating == null || points == null ? null : (Math.round(rating * 5) * points) / (RATING_MAX * 5)
+
+// Weighted values land on point/25 steps, so one decimal is exact for the manual's point values
+// (10/15/20/25/30) and rounds honestly for any other. Whole numbers print bare: "16", not "16.0".
+export const formatWeighted = (n) =>
+  n == null ? '—' : Number.isInteger(Number(n)) ? String(Number(n)) : Number(n).toFixed(1)
+
+/** The scoresheet's running weighted total and the maximum it can reach. */
+export function weightedTotal(criteria, scoresByCriterionId) {
+  return (criteria || []).reduce(
+    (acc, c) => {
+      const w = weightedScore(scoresByCriterionId?.[c.criterionId], c.points)
+      return { earned: acc.earned + (w ?? 0), max: acc.max + (c.points || 0) }
+    },
+    { earned: 0, max: 0 },
+  )
+}
+
 // The band's display range, e.g. "4.2–5.0" (and plain "0" for the bottom band).
 export function bandRange(band) {
   const i = RATING_BANDS.indexOf(band)

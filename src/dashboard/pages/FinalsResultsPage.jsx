@@ -534,7 +534,7 @@ export default function FinalsResultsPage() {
         .fr-action .dash-btn { margin-left: auto; }
         .fr-banner { margin-bottom: 16px; }
 
-        .fr-block { padding: 16px 20px; margin-bottom: 16px; border-left: 3px solid var(--gold); }
+        .fr-block { padding: 16px 20px; margin-bottom: 16px; }
         .fr-block-h { display: flex; align-items: center; gap: 8px; font-family: var(--font-heading); font-size: 0.95rem; font-weight: 800; color: var(--navy); }
         .fr-block-h i { color: var(--gold-dark); }
         .fr-block-sub { font-size: 0.84rem; color: var(--gray-600); line-height: 1.55; margin: 6px 0 10px; }

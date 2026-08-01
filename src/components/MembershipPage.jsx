@@ -130,7 +130,6 @@ export default function MembershipPage() {
           color: var(--white);
           padding: 32px;
           border-radius: var(--radius-md);
-          border-left: 5px solid var(--gold);
         }
         .membership-fees-box h4 {
           font-family: var(--font-heading);

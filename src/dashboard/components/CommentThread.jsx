@@ -82,8 +82,8 @@ export default function CommentThread({ entryId }) {
         .ct-empty { color: var(--gray-600); font-size: 0.9rem; padding: 6px 0 14px; }
         .ct-list { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
         .ct-msg { border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--white); }
-        .ct-msg.is-reviewer { border-left: 3px solid var(--gold); background: rgba(200,168,75,0.05); }
-        .ct-msg.is-applicant { border-left: 3px solid var(--navy); }
+        /* Who wrote it is carried by the author name and the role chip, not a coloured bar. */
+        .ct-msg.is-reviewer { background: rgba(200,168,75,0.05); }
         .ct-msg-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
         .ct-author { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.88rem; }
         .ct-tag { font-family: var(--font-heading); font-size: 0.64rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; color: var(--navy); background: rgba(15,25,46,0.08); }
