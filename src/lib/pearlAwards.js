@@ -359,6 +359,15 @@ export function bracketLabel(bracket) {
   return bracket === 'All' ? 'All entrants' : labelFor(LGU_LEVELS, bracket)
 }
 
+// Brackets read down the LGU hierarchy, not the alphabet (which would open on Component City).
+// Derived from LGU_LEVELS so one list governs the order everywhere; 'All' sorts last, after every
+// level. Mirrors Brackets.Rank on the API.
+const BRACKET_ORDER = LGU_LEVELS.map((l) => l.value)
+export const bracketRank = (bracket) => {
+  const i = BRACKET_ORDER.indexOf(bracket)
+  return i === -1 ? BRACKET_ORDER.length : i
+}
+
 // The adjudicator's own progress on a bracket's ballot.
 export const BALLOT_STATUS = {
   NotStarted: { label: 'To rank', tone: 'neutral', icon: 'fa-circle-dot' },

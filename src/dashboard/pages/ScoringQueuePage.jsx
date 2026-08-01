@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { isAssessor, isAdmin } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
-import { formatDate } from '@/lib/pearlAwards'
+import { formatDate, bracketLabel, bracketRank } from '@/lib/pearlAwards'
 
 // The caller's own progress on an entry — the state that matters most in this queue.
 const MY = {
@@ -27,6 +27,7 @@ export default function ScoringQueuePage() {
   const [view, setView] = useState('todo')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
+  const [level, setLevel] = useState('all')
 
   const { loading, error, data, reload } = useAsync(
     () =>
@@ -54,6 +55,15 @@ export default function ScoringQueuePage() {
     return nums.map((n) => ({ value: String(n), label: `#${n} · ${nameByNumber.get(n) || `Category ${n}`}` }))
   }, [entries, nameByNumber])
 
+  // The levels actually present, so the filter never offers an empty one.
+  const levelOptions = useMemo(
+    () =>
+      [...new Set((entries || []).map((e) => e.bracket))]
+        .sort((a, b) => bracketRank(a) - bracketRank(b))
+        .map((value) => ({ value, label: bracketLabel(value) })),
+    [entries],
+  )
+
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
     return (entries || [])
@@ -61,6 +71,7 @@ export default function ScoringQueuePage() {
         if (view === 'todo' && e.myAssessmentStatus === 'Submitted') return false
         if (view === 'done' && e.myAssessmentStatus !== 'Submitted') return false
         if (category !== 'all' && String(e.categoryNumber) !== category) return false
+        if (level !== 'all' && e.bracket !== level) return false
         if (term && !`${e.title} ${e.lguName}`.toLowerCase().includes(term)) return false
         return true
       })
@@ -69,7 +80,25 @@ export default function ScoringQueuePage() {
         const rank = (e) => (e.myAssessmentStatus === 'Submitted' ? 2 : e.myAssessmentStatus === 'Pending' ? 1 : 0)
         return rank(a) - rank(b) || new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)
       })
-  }, [entries, view, category, search])
+  }, [entries, view, category, level, search])
+
+  // An entry only ever competes inside its own bracket, so the queue clusters that way — scoring a
+  // level end-to-end keeps an assessor calibrated against the field the entry is actually judged in.
+  const clusters = useMemo(() => {
+    const groups = new Map()
+    for (const e of rows) {
+      if (!groups.has(e.bracket)) groups.set(e.bracket, [])
+      groups.get(e.bracket).push(e)
+    }
+    return [...groups.entries()]
+      .sort(([a], [b]) => bracketRank(a) - bracketRank(b))
+      .map(([bracket, items]) => ({
+        bracket,
+        items,
+        total: items.length,
+        done: items.filter((e) => e.myAssessmentStatus === 'Submitted').length,
+      }))
+  }, [rows])
 
   if (!isAssessor(user?.roles)) return <Navigate to="/dashboard" replace />
   if (loading) return <Loading />
@@ -129,6 +158,14 @@ export default function ScoringQueuePage() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        {levelOptions.length > 1 && (
+          <select className="dash-select" value={level} onChange={(e) => setLevel(e.target.value)} aria-label="LGU level">
+            <option value="all">All levels</option>
+            {levelOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        )}
         <span className="sc-count">{rows.length} shown</span>
       </div>
 
@@ -141,45 +178,59 @@ export default function ScoringQueuePage() {
             need to assign you categories, or entries are still in validation.
           </p>
         </div>
-      ) : (
-        <div className="dash-card sc-tablecard">
-          <div className="sc-scroll">
-            <table className="sc-table">
-              <thead>
-                <tr>
-                  <th className="sc-th-num">#</th>
-                  <th>Entry</th>
-                  <th>LGU</th>
-                  <th>My scoresheet</th>
-                  <th>Submitted</th>
-                  <th aria-hidden="true" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <tr><td colSpan={6} className="sc-norows">No entries match your filters.</td></tr>
-                ) : (
-                  rows.map((e) => {
-                    const mm = myMeta(e.myAssessmentStatus)
-                    return (
-                      <tr key={e.id} className="sc-row" onClick={(ev) => { if (!ev.target.closest('a')) window.open(`/scoring/${e.id}`, '_blank', 'noopener') }} title="Opens the scoresheet in a new tab">
-                        <td className="sc-num"><span className="sc-cat">#{e.categoryNumber}</span></td>
-                        <td className="sc-entry">
-                          <Link to={`/scoring/${e.id}`} target="_blank" rel="noopener" className="sc-title">{e.title} <i className="fas fa-arrow-up-right-from-square sc-title-ext" aria-hidden="true" /></Link>
-                          <span className="sc-catname">{nameByNumber.get(e.categoryNumber) || `Category ${e.categoryNumber}`}</span>
-                        </td>
-                        <td className="sc-lgu">{e.lguName}<span className="sc-lgu-level">{e.lguLevel}</span></td>
-                        <td><span className={`dash-badge tone-${mm.tone}`}><i className={`fas ${mm.icon}`} aria-hidden="true" /> {mm.label}</span></td>
-                        <td className="sc-date">{e.submittedAt ? formatDate(e.submittedAt) : '—'}</td>
-                        <td className="sc-chevcell"><i className="fas fa-chevron-right sc-chev" aria-hidden="true" /></td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+      ) : clusters.length === 0 ? (
+        <div className="dash-card dash-empty">
+          <div className="dash-empty-icon"><i className="fas fa-magnifying-glass" aria-hidden="true" /></div>
+          <h3>Nothing here</h3>
+          <p>No entries match your filters.</p>
         </div>
+      ) : (
+        clusters.map((c) => (
+          <section key={c.bracket} className="sc-cluster">
+            <header className="sc-cluster-head">
+              <h2 className="sc-cluster-title">
+                <i className="fas fa-layer-group" aria-hidden="true" /> {bracketLabel(c.bracket)}
+              </h2>
+              <span className={`sc-cluster-count${c.done === c.total ? ' is-complete' : ''}`}>
+                {c.done} of {c.total} scored
+              </span>
+            </header>
+            <div className="dash-card sc-tablecard">
+              <div className="sc-scroll">
+                <table className="sc-table">
+                  <thead>
+                    <tr>
+                      <th className="sc-th-num">#</th>
+                      <th>Entry</th>
+                      <th>LGU</th>
+                      <th>My scoresheet</th>
+                      <th>Submitted</th>
+                      <th aria-hidden="true" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.items.map((e) => {
+                      const mm = myMeta(e.myAssessmentStatus)
+                      return (
+                        <tr key={e.id} className="sc-row" onClick={(ev) => { if (!ev.target.closest('a')) window.open(`/scoring/${e.id}`, '_blank', 'noopener') }} title="Opens the scoresheet in a new tab">
+                          <td className="sc-num"><span className="sc-cat">#{e.categoryNumber}</span></td>
+                          <td className="sc-entry">
+                            <Link to={`/scoring/${e.id}`} target="_blank" rel="noopener" className="sc-title">{e.title} <i className="fas fa-arrow-up-right-from-square sc-title-ext" aria-hidden="true" /></Link>
+                            <span className="sc-catname">{nameByNumber.get(e.categoryNumber) || `Category ${e.categoryNumber}`}</span>
+                          </td>
+                          <td className="sc-lgu">{e.lguName}</td>
+                          <td><span className={`dash-badge tone-${mm.tone}`}><i className={`fas ${mm.icon}`} aria-hidden="true" /> {mm.label}</span></td>
+                          <td className="sc-date">{e.submittedAt ? formatDate(e.submittedAt) : '—'}</td>
+                          <td className="sc-chevcell"><i className="fas fa-chevron-right sc-chev" aria-hidden="true" /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        ))
       )}
 
       <style>{`
@@ -195,6 +246,13 @@ export default function ScoringQueuePage() {
         .sc-search .dash-input { padding-left: 36px; }
         .sc-controls .dash-select { width: auto; min-width: 150px; }
         .sc-count { font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; color: var(--gray-600); margin-left: auto; white-space: nowrap; }
+
+        .sc-cluster + .sc-cluster { margin-top: 28px; }
+        .sc-cluster-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gray-200); }
+        .sc-cluster-title { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-heading); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--navy); }
+        .sc-cluster-title i { color: var(--gold-dark); font-size: 0.76rem; }
+        .sc-cluster-count { margin-left: auto; font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--gray-600); white-space: nowrap; }
+        .sc-cluster-count.is-complete { color: #15803D; }
 
         .sc-tablecard { padding: 0; overflow: hidden; }
         .sc-scroll { overflow-x: auto; }
@@ -213,11 +271,9 @@ export default function ScoringQueuePage() {
         .sc-row:hover .sc-title-ext { color: var(--gold-dark); }
         .sc-catname { display: block; color: var(--gray-600); font-size: 0.78rem; margin-top: 2px; }
         .sc-lgu { color: var(--text-body); font-size: 0.88rem; white-space: nowrap; }
-        .sc-lgu-level { display: block; color: var(--gray-400); font-size: 0.74rem; font-family: var(--font-heading); font-weight: 600; }
         .sc-date { color: var(--gray-600); font-size: 0.82rem; white-space: nowrap; font-family: var(--font-heading); font-weight: 600; }
         .sc-chevcell { width: 38px; text-align: right; }
         .sc-chev { color: var(--gray-300); }
-        .sc-norows { padding: 40px 16px; text-align: center; color: var(--gray-600); }
         @media (max-width: 680px) { .sc-catname { display: none; } .sc-count { width: 100%; margin-left: 0; } }
       `}</style>
     </>

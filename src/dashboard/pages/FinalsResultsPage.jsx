@@ -5,10 +5,8 @@ import { useAuth } from '@/auth/AuthContext'
 import { isAdmin } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
-import { bracketLabel, placementMeta, formatDate } from '@/lib/pearlAwards'
+import { bracketLabel, bracketRank, placementMeta, formatDate } from '@/lib/pearlAwards'
 
-const LEVEL_ORDER = ['All', 'Province', 'HUC', 'ComponentCity', 'Municipality']
-const bracketRank = (b) => { const i = LEVEL_ORDER.indexOf(b); return i === -1 ? 99 : i }
 // Average rank is the headline number — 2 dp is enough and reads cleanly (e.g. 1.33).
 const avg = (n) => (n == null ? '—' : Number(n).toFixed(2))
 
