@@ -20,6 +20,10 @@ export function statusMeta(status) {
   return ENTRY_STATUS[status] || { label: status, tone: 'neutral', icon: 'fa-circle' }
 }
 
+// Every status an Admin may move an entry to, in lifecycle order. The override endpoint accepts
+// any of them regardless of where the entry currently sits — that's the point of the escape hatch.
+export const ALL_ENTRY_STATUSES = Object.keys(ENTRY_STATUS)
+
 // Applicants may only edit an entry in these states.
 export const EDITABLE_STATUSES = ['Draft', 'ReturnedForRevision']
 export const isEditable = (status) => EDITABLE_STATUSES.includes(status)
