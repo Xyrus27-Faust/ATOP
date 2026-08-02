@@ -7,6 +7,7 @@ import { isReviewer, isAdmin } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
 import CommentThread from '../components/CommentThread'
+import Modal from '../components/Modal'
 import EntryDossier from '../components/EntryDossier'
 import { useEntryFiles } from '@/lib/entryFiles'
 import { statusMeta, formatDate, labelFor, COVERAGE_OPTIONS, EDITABLE_STATUSES, ALL_ENTRY_STATUSES } from '@/lib/pearlAwards'
@@ -60,6 +61,11 @@ export default function ReviewEntryPage() {
     }
   }
 
+  function closeForce() {
+    if (submitting) return // don't strand an in-flight override
+    setForceOpen(false); setForceStatus(''); setForceReason(''); setBanner(null)
+  }
+
   // Admin-only: move the entry to any status, ignoring the workflow. The applicant isn't emailed —
   // they see the new status next time they open the entry.
   async function forceStatusChange() {
@@ -72,7 +78,7 @@ export default function ReviewEntryPage() {
         decisionReason: ['ReturnedForRevision', 'Disqualified'].includes(res.status) ? forceReason.trim() : null,
       })
       setForceTrail({ fromStatus: res.previousStatus, reason: res.reason, at: res.overriddenAt })
-      setForceOpen(false); setForceStatus(''); setForceReason('')
+      setForceOpen(false); setForceStatus(''); setForceReason(''); setBanner(null)
     } catch (err) {
       setBanner(err instanceof ApiError ? err.message : 'We couldn’t change the status. Please try again.')
     } finally {
@@ -93,14 +99,103 @@ export default function ReviewEntryPage() {
           <div className="rv-head-top">
             <span className="dash-badge tone-progress">Category #{entry.categoryNumber}</span>
             <StatusBadge status={status} />
+            {/* Admin escape hatch, next to the badge it acts on. The decision bar at the foot of the
+                page only works while the entry is under review; this moves it from anywhere, which
+                is the only way back out of a terminal status. */}
+            {admin && !forceOpen && (
+              <button
+                type="button"
+                className="dash-btn is-sm rv-force-open"
+                onClick={() => { setForceOpen(true); setForceStatus(status) }}
+              >
+                <i className="fas fa-screwdriver-wrench" aria-hidden="true" /> Change status
+              </button>
+            )}
           </div>
           <h1 className="rv-title">{entry.title}</h1>
           <p className="rv-sub">
             {category?.name} · {entry.lguName} ({entry.lguLevel} · {entry.lguRegion}) · {labelFor(COVERAGE_OPTIONS, entry.coverage)}
           </p>
           {entry.submittedAt && <p className="dash-help" style={{ marginTop: 4 }}>Submitted {formatDate(entry.submittedAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>}
+          {admin && statusTrail && (
+            <p className="rv-force-trail">
+              <i className="fas fa-clock-rotate-left" aria-hidden="true" />{' '}
+              Moved from <strong>{statusMeta(statusTrail.fromStatus).label}</strong> by an admin
+              {statusTrail.at ? ` on ${formatDate(statusTrail.at, { dateStyle: 'medium', timeStyle: 'short' })}` : ''} — “{statusTrail.reason}”
+            </p>
+          )}
         </div>
       </header>
+
+      {admin && forceOpen && (
+        <Modal title="Change status" onClose={closeForce}>
+          <p className="rv-force-note">
+            Admin override — moves this entry regardless of where it sits in the workflow. The applicant isn’t
+            emailed; they’ll see the new status next time they open the entry.
+          </p>
+
+          <div className="rv-force-form">
+            <div>
+              <label className="dash-label" htmlFor="rv-force-status">New status</label>
+              <select
+                id="rv-force-status"
+                className="dash-select"
+                value={forceStatus}
+                onChange={(e) => setForceStatus(e.target.value)}
+              >
+                {ALL_ENTRY_STATUSES.map((s) => (
+                  <option key={s} value={s} disabled={s === status}>
+                    {statusMeta(s).label}{s === status ? ' (current)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="dash-label" htmlFor="rv-force-reason">Why?</label>
+              <textarea
+                id="rv-force-reason"
+                className="dash-textarea"
+                value={forceReason}
+                onChange={(e) => setForceReason(e.target.value)}
+                placeholder={
+                  ['ReturnedForRevision', 'Disqualified'].includes(forceStatus)
+                    ? 'The applicant will see this note.'
+                    : 'Recorded on the entry for the audit trail. The applicant won’t see it.'
+                }
+                autoFocus
+              />
+            </div>
+
+            {['Finalist', 'Eliminated'].includes(status) && !['Finalist', 'Eliminated'].includes(forceStatus) && (
+              <div className="dash-banner tone-warn">
+                <i className="fas fa-triangle-exclamation" aria-hidden="true" />
+                <span>This clears the entry’s scoring and finals results. The assessors’ scoresheets and ballots are kept — re-run finalize to rebuild the results.</span>
+              </div>
+            )}
+
+            {banner && (
+              <div className="dash-banner tone-error">
+                <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{banner}</span>
+              </div>
+            )}
+
+            <div className="rv-reason-actions">
+              <button type="button" className="dash-btn" disabled={submitting} onClick={closeForce}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="dash-btn is-primary"
+                disabled={submitting || !forceReason.trim() || !forceStatus || forceStatus === status}
+                onClick={forceStatusChange}
+              >
+                {submitting ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : `Move to ${statusMeta(forceStatus).label}`}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {decisionReason && (
         <div className={`dash-banner tone-${status === 'Disqualified' ? 'error' : status === 'ReturnedForRevision' ? 'warn' : 'info'}`} style={{ marginTop: 14 }}>
@@ -109,7 +204,8 @@ export default function ReviewEntryPage() {
         </div>
       )}
 
-      {banner && <div className="dash-banner tone-error" style={{ marginTop: 14 }}><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{banner}</span></div>}
+      {/* The override modal renders its own copy of this, next to the button that failed. */}
+      {banner && !forceOpen && <div className="dash-banner tone-error" style={{ marginTop: 14 }}><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{banner}</span></div>}
 
       <div className="rv-stack">
         {/* The bidbook itself — one shared renderer, identical for reviewers, assessors and adjudicators. */}
@@ -122,90 +218,6 @@ export default function ReviewEntryPage() {
           </div>
         )}
 
-        {/* Admin escape hatch. The decision bar above only works while the entry is under review;
-            this moves it anywhere, which is the only way back out of a terminal status. */}
-        {admin && (
-          <div className="dash-card dash-card-pad rv-force">
-            <div className="rv-force-head">
-              <div>
-                <h2 className="rv-force-title"><i className="fas fa-screwdriver-wrench" aria-hidden="true" /> Change status</h2>
-                <p className="dash-help">
-                  Admin override — moves this entry regardless of where it sits in the workflow. The applicant isn’t
-                  emailed; they’ll see the new status next time they open the entry.
-                </p>
-              </div>
-              {!forceOpen && (
-                <button type="button" className="dash-btn is-sm" onClick={() => { setForceOpen(true); setForceStatus(status) }}>
-                  Change…
-                </button>
-              )}
-            </div>
-
-            {statusTrail && (
-              <p className="rv-force-trail">
-                <i className="fas fa-clock-rotate-left" aria-hidden="true" />{' '}
-                Moved from <strong>{statusMeta(statusTrail.fromStatus).label}</strong> by an admin
-                {statusTrail.at ? ` on ${formatDate(statusTrail.at, { dateStyle: 'medium', timeStyle: 'short' })}` : ''} — “{statusTrail.reason}”
-              </p>
-            )}
-
-            {forceOpen && (
-              <div className="rv-force-form">
-                <div>
-                  <label className="dash-label" htmlFor="rv-force-status">New status</label>
-                  <select
-                    id="rv-force-status"
-                    className="dash-select"
-                    value={forceStatus}
-                    onChange={(e) => setForceStatus(e.target.value)}
-                  >
-                    {ALL_ENTRY_STATUSES.map((s) => (
-                      <option key={s} value={s} disabled={s === status}>
-                        {statusMeta(s).label}{s === status ? ' (current)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="dash-label" htmlFor="rv-force-reason">Why?</label>
-                  <textarea
-                    id="rv-force-reason"
-                    className="dash-textarea"
-                    value={forceReason}
-                    onChange={(e) => setForceReason(e.target.value)}
-                    placeholder={
-                      ['ReturnedForRevision', 'Disqualified'].includes(forceStatus)
-                        ? 'The applicant will see this note.'
-                        : 'Recorded on the entry for the audit trail. The applicant won’t see it.'
-                    }
-                  />
-                </div>
-
-                {['Finalist', 'Eliminated'].includes(status) && !['Finalist', 'Eliminated'].includes(forceStatus) && (
-                  <div className="dash-banner tone-warn">
-                    <i className="fas fa-triangle-exclamation" aria-hidden="true" />
-                    <span>This clears the entry’s scoring and finals results. The assessors’ scoresheets and ballots are kept — re-run finalize to rebuild the results.</span>
-                  </div>
-                )}
-
-                <div className="rv-reason-actions">
-                  <button type="button" className="dash-btn" disabled={submitting} onClick={() => { setForceOpen(false); setForceStatus(''); setForceReason('') }}>
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="dash-btn is-primary"
-                    disabled={submitting || !forceReason.trim() || !forceStatus || forceStatus === status}
-                    onClick={forceStatusChange}
-                  >
-                    {submitting ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : `Move to ${statusMeta(forceStatus).label}`}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Decision bar */}
@@ -245,10 +257,12 @@ export default function ReviewEntryPage() {
         .rv-buttons { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
         .rv-reason { display: flex; flex-direction: column; gap: 10px; }
         .rv-reason-actions { display: flex; justify-content: flex-end; gap: 10px; }
-        .rv-force { border-style: dashed; }
-        .rv-force-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-        .rv-force-title { font-family: var(--font-heading); font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
-        .rv-force-trail { margin-top: 12px; font-size: 0.85rem; color: var(--gray-600); }
+        /* Rare but consequential, so it reads as a real control rather than a ghost affordance —
+           navy outline to sit apart from the gold primary actions without competing with them. */
+        .rv-force-open { margin-left: auto; border-color: var(--navy); color: var(--navy); }
+        .rv-force-open:hover { background: var(--navy); color: var(--white); }
+        .rv-force-trail { margin-top: 8px; font-size: 0.85rem; color: var(--gray-600); }
+        .rv-force-note { color: var(--gray-600); font-size: 0.86rem; line-height: 1.6; }
         .rv-force-form { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
         @media (max-width: 620px) { .rv-buttons .dash-btn { flex: 1; } }
       `}</style>
