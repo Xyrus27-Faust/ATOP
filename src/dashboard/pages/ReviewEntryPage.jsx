@@ -129,11 +129,8 @@ export default function ReviewEntryPage() {
 
       {admin && forceOpen && (
         <Modal title="Change status" onClose={closeForce}>
-          <p className="rv-force-note">
-            Admin override — moves this entry regardless of where it sits in the workflow. The applicant isn’t
-            emailed; they’ll see the new status next time they open the entry.
-          </p>
-
+          {/* No preamble — the action is self-explanatory, and who sees the reason is spelled out
+              by the textarea's placeholder, which switches on the target status. */}
           <div className="rv-force-form">
             <div>
               <label className="dash-label" htmlFor="rv-force-status">New status</label>
@@ -262,8 +259,7 @@ export default function ReviewEntryPage() {
         .rv-force-open { margin-left: auto; border-color: var(--navy); color: var(--navy); }
         .rv-force-open:hover { background: var(--navy); color: var(--white); }
         .rv-force-trail { margin-top: 8px; font-size: 0.85rem; color: var(--gray-600); }
-        .rv-force-note { color: var(--gray-600); font-size: 0.86rem; line-height: 1.6; }
-        .rv-force-form { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+        .rv-force-form { display: flex; flex-direction: column; gap: 14px; }
         @media (max-width: 620px) { .rv-buttons .dash-btn { flex: 1; } }
       `}</style>
     </>
