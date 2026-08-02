@@ -382,10 +382,17 @@ export const ballotMeta = (s) => BALLOT_STATUS[s] || BALLOT_STATUS.NotStarted
 
 // ---- Date formatting ------------------------------------------------------
 
+// Time components have to go through toLocaleString — toLocaleDateString throws on them
+// ("Invalid option : timeStyle"), which the catch below would quietly turn into a dash.
+const TIME_OPTS = ['timeStyle', 'hour', 'minute', 'second', 'dayPeriod', 'timeZoneName']
+
 export function formatDate(value, opts = { month: 'short', day: 'numeric', year: 'numeric' }) {
   if (!value) return '—'
   try {
-    return new Date(value).toLocaleDateString(undefined, opts)
+    const date = new Date(value)
+    return TIME_OPTS.some((o) => o in opts)
+      ? date.toLocaleString(undefined, opts)
+      : date.toLocaleDateString(undefined, opts)
   } catch {
     return '—'
   }
