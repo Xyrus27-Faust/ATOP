@@ -25,6 +25,7 @@ import {
   labelFor,
   MAX_UPLOAD_BYTES,
   EVIDENCE_MAX_FILES,
+  TITLE_MAX_CHARS,
   uploadRulesFor,
   formatBytes,
 } from '@/lib/pearlAwards'
@@ -85,7 +86,7 @@ export default function EntryEditorPage() {
               onDeleted={() => navigate('/dashboard/entries')}
             />
           </div>
-          <h1 className="ed-title">{workingEntry.title}</h1>
+          <EntryTitle entry={workingEntry} readOnly={readOnly} onSaved={setEntry} />
           <p className="ed-sub">
             {category?.name} · {workingEntry.lguName} · {labelFor(COVERAGE_OPTIONS, workingEntry.coverage)}
           </p>
@@ -145,6 +146,94 @@ export default function EntryEditorPage() {
 
       <style>{EDITOR_CSS}</style>
     </>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Entry title (inline rename)                                         */
+/* ------------------------------------------------------------------ */
+// The title is chosen at creation but names the program, so it's editable for as long as the rest
+// of the entry is (Draft / ReturnedForRevision). Kept as click-to-edit rather than a permanent input
+// so the header still reads as a heading — renaming is occasional, not part of the filling-in flow.
+function EntryTitle({ entry, readOnly, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(entry.title)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const inputRef = useRef(null)
+
+  useEffect(() => { if (editing) inputRef.current?.select() }, [editing])
+
+  function start() {
+    setValue(entry.title)
+    setError(null)
+    setEditing(true)
+  }
+
+  function cancel() {
+    setEditing(false)
+    setError(null)
+  }
+
+  async function save() {
+    const title = value.trim()
+    if (!title) { setError('Give your entry a title.'); return }
+    if (title === entry.title) { cancel(); return }
+
+    setSaving(true); setError(null)
+    try {
+      const res = await api.put(`/entries/${entry.id}/title`, { title }, { auth: true })
+      onSaved({ ...entry, title: res.title, updatedAt: res.updatedAt })
+      setEditing(false)
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? e.fieldErrors?.title?.[0] || e.message
+          : 'We couldn’t rename this entry. Please try again.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="ed-title-row">
+        <h1 className="ed-title">{entry.title}</h1>
+        {!readOnly && (
+          <button type="button" className="ed-title-edit" onClick={start} aria-label="Rename this entry" title="Rename">
+            <i className="fas fa-pen" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="ed-title-edit-form">
+      <div className="ed-title-edit-row">
+        <input
+          ref={inputRef}
+          className={ctl('dash-input ed-title-input', error)}
+          value={value}
+          maxLength={TITLE_MAX_CHARS}
+          disabled={saving}
+          aria-label="Entry title"
+          onChange={(e) => { setValue(e.target.value); setError(null) }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); save() }
+            if (e.key === 'Escape') { e.preventDefault(); cancel() }
+          }}
+        />
+        <button type="button" className="dash-btn is-primary is-sm" onClick={save} disabled={saving}>
+          {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : 'Save'}
+        </button>
+        <button type="button" className="dash-btn is-sm" onClick={cancel} disabled={saving}>Cancel</button>
+      </div>
+      {error
+        ? <p className="dash-error" style={{ marginTop: 6 }}><i className="fas fa-circle-exclamation" aria-hidden="true" /> {error}</p>
+        : <p className="dash-help" style={{ marginTop: 6 }}>Name the program or initiative you’re entering. Press Enter to save, Esc to cancel.</p>}
+    </div>
   )
 }
 
@@ -995,6 +1084,17 @@ const EDITOR_CSS = `
   .ed-head-top { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
   .ed-title { font-family: var(--font-heading); font-size: clamp(1.3rem, 2.4vw, 1.75rem); font-weight: 800; color: var(--navy); line-height: 1.18; }
   .ed-sub { color: var(--gray-600); font-size: 0.9rem; margin-top: 6px; }
+
+  /* Inline rename — the pencil stays quiet until the header is hovered/focused. */
+  .ed-title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .ed-title-edit { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--gray-400); font-size: 0.8rem; cursor: pointer; opacity: 0; transition: opacity .15s, background .15s, color .15s, border-color .15s; }
+  .ed-head:hover .ed-title-edit, .ed-title-edit:focus-visible { opacity: 1; }
+  .ed-title-edit:hover { background: var(--gray-100); color: var(--navy); border-color: var(--gray-200); }
+  .ed-title-edit-form { max-width: 640px; }
+  .ed-title-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ed-title-input { flex: 1; min-width: 220px; font-family: var(--font-heading); font-weight: 700; font-size: 1.05rem; color: var(--navy); }
+  /* Touch has no hover, so the pencil is always visible there. */
+  @media (hover: none) { .ed-title-edit { opacity: 1; } }
   .ed-head-side { display: flex; flex-direction: column; gap: 16px; min-width: 280px; flex: 1; max-width: 420px; }
   .ed-head-meter { width: 100%; }
   /* Full-width row so the 4-step status timeline never has to wrap. */

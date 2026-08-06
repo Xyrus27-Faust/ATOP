@@ -94,6 +94,9 @@ export const NARRATIVE_MAX_WORDS = 200
 export const EXEC_SUMMARY_MAX_CHARS = 20000
 export const NARRATIVE_MAX_CHARS = 20000
 
+// Hard cap, mirrors the entries.title column (Entry.TitleMaxLength).
+export const TITLE_MAX_CHARS = 300
+
 // Whitespace-token word count — the same rule the backend uses (runs of non-whitespace).
 export const countWords = (t) => {
   const s = (t || '').trim()

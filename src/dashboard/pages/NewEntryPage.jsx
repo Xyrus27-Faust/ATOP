@@ -11,6 +11,7 @@ import {
   LGU_LEVELS,
   ENTRANT_TYPE_LABELS,
   NOMINATOR_RULE_LABELS,
+  TITLE_MAX_CHARS,
 } from '@/lib/pearlAwards'
 
 const EMPTY = {
@@ -294,7 +295,7 @@ export default function NewEntryPage() {
                   </select>
                 </Field>
                 <Field label="Entry title" htmlFor="title" required error={errors.title} hint="Name the program or initiative you’re entering.">
-                  <input id="title" className={ctl('dash-input', errors.title)} value={form.title} onChange={set('title')} placeholder="e.g. Bohol Heritage Trails Revitalization" />
+                  <input id="title" className={ctl('dash-input', errors.title)} value={form.title} maxLength={TITLE_MAX_CHARS} onChange={set('title')} placeholder="e.g. Bohol Heritage Trails Revitalization" />
                 </Field>
                 <Field label="Program coverage" htmlFor="coverage" required error={errors.coverage}>
                   <select id="coverage" className={ctl('dash-select', errors.coverage)} value={form.coverage} onChange={set('coverage')}>
