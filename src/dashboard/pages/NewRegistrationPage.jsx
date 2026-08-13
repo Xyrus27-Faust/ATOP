@@ -6,10 +6,10 @@ import { validateEmail } from '@/lib/validation'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
+import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
 import {
   REGISTRANT_TYPES,
   PAYER_TYPES,
-  PARTICIPANT_TYPES,
   requiresTin,
   formatPeso,
   modeMeta,
@@ -28,23 +28,6 @@ function stepForKey(key) {
   if (key.startsWith('billing')) return 2
   return 0
 }
-
-const emptyDelegate = () => ({
-  rateCode: '',
-  firstName: '',
-  middleName: '',
-  lastName: '',
-  suffix: '',
-  badgeName: '',
-  designation: '',
-  officeDepartment: '',
-  email: '',
-  mobile: '',
-  participantType: 'Delegate',
-  atopMembershipNo: '',
-  dataPrivacyConsent: false,
-  mediaReleaseConsent: false,
-})
 
 /**
  * Book a delegation. One registration covers everyone travelling under the same
@@ -180,16 +163,7 @@ export default function NewRegistrationPage() {
     if (index === 1) {
       if (delegates.length === 0) e.delegates = 'Add at least one delegate.'
       delegates.forEach((d, i) => {
-        const at = (field) => `delegates[${i}].${field}`
-        if (!d.rateCode) e[at('rateCode')] = 'Choose a registration type.'
-        if (!d.firstName.trim()) e[at('firstName')] = 'First name is required.'
-        if (!d.lastName.trim()) e[at('lastName')] = 'Last name is required.'
-        if (!d.designation.trim()) e[at('designation')] = 'Designation is required.'
-        const emailErr = validateEmail(d.email)
-        if (emailErr) e[at('email')] = emailErr
-        if (!d.mobile.trim()) e[at('mobile')] = 'Mobile number is required.'
-        // RA 10173 — consent is given, never defaulted.
-        if (!d.dataPrivacyConsent) e[at('dataPrivacyConsent')] = 'Consent is required to register this delegate.'
+        Object.assign(e, validateDelegate(d, `delegates[${i}].`, validateEmail))
       })
     }
 
@@ -242,22 +216,7 @@ export default function NewRegistrationPage() {
             purchaseOrderNo: form['billing.purchaseOrderNo'].trim() || null,
           },
           notes: form.notes.trim() || null,
-          delegates: delegates.map((d) => ({
-            rateCode: d.rateCode,
-            firstName: d.firstName.trim(),
-            middleName: d.middleName.trim() || null,
-            lastName: d.lastName.trim(),
-            suffix: d.suffix.trim() || null,
-            badgeName: d.badgeName.trim() || null,
-            designation: d.designation.trim(),
-            officeDepartment: d.officeDepartment.trim() || null,
-            email: d.email.trim(),
-            mobile: d.mobile.trim(),
-            participantType: d.participantType,
-            atopMembershipNo: d.atopMembershipNo.trim() || null,
-            dataPrivacyConsent: d.dataPrivacyConsent,
-            mediaReleaseConsent: d.mediaReleaseConsent,
-          })),
+          delegates: delegates.map(toDelegatePayload),
         },
         { auth: true },
       )
@@ -400,7 +359,6 @@ export default function NewRegistrationPage() {
           {delegates.map((d, i) => {
             const rate = rateByCode.get(d.rateCode)
             const meta = rate ? modeMeta(rate.attendanceMode) : null
-            const at = (field) => errors[`delegates[${i}].${field}`]
 
             return (
               <div key={i} className="dash-card dash-card-pad nr-card nr-delegate">
@@ -424,94 +382,14 @@ export default function NewRegistrationPage() {
                   )}
                 </div>
 
-                <Field label="Registration type" htmlFor={`rate${i}`} required error={at('rateCode')}>
-                  <div className="nr-rates">
-                    {rates.map((r) => {
-                      const rm = modeMeta(r.attendanceMode)
-                      return (
-                        <button
-                          type="button"
-                          key={r.id}
-                          className={`nr-rate${d.rateCode === r.code ? ' is-active' : ''}`}
-                          onClick={() => setDelegate(i, 'rateCode', r.code)}
-                        >
-                          <span className="nr-rate-top">
-                            <i className={`fas ${rm.icon}`} aria-hidden="true" /> {rm.label}
-                          </span>
-                          <span className="nr-rate-amount">{formatPeso(r.amount)}</span>
-                          <span className="nr-rate-label">{r.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </Field>
-
-                <div className="dash-form-row">
-                  <Field label="First name" htmlFor={`fn${i}`} required error={at('firstName')}>
-                    <input id={`fn${i}`} className={ctl('dash-input', at('firstName'))} value={d.firstName} onChange={(e) => setDelegate(i, 'firstName', e.target.value)} />
-                  </Field>
-                  <Field label="Middle name" htmlFor={`mn${i}`}>
-                    <input id={`mn${i}`} className="dash-input" value={d.middleName} onChange={(e) => setDelegate(i, 'middleName', e.target.value)} />
-                  </Field>
-                  <Field label="Last name" htmlFor={`ln${i}`} required error={at('lastName')}>
-                    <input id={`ln${i}`} className={ctl('dash-input', at('lastName'))} value={d.lastName} onChange={(e) => setDelegate(i, 'lastName', e.target.value)} />
-                  </Field>
-                  <Field label="Suffix" htmlFor={`sf${i}`} hint="Jr., III…">
-                    <input id={`sf${i}`} className="dash-input" value={d.suffix} onChange={(e) => setDelegate(i, 'suffix', e.target.value)} />
-                  </Field>
-                </div>
-
-                <div className="dash-form-row">
-                  <Field label="Designation" htmlFor={`dg${i}`} required error={at('designation')}>
-                    <input id={`dg${i}`} className={ctl('dash-input', at('designation'))} value={d.designation} onChange={(e) => setDelegate(i, 'designation', e.target.value)} />
-                  </Field>
-                  <Field label="Office / department" htmlFor={`od${i}`}>
-                    <input id={`od${i}`} className="dash-input" value={d.officeDepartment} onChange={(e) => setDelegate(i, 'officeDepartment', e.target.value)} />
-                  </Field>
-                </div>
-
-                <div className="dash-form-row">
-                  <Field label="Email" htmlFor={`em${i}`} required error={at('email')} hint="Their badge or stream link is sent here.">
-                    <input id={`em${i}`} type="email" className={ctl('dash-input', at('email'))} value={d.email} onChange={(e) => setDelegate(i, 'email', e.target.value)} />
-                  </Field>
-                  <Field label="Mobile" htmlFor={`mb${i}`} required error={at('mobile')}>
-                    <input id={`mb${i}`} className={ctl('dash-input', at('mobile'))} value={d.mobile} onChange={(e) => setDelegate(i, 'mobile', e.target.value)} />
-                  </Field>
-                </div>
-
-                <div className="dash-form-row">
-                  <Field label="Name on badge" htmlFor={`bn${i}`} hint="Optional — defaults to first and last name.">
-                    <input id={`bn${i}`} className="dash-input" value={d.badgeName} onChange={(e) => setDelegate(i, 'badgeName', e.target.value)} />
-                  </Field>
-                  <Field label="Participant type" htmlFor={`pt${i}`}>
-                    <select id={`pt${i}`} className="dash-select" value={d.participantType} onChange={(e) => setDelegate(i, 'participantType', e.target.value)}>
-                      {PARTICIPANT_TYPES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="ATOP membership no." htmlFor={`mn2${i}`} hint="Optional.">
-                    <input id={`mn2${i}`} className="dash-input" value={d.atopMembershipNo} onChange={(e) => setDelegate(i, 'atopMembershipNo', e.target.value)} />
-                  </Field>
-                </div>
-
-                <div className="nr-consents">
-                  <label className={`dash-check nr-consent${at('dataPrivacyConsent') ? ' has-error' : ''}`}>
-                    <input type="checkbox" checked={d.dataPrivacyConsent} onChange={(e) => setDelegate(i, 'dataPrivacyConsent', e.target.checked)} />
-                    <span>
-                      <strong>Data privacy consent</strong> — this delegate consents to ATOP processing their
-                      personal data for convention registration and attendance, under RA 10173.
-                    </span>
-                  </label>
-                  {at('dataPrivacyConsent') && (
-                    <span className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {at('dataPrivacyConsent')}</span>
-                  )}
-                  <label className="dash-check nr-consent">
-                    <input type="checkbox" checked={d.mediaReleaseConsent} onChange={(e) => setDelegate(i, 'mediaReleaseConsent', e.target.checked)} />
-                    <span>
-                      <strong>Media release</strong> — this delegate agrees to appear in event photos and the
-                      livestream. Optional.
-                    </span>
-                  </label>
-                </div>
+                <DelegateFields
+                  value={d}
+                  rates={rates}
+                  errors={errors}
+                  errorPrefix={`delegates[${i}].`}
+                  idPrefix={`d${i}`}
+                  onChange={(field, val) => setDelegate(i, field, val)}
+                />
               </div>
             )
           })}
@@ -618,6 +496,10 @@ export default function NewRegistrationPage() {
            wall without it. Fields *inside* a row are spaced by the row's own grid gap. */
         .nr-card .dash-field, .nr-card .dash-form-row { margin-bottom: 20px; }
         .nr-card .dash-form-row .dash-field { margin-bottom: 0; }
+        /* Standalone checkboxes are part of the same rhythm — without this the official-receipt
+           tick sits flush against the Notes field below it. Direct children only, so the
+           per-delegate consent block keeps its own tighter spacing. */
+        .nr-card > .dash-check { display: flex; margin-bottom: 20px; }
         .nr-card .dash-field:last-child, .nr-card .dash-form-row:last-child { margin-bottom: 0; }
 
         .nr-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
@@ -647,22 +529,6 @@ export default function NewRegistrationPage() {
           font-size: 0.8rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
         }
         .nr-del-remove:hover { background: #FEF2F2; }
-
-        .nr-rates { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
-        .nr-rate {
-          display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer;
-          padding: 12px 14px; border-radius: 10px; border: 1px solid var(--gray-200);
-          background: var(--white); transition: var(--transition-fast);
-        }
-        .nr-rate:hover { border-color: var(--gold); }
-        .nr-rate.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); }
-        .nr-rate-top { font-size: 0.76rem; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.04em; }
-        .nr-rate-amount { font-family: var(--font-heading); font-size: 1.3rem; font-weight: 800; color: var(--navy); }
-        .nr-rate-label { font-size: 0.78rem; color: var(--gray-600); }
-
-        .nr-consents { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gray-200); }
-        .nr-consent span { font-size: 0.83rem; line-height: 1.45; }
-        .nr-consent.has-error { color: #B91C1C; }
 
         .nr-add { margin-bottom: 18px; }
 

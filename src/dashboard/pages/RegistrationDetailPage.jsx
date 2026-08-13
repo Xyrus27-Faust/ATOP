@@ -5,6 +5,7 @@ import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
 import Modal from '../components/Modal'
+import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -37,6 +38,8 @@ export default function RegistrationDetailPage() {
   const [paying, setPaying] = useState(false)
   const [actionError, setActionError] = useState(null)
   const [substituting, setSubstituting] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [removingId, setRemovingId] = useState(null)
 
   const status = data?.status
   const invoiceStatus = data?.invoice?.status
@@ -185,6 +188,29 @@ export default function RegistrationDetailPage() {
                           <i className="fas fa-right-left" aria-hidden="true" /> Substitute
                         </button>
                       )}
+                      {/* Removal only while the booking is unpaid; afterwards the seat is
+                          paid for and substitution is the right move instead. */}
+                      {editable && !cancelled && activeDelegates.length > 1 && (
+                        <button
+                          type="button"
+                          className="rd-del-remove"
+                          disabled={removingId === d.id}
+                          onClick={async () => {
+                            setActionError(null)
+                            setRemovingId(d.id)
+                            try {
+                              await api.delete(`/registrations/${reg.id}/delegates/${d.id}`, { auth: true })
+                              reload()
+                            } catch (err) {
+                              setActionError(err)
+                            } finally {
+                              setRemovingId(null)
+                            }
+                          }}
+                        >
+                          <i className="fas fa-trash-can" aria-hidden="true" /> Remove
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -192,8 +218,17 @@ export default function RegistrationDetailPage() {
             </div>
 
             {editable && (
+              <div className="rd-editable">
+                <button type="button" className="dash-btn" onClick={() => setAdding(true)}>
+                  <i className="fas fa-plus" aria-hidden="true" /> Add delegate
+                </button>
+                <span className="dash-help">You can add or remove delegates until you pay.</span>
+              </div>
+            )}
+            {!editable && reg.status !== 'Cancelled' && (
               <p className="dash-help rd-editable-note">
-                You can still add or remove delegates until you pay.
+                The delegate list is fixed now that this booking has gone to payment. You can still
+                substitute who fills a seat.
               </p>
             )}
           </div>
@@ -296,6 +331,14 @@ export default function RegistrationDetailPage() {
         />
       )}
 
+      {adding && (
+        <AddDelegateModal
+          registrationId={reg.id}
+          onClose={() => setAdding(false)}
+          onDone={() => { setAdding(false); reload() }}
+        />
+      )}
+
       <style>{`
         .rd-status { align-self: flex-start; }
 
@@ -333,6 +376,13 @@ export default function RegistrationDetailPage() {
           font-size: 0.76rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
         }
         .rd-del-swap:hover { background: var(--gray-100, #F3F4F6); color: var(--navy); }
+        .rd-del-remove {
+          border: none; background: none; cursor: pointer; color: #B91C1C;
+          font-size: 0.76rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
+        }
+        .rd-del-remove:hover:not(:disabled) { background: #FEF2F2; }
+        .rd-del-remove:disabled { opacity: 0.5; cursor: default; }
+        .rd-editable { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
         .rd-editable-note { margin-top: 12px; }
 
         .rd-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; margin: 0; }
@@ -367,6 +417,85 @@ export default function RegistrationDetailPage() {
         }
       `}</style>
     </>
+  )
+}
+
+/**
+ * Add a delegate to an existing unpaid booking. Uses the same field set as the booking
+ * form, so the required fields and the RA 10173 consent wording can't drift apart.
+ *
+ * Fetches the event for its rates — the detail response carries each delegate's rate
+ * *code*, but not the catalogue you'd pick a new one from.
+ */
+function AddDelegateModal({ registrationId, onClose, onDone }) {
+  const [value, setValue] = useState(emptyDelegate)
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+  const { loading, error, data } = useAsync(() => api.get('/events/'), [])
+
+  const rates = data?.[0]?.rates ?? []
+
+  const onChange = (field, v) => {
+    setValue((prev) => ({ ...prev, [field]: v }))
+    setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
+  async function save() {
+    const e = validateDelegate(value, '', validateEmail)
+    setErrors(e)
+    if (Object.keys(e).length > 0) return
+
+    setSaving(true)
+    try {
+      await api.post(`/registrations/${registrationId}/delegates`, toDelegatePayload(value), { auth: true })
+      onDone()
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors) {
+        setErrors(Object.fromEntries(
+          Object.entries(err.fieldErrors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)]),
+        ))
+      } else {
+        setErrors({ rateCode: err.message })
+      }
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title="Add a delegate" onClose={onClose}>
+      <div className="rd-add-form">
+        {loading && <p className="dash-help">Loading registration types…</p>}
+        {error && <p className="dash-error">Couldn’t load the registration types.</p>}
+
+        {!loading && !error && (
+          <DelegateFields
+            value={value}
+            rates={rates}
+            errors={errors}
+            idPrefix="add"
+            onChange={onChange}
+          />
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+          <button type="button" className="dash-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="dash-btn is-primary" onClick={save} disabled={saving || loading}>
+            {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Adding…</> : 'Add delegate'}
+          </button>
+        </div>
+      </div>
+
+      {/* The dialog is far narrower than the booking card, so the shared two- and
+          four-column rows would be unusable at this width.
+
+          The modal centres itself with no max-height, so this full field set is taller
+          than the viewport and pushes its own title and buttons off-screen. Scroll the
+          body rather than the page, so the header stays put and Add stays reachable. */}
+      <style>{`
+        .rd-add-form .dash-form-row { grid-template-columns: 1fr; gap: 18px; }
+        .rd-add-form { max-height: min(68vh, 620px); overflow-y: auto; padding-right: 4px; }
+      `}</style>
+    </Modal>
   )
 }
 
