@@ -73,6 +73,30 @@ function AssessorMatrix({ data }) {
           <i className="fas fa-arrow-up sr-bd-div" aria-hidden="true" /><i className="fas fa-arrow-down sr-bd-div" aria-hidden="true" /> notably above / below the group
         </span>
       </div>
+
+      <AssessorFeedback assessors={data.assessors} />
+    </div>
+  )
+}
+
+// The assessors' private notes on this entry. Admin-only and one-way — nothing here is ever shown
+// to the entrant, so the header says so, since this is the one screen where the text is readable.
+function AssessorFeedback({ assessors }) {
+  const notes = assessors.filter((a) => a.feedback)
+  if (notes.length === 0) return null
+
+  return (
+    <div className="sr-bd-fb">
+      <div className="sr-bd-fb-title">
+        <i className="fas fa-comment-dots" aria-hidden="true" /> Assessor feedback
+        <span className="sr-bd-fb-priv"><i className="fas fa-eye-slash" aria-hidden="true" /> not shown to the entrant</span>
+      </div>
+      {notes.map((a) => (
+        <div key={a.assessorUserId} className="sr-bd-fb-note">
+          <span className="sr-bd-fb-who">{a.name}</span>
+          <p>{a.feedback}</p>
+        </div>
+      ))}
     </div>
   )
 }
@@ -478,6 +502,16 @@ export default function ScoringResultsPage() {
         .sr-bd-legend-note { display: inline-flex; align-items: center; gap: 4px; color: var(--gray-600); }
         .sr-bd-msg { display: flex; align-items: center; gap: 8px; padding: 16px; font-family: var(--font-body); font-size: 0.86rem; color: var(--gray-600); }
         .sr-bd-msg.is-error { color: #B91C1C; }
+
+        /* Assessors' private notes, under the score matrix. Prose, not a table cell — it's read,
+           not compared, so it gets line length and leading rather than tabular numerals. */
+        .sr-bd-fb { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gray-200); }
+        .sr-bd-fb-title { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; font-family: var(--font-heading); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--navy); }
+        .sr-bd-fb-title > i { color: var(--gold-dark); }
+        .sr-bd-fb-priv { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 0.7rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--gray-600); background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 999px; padding: 1px 9px; }
+        .sr-bd-fb-note { margin-top: 12px; padding: 11px 14px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+        .sr-bd-fb-who { display: block; font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+        .sr-bd-fb-note p { font-family: var(--font-body); font-size: 0.86rem; line-height: 1.6; color: var(--text-body); white-space: pre-wrap; }
 
         @media (max-width: 620px) { .sr-action { flex-direction: column; align-items: stretch; } }
       `}</style>

@@ -19,6 +19,10 @@ import {
 } from '@/lib/pearlAwards'
 import { DASH_CSS } from '../DashboardLayout'
 
+// Matches Assessment.MaxFeedbackLength on the API — the textarea stops there rather than letting a
+// long note travel only to bounce back as a 400.
+const FEEDBACK_MAX = 4000
+
 // The rating control. The manual's scale is 0–5 in 0.2 increments — 26 stops, not six buttons — so
 // a slider is the honest control for it, with the exact value shown in a box beside it (and typeable,
 // because dragging to a precise 3.4 is fiddly). The band label reads out what the number *means*
@@ -148,6 +152,44 @@ function Criterion({ index, c, narrative, evidence, rating, onRate, disabled, on
   )
 }
 
+// The assessor's private note on the entry — the qualitative "why" a 0–5 can't carry. Deliberately
+// one-way: only ATOP admins read it, the entrant never sees it and can't reply, so the wording says
+// so plainly rather than leaving an assessor to guess who's on the other end.
+function FeedbackSection({ value, onChange, disabled }) {
+  const left = FEEDBACK_MAX - value.length
+
+  return (
+    <section className="dash-card dash-card-pad sc-fb">
+      <div className="sc-section-title" style={{ marginBottom: 6 }}>
+        <i className="fas fa-comment-dots" aria-hidden="true" /> Feedback <span className="sc-fb-opt">optional</span>
+      </div>
+      <p className="dash-help sc-fb-help">
+        <i className="fas fa-eye-slash" aria-hidden="true" />
+        Seen by ATOP admins only. The entrant is never shown this and can’t reply to it.
+      </p>
+
+      {disabled && !value ? (
+        <p className="sc-emptytext">No feedback given.</p>
+      ) : disabled ? (
+        <p className="sc-prose sc-fb-read">{value}</p>
+      ) : (
+        <>
+          <textarea
+            className="dash-textarea sc-fb-input"
+            rows={5}
+            maxLength={FEEDBACK_MAX}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="What stood out, what was thin, anything the ratings alone don’t capture…"
+            aria-label="Private feedback on this entry"
+          />
+          <div className={`sc-fb-count${left <= 200 ? ' is-low' : ''}`}>{left.toLocaleString()} characters left</div>
+        </>
+      )}
+    </section>
+  )
+}
+
 // Focused full-screen shell (no dashboard chrome). Injects the shared dash-* system like
 // SubmissionLayout so the cards/buttons/badges style correctly outside the dashboard.
 function Shell({ children }) {
@@ -182,6 +224,7 @@ export default function ScoringEntryPage() {
   const files = useEntryFiles(`/scoring/entries/${id}`)
 
   const [scores, setScores] = useState({}) // criterionId -> rating (0..5)
+  const [feedback, setFeedback] = useState('') // private note, admin-visible only
   const [myStatus, setMyStatus] = useState('NotStarted')
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
   const [confirming, setConfirming] = useState(false)
@@ -194,6 +237,7 @@ export default function ScoringEntryPage() {
     if (!data || hydrated.current) return
     hydrated.current = true
     setScores(Object.fromEntries((data.myScores || []).map((s) => [s.criterionId, s.rating])))
+    setFeedback(data.myFeedback || '')
     setMyStatus(data.myAssessmentStatus || 'NotStarted')
   }, [data])
 
@@ -207,10 +251,12 @@ export default function ScoringEntryPage() {
       .map(([criterionId, rating]) => ({ criterionId, rating }))
 
   async function persist() {
-    await api.put(`/scoring/entries/${id}/scores`, { scores: ratedPayload() }, { auth: true })
+    await api.put(`/scoring/entries/${id}/scores`, { scores: ratedPayload(), feedback }, { auth: true })
     dirty.current = false
   }
 
+  // One debounce covers ratings and the note — both are the same draft scoresheet, and typing a
+  // note shouldn't save on every keystroke any more than dragging a slider should.
   useEffect(() => {
     if (!dirty.current || readOnly) return
     setSaveState('saving')
@@ -219,13 +265,20 @@ export default function ScoringEntryPage() {
     }, 700)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scores])
+  }, [scores, feedback])
 
   function setRating(criterionId, val) {
     if (readOnly) return
     dirty.current = true
     setBanner(null)
     setScores((s) => ({ ...s, [criterionId]: val }))
+  }
+
+  function setFeedbackText(text) {
+    if (readOnly) return
+    dirty.current = true
+    setBanner(null)
+    setFeedback(text)
   }
 
   const scoredCount = useMemo(
@@ -376,6 +429,10 @@ export default function ScoringEntryPage() {
             />
           ))}
 
+          {/* Feedback sits after the ratings: it's the assessor's read of the whole entry, written
+              once they've formed one, and it never affects the total. */}
+          <FeedbackSection value={feedback} onChange={setFeedbackText} disabled={readOnly} />
+
           {/* No supporting-documents block: an assessor scores on the video, the narratives, and the
               evidence attached to each criterion above. Compliance with the rubric's required
               submissions is the reviewer's job, and they see the full list. */}
@@ -519,6 +576,16 @@ const SCF_CSS = `
   .sc-guide-label { white-space: nowrap; font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
   .sc-guide-mean { color: var(--gray-600); }
   .sc-guide-note { padding: 12px 20px 16px; font-size: 0.8rem; color: var(--gray-600); border-top: 1px solid var(--gray-100); }
+
+  /* Private feedback. Reads as an aside to the rubric, not another scored item — no index chip,
+     and the privacy line sits right under the title where it can't be missed. */
+  .sc-fb-opt { font-family: var(--font-body); font-size: 0.7rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--gray-400); }
+  .sc-fb-help { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+  .sc-fb-help i { color: var(--gray-400); }
+  .sc-fb-input { width: 100%; resize: vertical; min-height: 108px; }
+  .sc-fb-count { margin-top: 6px; text-align: right; font-family: var(--font-heading); font-size: 0.7rem; font-weight: 700; color: var(--gray-400); font-variant-numeric: tabular-nums; }
+  .sc-fb-count.is-low { color: #B45309; }
+  .sc-fb-read { padding: 13px 15px; background: var(--off-white); border: 1px solid var(--gray-100); border-radius: var(--radius-sm); }
 
   .scf-rail { position: sticky; top: 72px; }
   .sc-rail-card { padding: 16px; }
