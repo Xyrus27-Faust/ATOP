@@ -428,7 +428,8 @@ function SubstituteModal({ delegate, registrationId, onClose, onDone }) {
 
   return (
     <Modal title={`Substitute ${delegate.fullName}`} onClose={onClose}>
-      <p className="dash-help" style={{ marginBottom: 14 }}>
+      <div className="rd-sub-form">
+      <p className="dash-help" style={{ marginBottom: 16 }}>
         The seat, its amount, and the reference code <code>{delegate.referenceCode}</code> stay as they
         are — only the person attending changes.
       </p>
@@ -453,12 +454,20 @@ function SubstituteModal({ delegate, registrationId, onClose, onDone }) {
         </Field>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
         <button type="button" className="dash-btn" onClick={onClose}>Cancel</button>
         <button type="button" className="dash-btn is-primary" onClick={save} disabled={saving}>
           {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : 'Substitute'}
         </button>
       </div>
+      </div>
+
+      {/* Same vertical rhythm as the booking form — the shared field primitives carry no
+          outer margin, so stacked controls would otherwise sit flush. */}
+      <style>{`
+        .rd-sub-form .dash-field, .rd-sub-form .dash-form-row { margin-bottom: 18px; }
+        .rd-sub-form .dash-form-row .dash-field { margin-bottom: 0; }
+      `}</style>
     </Modal>
   )
 }

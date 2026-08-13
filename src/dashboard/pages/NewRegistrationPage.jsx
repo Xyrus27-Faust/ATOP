@@ -291,19 +291,19 @@ export default function NewRegistrationPage() {
         </div>
       </div>
 
-      <div className="dash-steps">
+      <div className="dash-steps nr-steps">
         {STEPS.map((s, i) => (
           <div key={s.key} className={`dash-step${i === step ? ' is-active' : ''}${i < step ? ' is-done' : ''}`}>
             <span className="dash-step-dot">{i < step ? <i className="fas fa-check" aria-hidden="true" /> : i + 1}</span>
-            <span>{s.label}</span>
-            {i < STEPS.length - 1 && <span className="dash-step-line" />}
+            <span className="nr-step-label">{s.label}</span>
+            {i < STEPS.length - 1 && <span className={`dash-step-line${i < step ? ' is-done' : ''}`} />}
           </div>
         ))}
       </div>
 
       {/* ---- Step 1: who's registering ---- */}
       {step === 0 && (
-        <div className="dash-card dash-card-pad">
+        <div className="dash-card dash-card-pad nr-card">
           <h2 className="dash-card-title">Who’s registering</h2>
 
           <Field label="Registering as" required error={errors.registrantType}>
@@ -403,7 +403,7 @@ export default function NewRegistrationPage() {
             const at = (field) => errors[`delegates[${i}].${field}`]
 
             return (
-              <div key={i} className="dash-card dash-card-pad nr-delegate">
+              <div key={i} className="dash-card dash-card-pad nr-card nr-delegate">
                 <div className="nr-del-head">
                   <h2 className="dash-card-title">
                     Delegate {i + 1}
@@ -524,7 +524,7 @@ export default function NewRegistrationPage() {
 
       {/* ---- Step 3: billing ---- */}
       {step === 2 && (
-        <div className="dash-card dash-card-pad">
+        <div className="dash-card dash-card-pad nr-card">
           <h2 className="dash-card-title">Billing</h2>
           <p className="dash-help">
             The receipt is issued to the registered payer, which is often not the delegate. An LGU
@@ -604,6 +604,22 @@ export default function NewRegistrationPage() {
       </div>
 
       <style>{`
+        /* The shared stepper sizes to its content (fixed 34px connectors), which leaves it
+           hugging the left of a wide card. Let each step share the width and the connector
+           absorb the slack instead. Scoped to this page so the entry wizard is unaffected. */
+        .dash-steps.nr-steps { width: 100%; margin-bottom: 20px; }
+        .dash-steps.nr-steps .dash-step { flex: 1 1 0; min-width: 0; }
+        .dash-steps.nr-steps .dash-step:last-child { flex: 0 0 auto; }
+        .dash-steps.nr-steps .dash-step-line { flex: 1 1 auto; width: auto; min-width: 24px; }
+        .nr-step-label { overflow: hidden; text-overflow: ellipsis; }
+
+        /* Vertical rhythm. .dash-field and .dash-form-row carry no outer margin, so stacked
+           controls sit flush against each other; this form is long enough that it reads as a
+           wall without it. Fields *inside* a row are spaced by the row's own grid gap. */
+        .nr-card .dash-field, .nr-card .dash-form-row { margin-bottom: 20px; }
+        .nr-card .dash-form-row .dash-field { margin-bottom: 0; }
+        .nr-card .dash-field:last-child, .nr-card .dash-form-row:last-child { margin-bottom: 0; }
+
         .nr-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
         .nr-type {
           display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer;
@@ -616,8 +632,12 @@ export default function NewRegistrationPage() {
         .nr-type-label { font-family: var(--font-heading); font-weight: 800; color: var(--navy); }
         .nr-type-hint { font-size: 0.78rem; color: var(--gray-600); }
 
-        .nr-cascade-hint { margin: 4px 0 10px; }
-        .nr-h3 { font-family: var(--font-heading); font-size: 0.95rem; font-weight: 800; color: var(--navy); margin: 26px 0 2px; }
+        .nr-cascade-hint { margin: 4px 0 14px; }
+        .nr-h3 { font-family: var(--font-heading); font-size: 0.95rem; font-weight: 800; color: var(--navy); margin: 30px 0 4px; }
+        .nr-card .dash-card-title { margin-bottom: 16px; }
+        /* Direct children only — .dash-help is also the hint inside a Field's footer, and the
+           footer is a flex container, so a blanket rule would pad every hint too. */
+        .nr-card > .dash-help { margin-bottom: 18px; }
 
         .nr-delegate { margin-bottom: 14px; }
         .nr-del-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
