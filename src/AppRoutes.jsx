@@ -6,6 +6,7 @@ import VerifyEmailPage from './components/auth/VerifyEmailPage'
 import ProtectedRoute from './auth/ProtectedRoute'
 import ApplicantRoute from './auth/ApplicantRoute'
 import AdminRoute from './auth/AdminRoute'
+import RegistrationsAdminRoute from './auth/RegistrationsAdminRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
 import SubmissionLayout from './dashboard/SubmissionLayout'
 import OverviewPage from './dashboard/pages/OverviewPage'
@@ -26,7 +27,11 @@ import FinalsQueuePage from './dashboard/pages/FinalsQueuePage'
 import FinalsBracketPage from './dashboard/pages/FinalsBracketPage'
 import AdjudicatorAdminPage from './dashboard/pages/AdjudicatorAdminPage'
 import FinalsResultsPage from './dashboard/pages/FinalsResultsPage'
-import { SCORING_ENABLED, FINALS_ENABLED } from './dashboard/dashboardNav'
+import ConventionPage from './dashboard/pages/ConventionPage'
+import NewRegistrationPage from './dashboard/pages/NewRegistrationPage'
+import RegistrationDetailPage from './dashboard/pages/RegistrationDetailPage'
+import AdminRegistrationsPage from './dashboard/pages/AdminRegistrationsPage'
+import { SCORING_ENABLED, FINALS_ENABLED, EVENTS_ENABLED } from './dashboard/dashboardNav'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -68,6 +73,18 @@ export default function AppRoutes() {
           <Route path="review/:id" element={<ReviewEntryPage />} />
           {SCORING_ENABLED && <Route path="scoring" element={<ScoringQueuePage />} />}
           {FINALS_ENABLED && <Route path="finals" element={<FinalsQueuePage />} />}
+
+          {/* Convention registration. Open to any signed-in account — attending isn't
+              tied to a role — while the back-office list is Secretariat/Admin, matching
+              the backend's own policy. */}
+          {EVENTS_ENABLED && <Route path="convention" element={<ConventionPage />} />}
+          {EVENTS_ENABLED && <Route path="convention/register" element={<NewRegistrationPage />} />}
+          {EVENTS_ENABLED && <Route path="convention/registrations/:id" element={<RegistrationDetailPage />} />}
+          {EVENTS_ENABLED && (
+            <Route element={<RegistrationsAdminRoute />}>
+              <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
+            </Route>
+          )}
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
             {SCORING_ENABLED && <Route path="admin/assessors" element={<AssessorAdminPage />} />}
