@@ -18,6 +18,7 @@ import {
   isRegistrationEditable,
   summariseByRate,
   PARTICIPANT_TYPE_LABELS,
+  MIN_DOWNPAYMENT_RATE,
 } from '@/lib/events'
 
 // While an invoice is open we re-check the registration on a timer. The gateway
@@ -40,6 +41,11 @@ export default function RegistrationDetailPage() {
   const [substituting, setSubstituting] = useState(null)
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  // Paying here offers what the form offered: all of it, or a downpayment. Without this the
+  // button silently meant "pay everything", which is not a choice anyone made.
+  const [payChoice, setPayChoice] = useState('full')
+  const [partAmount, setPartAmount] = useState('')
+  const [amountError, setAmountError] = useState(null)
 
   const status = data?.status
   const invoiceStatus = data?.invoice?.status
@@ -54,7 +60,7 @@ export default function RegistrationDetailPage() {
     return () => clearInterval(timer)
   }, [shouldPoll, reload])
 
-  const pay = useCallback(async () => {
+  const pay = useCallback(async (amount) => {
     setPaying(true)
     setActionError(null)
     try {
@@ -62,6 +68,7 @@ export default function RegistrationDetailPage() {
       const invoice = await api.post(
         `/registrations/${id}/checkout`,
         {
+          amount: amount ?? null,
           successRedirectUrl: `${origin}/convention/registrations/${id}`,
           failureRedirectUrl: `${origin}/convention/registrations/${id}`,
         },
@@ -86,6 +93,20 @@ export default function RegistrationDetailPage() {
   const editable = isRegistrationEditable(reg.status)
   const rateLines = summariseByRate(reg.delegates)
   const activeDelegates = reg.delegates.filter((d) => d.status !== 'Cancelled')
+
+  // Mirrors the server rule: a payment short of the balance still has to clear 25% of the total,
+  // so when the balance itself has fallen below that floor there is nothing to choose between.
+  const canPayInPart = reg.balance > reg.minimumDownpayment
+
+  function startPayment() {
+    if (!canPayInPart || payChoice === 'full') return pay(null)
+
+    const amount = Number(partAmount)
+    if (!partAmount.trim() || Number.isNaN(amount)) return setAmountError('Enter how much you are paying now.')
+    if (amount < reg.minimumDownpayment) return setAmountError(`That is below the ${formatPeso(reg.minimumDownpayment)} minimum.`)
+    if (amount > reg.balance) return setAmountError(`That is more than the ${formatPeso(reg.balance)} outstanding.`)
+    return pay(amount)
+  }
 
   return (
     <>
@@ -316,18 +337,71 @@ export default function RegistrationDetailPage() {
             )}
 
             {canCheckout(reg.status) && (
-              <button className="dash-btn is-primary rd-pay-btn" onClick={pay} disabled={paying || activeDelegates.length === 0}>
-                {paying
-                  ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Opening…</>
-                  : (
-                    <>
-                      <i className="fas fa-credit-card" aria-hidden="true" />
-                      {reg.amountPaid > 0
-                        ? ` Pay the ${formatPeso(reg.balance)} balance`
-                        : reg.status === 'PendingPayment' ? ' Continue to payment' : ' Pay now'}
-                    </>
-                  )}
-              </button>
+              <>
+                {/* A part-payment is only on the table while a quarter of the total still fits
+                    inside what is owed — below that, the balance is the only thing left to pay. */}
+                {canPayInPart && (
+                  <div className="rd-pay-opts">
+                    <button
+                      type="button"
+                      className={`rd-pay-opt${payChoice === 'full' ? ' is-active' : ''}`}
+                      onClick={() => { setPayChoice('full'); setAmountError(null) }}
+                    >
+                      <span className="rd-pay-opt-top">
+                        {reg.amountPaid > 0 ? 'Pay the balance' : 'Pay in full'}
+                      </span>
+                      <span className="rd-pay-opt-amount">{formatPeso(reg.balance)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`rd-pay-opt${payChoice === 'part' ? ' is-active' : ''}`}
+                      onClick={() => setPayChoice('part')}
+                    >
+                      <span className="rd-pay-opt-top">Pay part of it</span>
+                      <span className="rd-pay-opt-amount">from {formatPeso(reg.minimumDownpayment)}</span>
+                    </button>
+                  </div>
+                )}
+
+                {canPayInPart && payChoice === 'part' && (
+                  <Field
+                    label="Amount to pay now"
+                    htmlFor="rdAmount"
+                    required
+                    error={amountError}
+                    hint={`At least ${formatPeso(reg.minimumDownpayment)} — ${Math.round(MIN_DOWNPAYMENT_RATE * 100)}% of the ${formatPeso(reg.totalAmount)} total.`}
+                  >
+                    <input
+                      id="rdAmount"
+                      type="number"
+                      inputMode="decimal"
+                      min={reg.minimumDownpayment}
+                      max={reg.balance}
+                      step="0.01"
+                      className={ctl('dash-input', amountError)}
+                      value={partAmount}
+                      onChange={(e) => { setPartAmount(e.target.value); setAmountError(null) }}
+                    />
+                  </Field>
+                )}
+
+                <button
+                  className="dash-btn is-primary rd-pay-btn"
+                  onClick={startPayment}
+                  disabled={paying || activeDelegates.length === 0}
+                >
+                  {paying
+                    ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Opening…</>
+                    : (
+                      <>
+                        <i className="fas fa-credit-card" aria-hidden="true" />
+                        {` Pay ${formatPeso(payChoice === 'part' && canPayInPart
+                          ? (Number(partAmount) || reg.minimumDownpayment)
+                          : reg.balance)}`}
+                      </>
+                    )}
+                </button>
+              </>
             )}
 
             {editable && (
@@ -367,6 +441,17 @@ export default function RegistrationDetailPage() {
 
       <style>{`
         .rd-status { align-self: flex-start; }
+        .rd-pay-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 12px; }
+        .rd-pay-opt {
+          display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer;
+          padding: 10px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+          background: var(--white); transition: var(--transition-fast);
+        }
+        .rd-pay-opt:hover { border-color: var(--gold); }
+        .rd-pay-opt.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); background: var(--off-white); }
+        .rd-pay-opt-top { font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--gray-600); }
+        .rd-pay-opt-amount { font-family: var(--font-heading); font-size: 1rem; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
+
         .rd-paid td { color: var(--gray-600); font-weight: 500; }
         .rd-balance td { color: var(--navy); font-family: var(--font-heading); font-weight: 800; }
 
