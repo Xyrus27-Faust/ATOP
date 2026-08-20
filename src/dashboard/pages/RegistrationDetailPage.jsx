@@ -525,7 +525,7 @@ function AddDelegateModal({ registrationId, onClose, onDone }) {
 function SubstituteModal({ delegate, registrationId, onClose, onDone }) {
   const [form, setForm] = useState({
     firstName: '', middleName: '', lastName: '', suffix: '',
-    badgeName: '', designation: delegate.designation || '',
+    designation: delegate.designation || '',
     officeDepartment: delegate.officeDepartment || '', email: '', mobile: '',
   })
   const [errors, setErrors] = useState({})
@@ -553,7 +553,6 @@ function SubstituteModal({ delegate, registrationId, onClose, onDone }) {
           middleName: form.middleName.trim() || null,
           lastName: form.lastName.trim(),
           suffix: form.suffix.trim() || null,
-          badgeName: form.badgeName.trim() || null,
           designation: form.designation.trim(),
           officeDepartment: form.officeDepartment.trim() || null,
           email: form.email.trim(),

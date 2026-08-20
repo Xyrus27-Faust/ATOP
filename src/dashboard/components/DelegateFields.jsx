@@ -94,18 +94,12 @@ export default function DelegateFields({
       </div>
 
       <div className="dash-form-row">
-        <Field label="Name on badge" htmlFor={id('bn')} hint="Optional — defaults to first and last name.">
-          <input id={id('bn')} className="dash-input" value={value.badgeName} onChange={set('badgeName')} />
-        </Field>
         <Field label="Classification" htmlFor={id('pt')} required error={at('participantType')}
                hint="What they are attending as. Everyone pays the same rate.">
           <select id={id('pt')} className={ctl('dash-select', at('participantType'))}
                   value={value.participantType} onChange={set('participantType')}>
             {PARTICIPANT_TYPES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
-        </Field>
-        <Field label="ATOP membership no." htmlFor={id('am')} hint="Optional.">
-          <input id={id('am')} className="dash-input" value={value.atopMembershipNo} onChange={set('atopMembershipNo')} />
         </Field>
       </div>
 
@@ -172,13 +166,11 @@ export const emptyDelegate = (defaultRateCode = '') => ({
   middleName: '',
   lastName: '',
   suffix: '',
-  badgeName: '',
   designation: '',
   officeDepartment: '',
   email: '',
   mobile: '',
   participantType: 'Delegate',
-  atopMembershipNo: '',
   dataPrivacyConsent: false,
   mediaReleaseConsent: false,
 })
@@ -214,13 +206,11 @@ export const toDelegatePayload = (d) => ({
   middleName: d.middleName.trim() || null,
   lastName: d.lastName.trim(),
   suffix: d.suffix.trim() || null,
-  badgeName: d.badgeName.trim() || null,
   designation: d.designation.trim(),
   officeDepartment: d.officeDepartment.trim() || null,
   email: d.email.trim(),
   mobile: d.mobile.trim(),
   participantType: d.participantType,
-  atopMembershipNo: d.atopMembershipNo.trim() || null,
   dataPrivacyConsent: d.dataPrivacyConsent,
   mediaReleaseConsent: d.mediaReleaseConsent,
 })
