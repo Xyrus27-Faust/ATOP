@@ -87,6 +87,9 @@ export default function NewRegistrationPage() {
 
   const soleRate = rates.length === 1 ? rates[0] : null
 
+  // Delegations and walk-ins both name their LGU; only an organization may have none.
+  const needsLgu = form.registrantType === 'LguDelegation' || form.registrantType === 'Individual'
+
   // With one rate on sale there is nothing for anyone to pick, so fill it in once the
   // event has loaded. An effect, not render-time state, so React isn't asked to update
   // during a render pass.
@@ -156,7 +159,7 @@ export default function NewRegistrationPage() {
 
     if (index === 0) {
       if (!form.registrantType) e.registrantType = 'Choose who is registering.'
-      if (form.registrantType === 'LguDelegation') {
+      if (needsLgu) {
         if (!form.lguRegion) e.lguRegion = 'Select a region.'
         if (!form.lguProvince) e.lguProvince = 'Select a province.'
         if (!form.lguCode) e.lguCode = 'Select your city or municipality.'
@@ -211,7 +214,7 @@ export default function NewRegistrationPage() {
         `/events/${event.slug}/registrations`,
         {
           registrantType: form.registrantType,
-          lguCode: form.registrantType === 'LguDelegation' ? form.lguCode : null,
+          lguCode: needsLgu ? form.lguCode : null,
           organizationName: form.organizationName.trim() || null,
           contact: {
             name: form['contact.name'].trim(),
@@ -311,10 +314,12 @@ export default function NewRegistrationPage() {
             </div>
           </Field>
 
-          {form.registrantType === 'LguDelegation' && (
+          {needsLgu && (
             <>
               <p className="dash-help nr-cascade-hint">
-                Pick your LGU from the official PSGC list — the same one used for Pearl Awards entries.
+                {form.registrantType === 'Individual'
+                  ? 'Which LGU are you coming from? Pick it from the official PSGC list — the same one used for Pearl Awards entries.'
+                  : 'Pick your LGU from the official PSGC list — the same one used for Pearl Awards entries.'}
               </p>
               <div className="dash-form-row">
                 <Field label="Region" htmlFor="lguRegion" required error={errors.lguRegion}>
@@ -444,7 +449,7 @@ export default function NewRegistrationPage() {
                 <dt>Registering as</dt>
                 <dd>{REGISTRANT_TYPES.find((t) => t.value === form.registrantType)?.label || '—'}</dd>
               </div>
-              {form.registrantType === 'LguDelegation' && (
+              {needsLgu && (
                 <div>
                   <dt>LGU</dt>
                   <dd>{cityOptions.find((c) => c.code === form.lguCode)?.name || form.lguCode || '—'}</dd>
