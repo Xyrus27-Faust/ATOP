@@ -306,6 +306,15 @@ export default function RegistrationDetailPage() {
               </dl>
             )}
 
+            {reg.status === 'Draft' && (
+              <button
+                className="dash-btn rd-pay-btn"
+                onClick={() => navigate(`/convention/register/${reg.id}`)}
+              >
+                <i className="fas fa-pen-to-square" aria-hidden="true" /> Continue registration
+              </button>
+            )}
+
             {canCheckout(reg.status) && (
               <button className="dash-btn is-primary rd-pay-btn" onClick={pay} disabled={paying || activeDelegates.length === 0}>
                 {paying

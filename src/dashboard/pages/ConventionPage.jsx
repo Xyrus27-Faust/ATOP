@@ -145,8 +145,13 @@ export default function ConventionPage() {
         <div className="cv-list">
           {mine.map((r) => {
             const meta = registrationStatusMeta(r.status)
+            // A draft is unfinished business: send them back into the form, not to a booking page.
             return (
-              <Link key={r.id} to={`/convention/registrations/${r.id}`} className="dash-card cv-row">
+              <Link
+                key={r.id}
+                to={r.status === 'Draft' ? `/convention/register/${r.id}` : `/convention/registrations/${r.id}`}
+                className="dash-card cv-row"
+              >
                 <span className="cv-row-main">
                   <span className="cv-row-ref">{r.referenceCode}</span>
                   <span className="cv-row-meta">

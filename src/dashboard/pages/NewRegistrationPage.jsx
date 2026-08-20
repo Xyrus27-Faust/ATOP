@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
 import { validateEmail } from '@/lib/validation'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
-import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
+import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload, fromDelegateResponse } from '../components/DelegateFields'
 import {
   REGISTRANT_TYPES,
   PARTICIPANT_TYPE_LABELS,
@@ -21,6 +21,13 @@ const STEPS = [
   { key: 'delegates', label: 'Delegates' },
   { key: 'review', label: 'Review & pay' },
 ]
+
+/** "just now" for the first minute, then a plain time — nobody needs seconds here. */
+function savedLabel(at) {
+  const seconds = (Date.now() - at.getTime()) / 1000
+  if (seconds < 60) return 'just now'
+  return `at ${at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+}
 
 // Which step a given (client or server) error key belongs to. Server keys come
 // back as `delegates[0].email`, `contact.name`, `amount`, etc.
@@ -64,6 +71,14 @@ export default function NewRegistrationPage() {
   // of at least a quarter that reserves the slots with the balance due later.
   const [payment, setPayment] = useState('full')
   const [downpayment, setDownpayment] = useState('')
+
+  // The booking is saved as a Draft the moment step one is done, and again on every step
+  // afterwards, so closing the tab costs nothing. `draftId` is null only before that first save.
+  const { id: routeDraftId } = useParams()
+  const [draftId, setDraftId] = useState(routeDraftId ?? null)
+  const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState(null)
+  const [hydrating, setHydrating] = useState(Boolean(routeDraftId))
   const [delegates, setDelegates] = useState([emptyDelegate()])
   const [ratesSeeded, setRatesSeeded] = useState(false)
   const [errors, setErrors] = useState({})
@@ -99,11 +114,63 @@ export default function NewRegistrationPage() {
     setRatesSeeded(true)
   }, [soleRate, ratesSeeded])
 
+  // Resuming: pull the draft back into the form, including the LGU cascade, which is stored as a
+  // single code and has to be walked back to region → province → city.
+  useEffect(() => {
+    if (!routeDraftId) return
+    let active = true
+
+    ;(async () => {
+      try {
+        const reg = await api.get(`/registrations/${routeDraftId}`, { auth: true })
+        if (!active) return
+
+        let cascade = { lguRegion: '', lguProvince: '', lguCode: '' }
+        if (reg.lguCode) {
+          const lgu = await api.get(`/lgus/${reg.lguCode}`)
+          const provinceCode = lgu.isProvince ? lgu.code : lgu.provinceCode
+          cascade = { lguRegion: lgu.region, lguProvince: provinceCode ?? '', lguCode: lgu.code }
+          api.get(`/lgus/provinces?region=${lgu.region}`).then((p) => { if (active) setProvinces(p) }).catch(() => {})
+          if (provinceCode) {
+            api.get(`/lgus/cities?province=${encodeURIComponent(provinceCode)}`)
+              .then((c) => { if (active) setCities(c) }).catch(() => {})
+          }
+        }
+        if (!active) return
+
+        setForm((f) => ({
+          ...f,
+          registrantType: reg.registrantType,
+          organizationName: reg.organizationName ?? '',
+          'contact.name': reg.contact.name ?? '',
+          'contact.designation': reg.contact.designation ?? '',
+          'contact.office': reg.contact.office ?? '',
+          'contact.email': reg.contact.email ?? '',
+          'contact.mobile': reg.contact.mobile ?? '',
+          'contact.landline': reg.contact.landline ?? '',
+          notes: reg.notes ?? '',
+          ...cascade,
+        }))
+
+        const saved = reg.delegates.filter((d) => d.status !== 'Cancelled')
+        if (saved.length > 0) setDelegates(saved.map(fromDelegateResponse))
+        setRatesSeeded(true)
+        setSavedAt(reg.updatedAt ? new Date(reg.updatedAt) : new Date())
+      } catch (err) {
+        if (active) setSubmitError(err)
+      } finally {
+        if (active) setHydrating(false)
+      }
+    })()
+
+    return () => { active = false }
+  }, [routeDraftId])
+
   const total = delegates.reduce((sum, d) => sum + Number(rateByCode.get(d.rateCode)?.amount ?? 0), 0)
   const inPersonCount = delegates.filter((d) => rateByCode.get(d.rateCode)?.attendanceMode === 'InPerson').length
   const virtualCount = delegates.filter((d) => rateByCode.get(d.rateCode)?.attendanceMode === 'Virtual').length
 
-  if (loading) return <Loading />
+  if (loading || hydrating) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
   if (!event || !event.registrationOpen) {
@@ -197,8 +264,80 @@ export default function NewRegistrationPage() {
     return Object.keys(e).length === 0
   }
 
-  const next = () => { if (validateStep(step)) setStep((s) => Math.min(STEPS.length - 1, s + 1)) }
+  /** The step-1 half of the booking: who is registering, and who to talk to. */
+  const registrantPayload = () => ({
+    registrantType: form.registrantType,
+    lguCode: needsLgu ? form.lguCode : null,
+    organizationName: form.organizationName.trim() || null,
+    contact: {
+      name: form['contact.name'].trim(),
+      designation: form['contact.designation'].trim(),
+      office: form['contact.office'].trim() || null,
+      email: form['contact.email'].trim(),
+      mobile: form['contact.mobile'].trim(),
+      landline: form['contact.landline'].trim() || null,
+    },
+    notes: form.notes.trim() || null,
+  })
+
+  /**
+   * Save what has been filled in so far as a Draft booking. Called when a step is left and by
+   * "Save and finish later"; harmless to call twice.
+   *
+   * Half-finished delegates are skipped rather than rejected — a draft exists precisely so someone
+   * can walk away mid-form, and refusing to save the other four because the fifth has no email
+   * would defeat it.
+   */
+  async function saveDraft() {
+    if (!form.registrantType || !form['contact.name'].trim() || !form['contact.email'].trim()) return null
+
+    setSaving(true)
+    setSubmitError(null)
+    try {
+      const complete = delegates.filter(
+        (d) => Object.keys(validateDelegate(d, '', validateEmail)).length === 0,
+      )
+
+      let id = draftId
+      if (!id) {
+        const created = await api.post(
+          `/events/${event.slug}/registrations`,
+          { ...registrantPayload(), delegates: complete.map(toDelegatePayload) },
+          { auth: true },
+        )
+        id = created.id
+        setDraftId(id)
+        // Put the id in the address bar so a reload, or a shared link, resumes this draft.
+        globalThis.history?.replaceState(null, '', `/convention/register/${id}`)
+      } else {
+        await api.put(`/registrations/${id}`, registrantPayload(), { auth: true })
+        await api.put(`/registrations/${id}/delegates`, { delegates: complete.map(toDelegatePayload) }, { auth: true })
+      }
+
+      setSavedAt(new Date())
+      return id
+    } catch (err) {
+      setSubmitError(err)
+      return null
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Nothing to save until there is a registrant and someone to contact about it.
+  const canSaveDraft = Boolean(form.registrantType && form['contact.name'].trim() && form['contact.email'].trim())
+
+  const next = () => {
+    if (!validateStep(step)) return
+    saveDraft()                                   // fire and forget: the step moves on regardless
+    setStep((s) => Math.min(STEPS.length - 1, s + 1))
+  }
   const back = () => setStep((s) => Math.max(0, s - 1))
+
+  async function saveAndExit() {
+    const id = await saveDraft()
+    navigate(id ? `/convention/registrations/${id}` : '/dashboard/convention')
+  }
 
   async function submit() {
     // Re-validate every step: a user can reach the end and then edit backwards.
@@ -210,33 +349,18 @@ export default function NewRegistrationPage() {
     setSubmitError(null)
 
     try {
-      const created = await api.post(
-        `/events/${event.slug}/registrations`,
-        {
-          registrantType: form.registrantType,
-          lguCode: needsLgu ? form.lguCode : null,
-          organizationName: form.organizationName.trim() || null,
-          contact: {
-            name: form['contact.name'].trim(),
-            designation: form['contact.designation'].trim(),
-            office: form['contact.office'].trim() || null,
-            email: form['contact.email'].trim(),
-            mobile: form['contact.mobile'].trim(),
-            landline: form['contact.landline'].trim() || null,
-          },
-          notes: form.notes.trim() || null,
-          delegates: delegates.map(toDelegatePayload),
-        },
-        { auth: true },
-      )
+      // Save first, then pay. The draft is already on the server by now in the ordinary case, so
+      // this is the last write of the same booking — never a second one.
+      const id = await saveDraft()
+      if (!id) return
 
       // Straight on to the gateway with the amount they chose on this very step — going via a
       // second page would ask them to decide the same thing twice.
       const origin = globalThis.location?.origin ?? ''
-      const back = `${origin}/convention/registrations/${created.id}`
+      const back = `${origin}/convention/registrations/${id}`
       try {
         const invoice = await api.post(
-          `/registrations/${created.id}/checkout`,
+          `/registrations/${id}/checkout`,
           {
             amount: payment === 'downpayment' ? Number(downpayment) : null,
             successRedirectUrl: back,
@@ -252,7 +376,7 @@ export default function NewRegistrationPage() {
         // The booking is saved either way — never lose it because the gateway hiccuped.
         // Its own page explains what happened and offers Pay again.
       }
-      navigate(`/convention/registrations/${created.id}`)
+      navigate(`/convention/registrations/${id}`)
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
         // Server keys match our client keys, so they land on the right inputs.
@@ -581,6 +705,23 @@ export default function NewRegistrationPage() {
         <button type="button" className="dash-btn" onClick={step === 0 ? () => navigate('/dashboard/convention') : back}>
           <i className="fas fa-arrow-left" aria-hidden="true" /> {step === 0 ? 'Cancel' : 'Back'}
         </button>
+
+        {/* Where the draft stands, in words. Saving happens on its own between steps; the button is
+            for the moment someone decides to stop, so that leaving is a decision and not a gamble. */}
+        <span className="nr-save-state" aria-live="polite">
+          {saving
+            ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</>
+            : savedAt
+              ? <><i className="fas fa-cloud-arrow-up" aria-hidden="true" /> Draft saved {savedLabel(savedAt)}</>
+              : null}
+        </span>
+
+        {canSaveDraft && (
+          <button type="button" className="dash-btn nr-save-exit" onClick={saveAndExit} disabled={saving || submitting}>
+            <i className="fas fa-floppy-disk" aria-hidden="true" /> Save and finish later
+          </button>
+        )}
+
         {step < STEPS.length - 1 ? (
           <button type="button" className="dash-btn is-primary" onClick={next}>
             Continue <i className="fas fa-arrow-right" aria-hidden="true" />
@@ -596,6 +737,13 @@ export default function NewRegistrationPage() {
       </div>
 
       <style>{`
+        .nr-save-state {
+          flex: 1 1 auto; display: inline-flex; align-items: center; gap: 7px;
+          font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700;
+          color: var(--gray-600); min-height: 20px;
+        }
+        .nr-save-exit { flex: 0 0 auto; }
+
         .nr-review { display: grid; gap: 14px; margin: 0 0 20px; }
         .nr-review > div { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: baseline; }
         .nr-review dt {

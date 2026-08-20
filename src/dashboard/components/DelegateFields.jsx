@@ -198,6 +198,27 @@ export function validateDelegate(d, errorPrefix, validateEmail) {
   return e
 }
 
+/**
+ * The other direction: a saved delegate back into form state, for resuming a draft.
+ * Names come back as one `fullName`, so the parts are read from the stored fields.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const fromDelegateResponse = (d) => ({
+  ...emptyDelegate(d.rateCode),
+  firstName: d.firstName ?? '',
+  middleName: d.middleName ?? '',
+  lastName: d.lastName ?? '',
+  suffix: d.suffix ?? '',
+  designation: d.designation ?? '',
+  officeDepartment: d.officeDepartment ?? '',
+  email: d.email ?? '',
+  mobile: d.mobile ?? '',
+  participantType: d.participantType ?? 'Delegate',
+  // Consent was given when the draft was saved; re-ticking it on resume would be theatre.
+  dataPrivacyConsent: Boolean(d.dataPrivacyConsentAt),
+  mediaReleaseConsent: Boolean(d.mediaReleaseConsent),
+})
+
 /** Strip a delegate down to the API's payload shape. */
 // eslint-disable-next-line react-refresh/only-export-components
 export const toDelegatePayload = (d) => ({

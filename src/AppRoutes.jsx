@@ -68,6 +68,8 @@ export default function AppRoutes() {
         {EVENTS_ENABLED && (
           <Route element={<ConventionLayout />}>
             <Route path="/convention/register" element={<NewRegistrationPage />} />
+            {/* Same wizard, resuming a saved draft. */}
+            <Route path="/convention/register/:id" element={<NewRegistrationPage />} />
             <Route path="/convention/registrations/:id" element={<RegistrationDetailPage />} />
           </Route>
         )}
