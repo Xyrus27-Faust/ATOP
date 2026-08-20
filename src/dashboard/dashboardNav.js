@@ -102,7 +102,9 @@ export function navForRoles(roles = []) {
   const groups = []
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
   if (reviewer) groups.push({ label: 'Review', items: [SUMMARY, admin ? SUBMISSIONS : REVIEW] })
-  if (SCORING_ENABLED && roles.includes('3PIC')) groups.push({ label: 'Scoring', items: [SCORING] }) // the assessor's own queue
+  // The assessor's own queue. Admins score too — the endpoints accept Admin and the page gates on
+  // isAssessor — but the link was 3PIC-only, so an admin's only way in was typing the URL.
+  if (SCORING_ENABLED && assessor) groups.push({ label: 'Scoring', items: [SCORING] })
   if (FINALS_ENABLED && roles.includes('Adjudicator')) groups.push({ label: 'Finals', items: [FINALS] }) // the adjudicator's own queue
 
   if (admin) {
