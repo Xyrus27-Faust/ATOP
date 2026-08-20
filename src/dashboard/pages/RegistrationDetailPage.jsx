@@ -94,9 +94,10 @@ export default function RegistrationDetailPage() {
   const rateLines = summariseByRate(reg.delegates)
   const activeDelegates = reg.delegates.filter((d) => d.status !== 'Cancelled')
 
-  // Mirrors the server rule: a payment short of the balance still has to clear 25% of the total,
-  // so when the balance itself has fallen below that floor there is nothing to choose between.
-  const canPayInPart = reg.balance > reg.minimumDownpayment
+  // Mirrors the server rule: a booking is settled in one go, or by a downpayment and then the
+  // rest. So a part-payment is only on the table before anything has been paid, and only while a
+  // quarter of the total still fits inside what is owed.
+  const canPayInPart = reg.amountPaid === 0 && reg.balance > reg.minimumDownpayment
 
   function startPayment() {
     if (!canPayInPart || payChoice === 'full') return pay(null)
@@ -385,6 +386,12 @@ export default function RegistrationDetailPage() {
                   </Field>
                 )}
 
+                {reg.amountPaid > 0 && (
+                  <p className="rd-inclusive rd-balance-note">
+                    A downpayment has been received. This payment settles the balance in full.
+                  </p>
+                )}
+
                 <button
                   className="dash-btn is-primary rd-pay-btn"
                   onClick={startPayment}
@@ -452,6 +459,7 @@ export default function RegistrationDetailPage() {
         .rd-pay-opt-top { font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--gray-600); }
         .rd-pay-opt-amount { font-family: var(--font-heading); font-size: 1rem; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
 
+        .rd-balance-note { margin-top: 10px; }
         .rd-paid td { color: var(--gray-600); font-weight: 500; }
         .rd-balance td { color: var(--navy); font-family: var(--font-heading); font-weight: 800; }
 
