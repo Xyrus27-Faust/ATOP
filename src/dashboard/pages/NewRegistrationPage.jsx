@@ -9,8 +9,9 @@ import { Field, ctl } from '../components/form'
 import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
 import {
   REGISTRANT_TYPES,
-  PAYER_TYPES,
-  requiresTin,
+  PARTICIPANT_TYPE_LABELS,
+  minimumDownpayment,
+  MIN_DOWNPAYMENT_RATE,
   formatPeso,
   modeMeta,
 } from '@/lib/events'
@@ -18,14 +19,14 @@ import {
 const STEPS = [
   { key: 'who', label: 'Who’s registering' },
   { key: 'delegates', label: 'Delegates' },
-  { key: 'billing', label: 'Billing' },
+  { key: 'review', label: 'Review & pay' },
 ]
 
 // Which step a given (client or server) error key belongs to. Server keys come
-// back as `delegates[0].email`, `contact.name`, `billing`, etc.
+// back as `delegates[0].email`, `contact.name`, `amount`, etc.
 function stepForKey(key) {
   if (key.startsWith('delegates')) return 1
-  if (key.startsWith('billing')) return 2
+  if (key === 'amount' || key === 'checkout') return 2
   return 0
 }
 
@@ -57,15 +58,14 @@ export default function NewRegistrationPage() {
     'contact.email': user?.email ?? '',
     'contact.mobile': '',
     'contact.landline': '',
-    'billing.payerType': '',
-    'billing.billingName': '',
-    'billing.tin': '',
-    'billing.billingAddress': '',
-    'billing.needsOfficialReceipt': true,
-    'billing.purchaseOrderNo': '',
     notes: '',
   }))
+  // Two ways to pay, and nothing else to decide: the whole thing, or a downpayment
+  // of at least a quarter that reserves the slots with the balance due later.
+  const [payment, setPayment] = useState('full')
+  const [downpayment, setDownpayment] = useState('')
   const [delegates, setDelegates] = useState([emptyDelegate()])
+  const [ratesSeeded, setRatesSeeded] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
@@ -84,6 +84,17 @@ export default function NewRegistrationPage() {
   const event = data?.[0]
   const rates = useMemo(() => event?.rates ?? [], [event])
   const rateByCode = useMemo(() => new Map(rates.map((r) => [r.code, r])), [rates])
+
+  const soleRate = rates.length === 1 ? rates[0] : null
+
+  // With one rate on sale there is nothing for anyone to pick, so fill it in once the
+  // event has loaded. An effect, not render-time state, so React isn't asked to update
+  // during a render pass.
+  useEffect(() => {
+    if (!soleRate || ratesSeeded) return
+    setDelegates((list) => list.map((d) => (d.rateCode ? d : { ...d, rateCode: soleRate.code })))
+    setRatesSeeded(true)
+  }, [soleRate, ratesSeeded])
 
   const total = delegates.reduce((sum, d) => sum + Number(rateByCode.get(d.rateCode)?.amount ?? 0), 0)
   const inPersonCount = delegates.filter((d) => rateByCode.get(d.rateCode)?.attendanceMode === 'InPerson').length
@@ -167,13 +178,16 @@ export default function NewRegistrationPage() {
       })
     }
 
-    if (index === 2) {
-      if (!form['billing.payerType']) e['billing.payerType'] = 'Choose who is paying.'
-      if (!form['billing.billingName'].trim()) e['billing.billingName'] = 'Billing name is required.'
-      if (requiresTin(form['billing.payerType']) && !form['billing.tin'].trim())
-        e['billing.tin'] = 'A TIN is required when an LGU or organization is paying.'
-      if (form['billing.needsOfficialReceipt'] && !form['billing.billingAddress'].trim())
-        e['billing.billingAddress'] = 'A billing address is required to issue an official receipt.'
+    if (index === 2 && payment === 'downpayment') {
+      const floor = minimumDownpayment(total)
+      const amount = Number(downpayment)
+      if (!downpayment.trim() || Number.isNaN(amount)) {
+        e.amount = 'Enter how much you are paying now.'
+      } else if (amount < floor) {
+        e.amount = `A downpayment must be at least ${formatPeso(floor)}.`
+      } else if (amount > total) {
+        e.amount = `That is more than the ${formatPeso(total)} total. Choose “pay in full” instead.`
+      }
     }
 
     setErrors((prev) => ({ ...prev, ...e }))
@@ -207,20 +221,35 @@ export default function NewRegistrationPage() {
             mobile: form['contact.mobile'].trim(),
             landline: form['contact.landline'].trim() || null,
           },
-          billing: {
-            payerType: form['billing.payerType'],
-            billingName: form['billing.billingName'].trim(),
-            tin: form['billing.tin'].trim() || null,
-            billingAddress: form['billing.billingAddress'].trim() || null,
-            needsOfficialReceipt: form['billing.needsOfficialReceipt'],
-            purchaseOrderNo: form['billing.purchaseOrderNo'].trim() || null,
-          },
           notes: form.notes.trim() || null,
           delegates: delegates.map(toDelegatePayload),
         },
         { auth: true },
       )
-      navigate(`/dashboard/convention/registrations/${created.id}`)
+
+      // Straight on to the gateway with the amount they chose on this very step — going via a
+      // second page would ask them to decide the same thing twice.
+      const origin = globalThis.location?.origin ?? ''
+      const back = `${origin}/convention/registrations/${created.id}`
+      try {
+        const invoice = await api.post(
+          `/registrations/${created.id}/checkout`,
+          {
+            amount: payment === 'downpayment' ? Number(downpayment) : null,
+            successRedirectUrl: back,
+            failureRedirectUrl: back,
+          },
+          { auth: true },
+        )
+        if (invoice.checkoutUrl) {
+          globalThis.location.assign(invoice.checkoutUrl)
+          return
+        }
+      } catch {
+        // The booking is saved either way — never lose it because the gateway hiccuped.
+        // Its own page explains what happened and offers Pay again.
+      }
+      navigate(`/convention/registrations/${created.id}`)
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
         // Server keys match our client keys, so they land on the right inputs.
@@ -394,61 +423,140 @@ export default function NewRegistrationPage() {
             )
           })}
 
-          <button type="button" className="dash-btn nr-add" onClick={() => setDelegates((list) => [...list, emptyDelegate()])}>
+          <button type="button" className="dash-btn nr-add" onClick={() => setDelegates((list) => [...list, emptyDelegate(soleRate?.code ?? '')])}>
             <i className="fas fa-plus" aria-hidden="true" /> Add another delegate
           </button>
         </>
       )}
 
-      {/* ---- Step 3: billing ---- */}
+      {/* ---- Step 3: review & pay ---- */}
       {step === 2 && (
-        <div className="dash-card dash-card-pad nr-card">
-          <h2 className="dash-card-title">Billing</h2>
-          <p className="dash-help">
-            The receipt is issued to the registered payer, which is often not the delegate. An LGU
-            can’t liquidate a disbursement without these.
-          </p>
+        <>
+          <div className="dash-card dash-card-pad nr-card">
+            <h2 className="dash-card-title">Review</h2>
+            <p className="dash-help">
+              Check this over before paying. Once you pay, the booking is locked — the Secretariat can
+              still swap a delegate for you right up to the day before the convention.
+            </p>
 
-          <div className="dash-form-row">
-            <Field label="Who is paying" htmlFor="payerType" required error={errors['billing.payerType']}>
-              <select id="payerType" className={ctl('dash-select', errors['billing.payerType'])} value={form['billing.payerType']} onChange={(e) => set('billing.payerType', e.target.value)}>
-                <option value="">Select…</option>
-                {PAYER_TYPES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </Field>
-            <Field label="Registered payer name" htmlFor="billName" required error={errors['billing.billingName']} hint="Exactly as it should appear on the receipt.">
-              <input id="billName" className={ctl('dash-input', errors['billing.billingName'])} value={form['billing.billingName']} onChange={(e) => set('billing.billingName', e.target.value)} />
-            </Field>
+            <dl className="nr-review">
+              <div>
+                <dt>Registering as</dt>
+                <dd>{REGISTRANT_TYPES.find((t) => t.value === form.registrantType)?.label || '—'}</dd>
+              </div>
+              {form.registrantType === 'LguDelegation' && (
+                <div>
+                  <dt>LGU</dt>
+                  <dd>{cityOptions.find((c) => c.code === form.lguCode)?.name || form.lguCode || '—'}</dd>
+                </div>
+              )}
+              {form.registrantType === 'Organization' && (
+                <div><dt>Organization</dt><dd>{form.organizationName || '—'}</dd></div>
+              )}
+              <div>
+                <dt>Contact</dt>
+                <dd>
+                  {form['contact.name']} · {form['contact.designation']}
+                  <span className="nr-review-sub">{form['contact.email']} · {form['contact.mobile']}</span>
+                </dd>
+              </div>
+              {form.notes.trim() && <div><dt>Notes</dt><dd>{form.notes.trim()}</dd></div>}
+            </dl>
+
+            <table className="nr-review-table">
+              <thead>
+                <tr>
+                  <th>Delegate</th>
+                  <th>Classification</th>
+                  <th className="nr-review-num">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {delegates.map((d, i) => (
+                  <tr key={i}>
+                    <td>
+                      <strong>{[d.firstName, d.lastName].filter(Boolean).join(' ') || `Delegate ${i + 1}`}</strong>
+                      <span className="nr-review-sub">{d.designation}{d.email ? ` · ${d.email}` : ''}</span>
+                    </td>
+                    <td>{PARTICIPANT_TYPE_LABELS[d.participantType] || d.participantType}</td>
+                    <td className="nr-review-num">{formatPeso(rateByCode.get(d.rateCode)?.amount ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2}>Total</td>
+                  <td className="nr-review-num"><strong>{formatPeso(total)}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <button type="button" className="nr-review-edit" onClick={() => setStep(1)}>
+              <i className="fas fa-pen" aria-hidden="true" /> Edit delegates
+            </button>
           </div>
 
-          <div className="dash-form-row">
-            <Field label="TIN" htmlFor="tin" required={requiresTin(form['billing.payerType'])} error={errors['billing.tin']}>
-              <input id="tin" className={ctl('dash-input', errors['billing.tin'])} value={form['billing.tin']} onChange={(e) => set('billing.tin', e.target.value)} />
-            </Field>
-            <Field label="Purchase order / voucher no." htmlFor="po" hint="Optional — quoted back on the receipt.">
-              <input id="po" className="dash-input" value={form['billing.purchaseOrderNo']} onChange={(e) => set('billing.purchaseOrderNo', e.target.value)} />
-            </Field>
-          </div>
+          <div className="dash-card dash-card-pad nr-card">
+            <h2 className="dash-card-title">How much are you paying now?</h2>
 
-          <Field label="Billing address" htmlFor="billAddr" required={form['billing.needsOfficialReceipt']} error={errors['billing.billingAddress']}>
-            <input id="billAddr" className={ctl('dash-input', errors['billing.billingAddress'])} value={form['billing.billingAddress']} onChange={(e) => set('billing.billingAddress', e.target.value)} />
-          </Field>
+            <div className="nr-pay">
+              <button
+                type="button"
+                className={`nr-pay-opt${payment === 'full' ? ' is-active' : ''}`}
+                onClick={() => { setPayment('full'); setErrors((p) => ({ ...p, amount: undefined })) }}
+              >
+                <span className="nr-pay-top"><i className="fas fa-circle-check" aria-hidden="true" /> Pay in full</span>
+                <span className="nr-pay-amount">{formatPeso(total)}</span>
+                <span className="nr-pay-hint">Confirms every delegate on the spot.</span>
+              </button>
 
-          <label className="dash-check">
-            <input type="checkbox" checked={form['billing.needsOfficialReceipt']} onChange={(e) => set('billing.needsOfficialReceipt', e.target.checked)} />
-            <span>We need an official receipt for this payment.</span>
-          </label>
-
-          <Field label="Notes for the Secretariat" htmlFor="notes" hint="Optional.">
-            <textarea id="notes" rows={3} className="dash-textarea" value={form.notes} onChange={(e) => set('notes', e.target.value)} />
-          </Field>
-
-          {submitError && (
-            <div className="dash-banner nr-banner-error">
-              <i className="fas fa-circle-exclamation" aria-hidden="true" /> {submitError.message}
+              <button
+                type="button"
+                className={`nr-pay-opt${payment === 'downpayment' ? ' is-active' : ''}`}
+                onClick={() => setPayment('downpayment')}
+              >
+                <span className="nr-pay-top"><i className="fas fa-hourglass-half" aria-hidden="true" /> Downpayment</span>
+                <span className="nr-pay-amount">from {formatPeso(minimumDownpayment(total))}</span>
+                <span className="nr-pay-hint">
+                  At least {Math.round(MIN_DOWNPAYMENT_RATE * 100)}% now, the balance before the convention.
+                </span>
+              </button>
             </div>
-          )}
-        </div>
+
+            {payment === 'downpayment' && (
+              <Field
+                label="Amount to pay now"
+                htmlFor="dpAmount"
+                required
+                error={errors.amount}
+                hint={`At least ${formatPeso(minimumDownpayment(total))}. The balance of ${formatPeso(Math.max(0, total - (Number(downpayment) || 0)))} stays open on your booking.`}
+              >
+                <input
+                  id="dpAmount"
+                  type="number"
+                  inputMode="decimal"
+                  min={minimumDownpayment(total)}
+                  max={total}
+                  step="0.01"
+                  className={ctl('dash-input', errors.amount)}
+                  value={downpayment}
+                  onChange={(e) => { setDownpayment(e.target.value); setErrors((p) => ({ ...p, amount: undefined })) }}
+                />
+              </Field>
+            )}
+
+            <p className="dash-help nr-pay-note">
+              Payment is online through Xendit — GCash, Maya, card, bank transfer or over the counter.
+              Your booking is confirmed when the payment clears, not when you return from the payment page.
+            </p>
+
+            {submitError && (
+              <div className="dash-banner nr-banner-error">
+                <i className="fas fa-circle-exclamation" aria-hidden="true" /> {submitError.message}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Running total — visible on every step, because the number is the decision. */}
@@ -475,13 +583,51 @@ export default function NewRegistrationPage() {
         ) : (
           <button type="button" className="dash-btn is-primary" onClick={submit} disabled={submitting}>
             {submitting
-              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Creating…</>
-              : <><i className="fas fa-check" aria-hidden="true" /> Create registration</>}
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Taking you to payment…</>
+              : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(
+                  payment === 'downpayment' ? (Number(downpayment) || minimumDownpayment(total)) : total)}</>}
           </button>
         )}
       </div>
 
       <style>{`
+        .nr-review { display: grid; gap: 14px; margin: 0 0 20px; }
+        .nr-review > div { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: baseline; }
+        .nr-review dt {
+          font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700;
+          letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-600);
+        }
+        .nr-review dd { margin: 0; color: var(--navy); }
+        .nr-review-sub { display: block; color: var(--gray-600); font-size: 0.86rem; margin-top: 2px; }
+
+        .nr-review-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        .nr-review-table th {
+          text-align: left; font-family: var(--font-heading); font-size: 0.7rem; font-weight: 700;
+          letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-600);
+          padding: 8px 10px; border-bottom: 1px solid var(--gray-200);
+        }
+        .nr-review-table td { padding: 10px; border-bottom: 1px solid var(--gray-100); vertical-align: top; }
+        .nr-review-table tfoot td { border-bottom: none; border-top: 2px solid var(--gray-200); font-family: var(--font-heading); }
+        .nr-review-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .nr-review-edit {
+          background: none; border: none; padding: 0; cursor: pointer;
+          font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: var(--gold-dark);
+        }
+        .nr-review-edit:hover { text-decoration: underline; }
+
+        .nr-pay { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .nr-pay-opt {
+          display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer;
+          padding: 14px 16px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+          background: var(--white); transition: var(--transition-fast);
+        }
+        .nr-pay-opt:hover { border-color: var(--gold); }
+        .nr-pay-opt.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); background: var(--off-white); }
+        .nr-pay-top { font-family: var(--font-heading); font-weight: 700; font-size: 0.82rem; color: var(--navy); }
+        .nr-pay-amount { font-family: var(--font-heading); font-weight: 800; font-size: 1.3rem; color: var(--navy); font-variant-numeric: tabular-nums; }
+        .nr-pay-hint { font-size: 0.82rem; color: var(--gray-600); }
+        .nr-pay-note { margin-top: 4px; }
+
         /* The shared stepper sizes to its content (fixed 34px connectors), which leaves it
            hugging the left of a wide card. Let each step share the width and the connector
            absorb the slack instead. Scoped to this page so the entry wizard is unaffected. */

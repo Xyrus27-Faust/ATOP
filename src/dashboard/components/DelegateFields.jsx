@@ -27,7 +27,16 @@ export default function DelegateFields({
 
   return (
     <div className="dlg-fields">
-      {/* The client picks a rate, never a mode — so price and attendance mode can't disagree. */}
+      {/* One rate on sale means there is nothing to choose: state the price instead of asking.
+          The picker comes back by itself the day ATOP switches online attendance back on. */}
+      {rates.length === 1 ? (
+        <div className="dlg-onerate">
+          <span className="dlg-onerate-label">
+            <i className="fas fa-user-tie" aria-hidden="true" /> {rates[0].label}
+          </span>
+          <span className="dlg-onerate-amount">{formatPeso(rates[0].amount)}</span>
+        </div>
+      ) : (
       <Field label="Registration type" required error={at('rateCode')}>
         <div className="dlg-rates">
           {rates.map((r) => {
@@ -49,6 +58,7 @@ export default function DelegateFields({
           })}
         </div>
       </Field>
+      )}
 
       <div className="dash-form-row">
         <Field label="First name" htmlFor={id('fn')} required error={at('firstName')}>
@@ -87,8 +97,10 @@ export default function DelegateFields({
         <Field label="Name on badge" htmlFor={id('bn')} hint="Optional — defaults to first and last name.">
           <input id={id('bn')} className="dash-input" value={value.badgeName} onChange={set('badgeName')} />
         </Field>
-        <Field label="Participant type" htmlFor={id('pt')}>
-          <select id={id('pt')} className="dash-select" value={value.participantType} onChange={set('participantType')}>
+        <Field label="Classification" htmlFor={id('pt')} required error={at('participantType')}
+               hint="What they are attending as. Everyone pays the same rate.">
+          <select id={id('pt')} className={ctl('dash-select', at('participantType'))}
+                  value={value.participantType} onChange={set('participantType')}>
             {PARTICIPANT_TYPES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </Field>
@@ -134,7 +146,15 @@ export default function DelegateFields({
         .dlg-rate.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); }
         .dlg-rate-top { font-size: 0.76rem; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.04em; }
         .dlg-rate-amount { font-family: var(--font-heading); font-size: 1.3rem; font-weight: 800; color: var(--navy); }
-        .dlg-rate-label { font-size: 0.78rem; color: var(--gray-600); }
+        .dlg-onerate {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; margin-bottom: 18px;
+    background: var(--off-white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  }
+  .dlg-onerate-label { font-family: var(--font-heading); font-weight: 700; font-size: 0.86rem; color: var(--navy); }
+  .dlg-onerate-amount { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+  .dlg-rate-label { font-size: 0.78rem; color: var(--gray-600); }
 
         .dlg-consents { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--gray-200); }
         .dlg-consent span { font-size: 0.83rem; line-height: 1.45; }
@@ -146,8 +166,8 @@ export default function DelegateFields({
 
 /** A blank delegate, shared so both callers start from the same shape. */
 // eslint-disable-next-line react-refresh/only-export-components
-export const emptyDelegate = () => ({
-  rateCode: '',
+export const emptyDelegate = (defaultRateCode = '') => ({
+  rateCode: defaultRateCode,
   firstName: '',
   middleName: '',
   lastName: '',
@@ -173,6 +193,7 @@ export function validateDelegate(d, errorPrefix, validateEmail) {
   const at = (field) => `${errorPrefix}${field}`
 
   if (!d.rateCode) e[at('rateCode')] = 'Choose a registration type.'
+  if (!d.participantType) e[at('participantType')] = 'Choose a classification.'
   if (!d.firstName.trim()) e[at('firstName')] = 'First name is required.'
   if (!d.lastName.trim()) e[at('lastName')] = 'Last name is required.'
   if (!d.designation.trim()) e[at('designation')] = 'Designation is required.'

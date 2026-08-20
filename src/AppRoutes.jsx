@@ -8,7 +8,7 @@ import ApplicantRoute from './auth/ApplicantRoute'
 import AdminRoute from './auth/AdminRoute'
 import RegistrationsAdminRoute from './auth/RegistrationsAdminRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
-import SubmissionLayout from './dashboard/SubmissionLayout'
+import SubmissionLayout, { ConventionLayout } from './dashboard/SubmissionLayout'
 import OverviewPage from './dashboard/pages/OverviewPage'
 import EntriesListPage from './dashboard/pages/EntriesListPage'
 import NewEntryPage from './dashboard/pages/NewEntryPage'
@@ -63,6 +63,15 @@ export default function AppRoutes() {
           </Route>
         </Route>
 
+        {/* Convention booking, outside the dashboard chrome. Signed in still — a booking
+            belongs to an account so the payer can come back to it — just not buried. */}
+        {EVENTS_ENABLED && (
+          <Route element={<ConventionLayout />}>
+            <Route path="/convention/register" element={<NewRegistrationPage />} />
+            <Route path="/convention/registrations/:id" element={<RegistrationDetailPage />} />
+          </Route>
+        )}
+
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<OverviewPage />} />
           <Route element={<ApplicantRoute />}>
@@ -74,12 +83,11 @@ export default function AppRoutes() {
           {SCORING_ENABLED && <Route path="scoring" element={<ScoringQueuePage />} />}
           {FINALS_ENABLED && <Route path="finals" element={<FinalsQueuePage />} />}
 
-          {/* Convention registration. Open to any signed-in account — attending isn't
-              tied to a role — while the back-office list is Secretariat/Admin, matching
-              the backend's own policy. */}
+          {/* The convention landing stays in the dashboard — it's where a member finds the
+              thing. Booking and paying happen in their own shell (below): registering a
+              delegation is a task, not a dashboard page, and half the people doing it are
+              not members browsing a dashboard at all. */}
           {EVENTS_ENABLED && <Route path="convention" element={<ConventionPage />} />}
-          {EVENTS_ENABLED && <Route path="convention/register" element={<NewRegistrationPage />} />}
-          {EVENTS_ENABLED && <Route path="convention/registrations/:id" element={<RegistrationDetailPage />} />}
           {EVENTS_ENABLED && (
             <Route element={<RegistrationsAdminRoute />}>
               <Route path="admin/registrations" element={<AdminRegistrationsPage />} />

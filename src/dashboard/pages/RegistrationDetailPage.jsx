@@ -46,7 +46,7 @@ export default function RegistrationDetailPage() {
 
   // Poll only while there's something to wait for. `reload` is a stable useCallback
   // from useAsync, so depending on it directly doesn't restart the timer each render.
-  const shouldPoll = status === 'PendingPayment' && invoiceStatus === 'Pending'
+  const shouldPoll = (status === 'PendingPayment' || status === 'PartiallyPaid') && invoiceStatus === 'Pending'
 
   useEffect(() => {
     if (!shouldPoll) return
@@ -62,8 +62,8 @@ export default function RegistrationDetailPage() {
       const invoice = await api.post(
         `/registrations/${id}/checkout`,
         {
-          successRedirectUrl: `${origin}/dashboard/convention/registrations/${id}`,
-          failureRedirectUrl: `${origin}/dashboard/convention/registrations/${id}`,
+          successRedirectUrl: `${origin}/convention/registrations/${id}`,
+          failureRedirectUrl: `${origin}/convention/registrations/${id}`,
         },
         { auth: true },
       )
@@ -233,17 +233,15 @@ export default function RegistrationDetailPage() {
             )}
           </div>
 
-          {/* ---- Contact & billing ---- */}
+          {/* ---- Contact ---- */}
           <div className="dash-card dash-card-pad rd-card">
-            <h2 className="dash-card-title">Contact &amp; billing</h2>
+            <h2 className="dash-card-title">Contact</h2>
             <dl className="rd-dl">
               <div><dt>Contact</dt><dd>{reg.contact.name} — {reg.contact.designation}</dd></div>
+              {reg.contact.office && <div><dt>Office</dt><dd>{reg.contact.office}</dd></div>}
               <div><dt>Email</dt><dd>{reg.contact.email}</dd></div>
               <div><dt>Mobile</dt><dd>{reg.contact.mobile}{reg.contact.landline ? ` · ${reg.contact.landline}` : ''}</dd></div>
-              <div><dt>Payer</dt><dd>{reg.billing.billingName} ({reg.billing.payerType})</dd></div>
-              {reg.billing.tin && <div><dt>TIN</dt><dd>{reg.billing.tin}</dd></div>}
-              {reg.billing.purchaseOrderNo && <div><dt>PO / voucher</dt><dd>{reg.billing.purchaseOrderNo}</dd></div>}
-              <div><dt>Official receipt</dt><dd>{reg.billing.needsOfficialReceipt ? 'Required' : 'Not required'}</dd></div>
+              <div><dt>Billed to</dt><dd>{reg.billing.billingName}</dd></div>
             </dl>
             {reg.notes && <p className="rd-notes">{reg.notes}</p>}
           </div>
@@ -271,6 +269,18 @@ export default function RegistrationDetailPage() {
                   <td>Total</td>
                   <td className="rd-line-total">{formatPeso(reg.totalAmount)}</td>
                 </tr>
+                {reg.amountPaid > 0 && (
+                  <>
+                    <tr className="rd-paid">
+                      <td>Paid</td>
+                      <td className="rd-line-total">− {formatPeso(reg.amountPaid)}</td>
+                    </tr>
+                    <tr className="rd-balance">
+                      <td>Balance</td>
+                      <td className="rd-line-total">{formatPeso(reg.balance)}</td>
+                    </tr>
+                  </>
+                )}
               </tfoot>
             </table>
 
@@ -300,7 +310,14 @@ export default function RegistrationDetailPage() {
               <button className="dash-btn is-primary rd-pay-btn" onClick={pay} disabled={paying || activeDelegates.length === 0}>
                 {paying
                   ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Opening…</>
-                  : <><i className="fas fa-credit-card" aria-hidden="true" /> {reg.status === 'PendingPayment' ? 'Continue to payment' : 'Pay now'}</>}
+                  : (
+                    <>
+                      <i className="fas fa-credit-card" aria-hidden="true" />
+                      {reg.amountPaid > 0
+                        ? ` Pay the ${formatPeso(reg.balance)} balance`
+                        : reg.status === 'PendingPayment' ? ' Continue to payment' : ' Pay now'}
+                    </>
+                  )}
               </button>
             )}
 
@@ -341,6 +358,8 @@ export default function RegistrationDetailPage() {
 
       <style>{`
         .rd-status { align-self: flex-start; }
+        .rd-paid td { color: var(--gray-600); font-weight: 500; }
+        .rd-balance td { color: var(--navy); font-family: var(--font-heading); font-weight: 800; }
 
         .rd-banner-ok, .rd-banner-wait, .rd-banner-error {
           display: flex; align-items: center; gap: 10px; margin-bottom: 16px;

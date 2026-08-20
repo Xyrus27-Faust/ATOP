@@ -36,6 +36,7 @@ export const IN_PERSON_ONLY_FIELDS = ['dietaryRestrictions', 'shirtSize', 'acces
 export const REGISTRATION_STATUS = {
   Draft: { label: 'Draft', tone: 'neutral', icon: 'fa-pen-ruler' },
   PendingPayment: { label: 'Awaiting payment', tone: 'warn', icon: 'fa-hourglass-half' },
+  PartiallyPaid: { label: 'Reserved · balance due', tone: 'progress', icon: 'fa-hourglass-half' },
   Confirmed: { label: 'Confirmed', tone: 'success', icon: 'fa-circle-check' },
   Expired: { label: 'Expired', tone: 'neutral', icon: 'fa-clock-rotate-left' },
   Cancelled: { label: 'Cancelled', tone: 'danger', icon: 'fa-circle-xmark' },
@@ -53,7 +54,9 @@ export const isRegistrationEditable = (status) => status === 'Draft'
 
 // Statuses from which checkout may still be attempted. Expired is included on
 // purpose: the invoice lapsed, but the booking is still good and can be re-opened.
-export const canCheckout = (status) => status === 'Draft' || status === 'PendingPayment' || status === 'Expired'
+// PartiallyPaid too — that booking owes a balance, which is precisely a payment.
+export const canCheckout = (status) =>
+  status === 'Draft' || status === 'PendingPayment' || status === 'PartiallyPaid' || status === 'Expired'
 
 export const DELEGATE_STATUS = {
   Registered: { label: 'Registered', tone: 'info', icon: 'fa-user-check' },
@@ -115,19 +118,26 @@ export const PAYER_TYPES = [
 // a disbursement against a receipt without one. Mirrors BillingInfo.Validate().
 export const requiresTin = (payerType) => payerType === 'Lgu' || payerType === 'Organization'
 
+// ATOP's four classifications (2026-08-20). Every one of them pays the same rate;
+// the classification drives the badge and the reporting, not the price.
 export const PARTICIPANT_TYPES = [
+  { value: 'NationalBoard', label: 'National Board' },
   { value: 'Delegate', label: 'Delegate' },
-  { value: 'Speaker', label: 'Speaker' },
-  { value: 'Sponsor', label: 'Sponsor' },
-  { value: 'Media', label: 'Media' },
-  { value: 'Board', label: 'Board / Officer' },
   { value: 'Guest', label: 'Guest' },
-  { value: 'AwardsRepresentative', label: 'Pearl Awards representative' },
+  { value: 'Speaker', label: 'Speaker' },
 ]
 
 export const PARTICIPANT_TYPE_LABELS = Object.fromEntries(
   PARTICIPANT_TYPES.map((p) => [p.value, p.label]),
 )
+
+// ---- Paying -----------------------------------------------------------------
+
+/** ATOP's floor for a first payment: a quarter of the booking (2026-08-20). */
+export const MIN_DOWNPAYMENT_RATE = 0.25
+
+/** Rounded up to the centavo, exactly as the server computes it — so the two agree. */
+export const minimumDownpayment = (total) => Math.ceil(Number(total) * MIN_DOWNPAYMENT_RATE * 100) / 100
 
 // ---- Money ----------------------------------------------------------------
 

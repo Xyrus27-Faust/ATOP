@@ -67,7 +67,7 @@ export default function ConventionPage() {
           </p>
         </div>
         {window.open && (
-          <button className="dash-btn is-primary" onClick={() => navigate('/dashboard/convention/register')}>
+          <button className="dash-btn is-primary" onClick={() => navigate('/convention/register')}>
             <i className="fas fa-user-plus" aria-hidden="true" /> Register delegates
           </button>
         )}
@@ -136,7 +136,7 @@ export default function ConventionPage() {
             with those joining online, and pay for all of them at once.
           </p>
           {window.open && (
-            <button className="dash-btn is-primary" onClick={() => navigate('/dashboard/convention/register')}>
+            <button className="dash-btn is-primary" onClick={() => navigate('/convention/register')}>
               <i className="fas fa-user-plus" aria-hidden="true" /> Register delegates
             </button>
           )}
@@ -146,7 +146,7 @@ export default function ConventionPage() {
           {mine.map((r) => {
             const meta = registrationStatusMeta(r.status)
             return (
-              <Link key={r.id} to={`/dashboard/convention/registrations/${r.id}`} className="dash-card cv-row">
+              <Link key={r.id} to={`/convention/registrations/${r.id}`} className="dash-card cv-row">
                 <span className="cv-row-main">
                   <span className="cv-row-ref">{r.referenceCode}</span>
                   <span className="cv-row-meta">
