@@ -2,12 +2,14 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { DASH_CSS } from './DashboardLayout'
 
 /**
- * Focused, non-dashboard shell for the Pearl Awards submission flow (the create
- * wizard + the bidbook editor). A slim top bar replaces the dashboard sidebar so
- * composing an entry reads like filling out an application — not a page buried in
- * the member dashboard. The form controls within reuse the dash-* design system.
+ * Focused, non-dashboard shell. A slim top bar replaces the dashboard sidebar so a
+ * long form reads like filling out an application — not a page buried in the member
+ * dashboard. The controls within reuse the dash-* design system.
+ *
+ * Two flows wear it: composing a Pearl Awards entry, and registering for the
+ * convention. Hence the props — the shell is the shared part, the labels are not.
  */
-export default function SubmissionLayout() {
+export function FocusedLayout({ label, exitTo, exitLabel }) {
   const navigate = useNavigate()
 
   return (
@@ -16,10 +18,10 @@ export default function SubmissionLayout() {
         <button type="button" className="sub-brand" onClick={() => navigate('/dashboard')} aria-label="ATOP member home">
           <img src="/Untitled.png" alt="ATOP" />
         </button>
-        <span className="sub-bar-label">Pearl Awards — Entry</span>
+        <span className="sub-bar-label">{label}</span>
         <div className="sub-bar-spacer" />
-        <button type="button" className="sub-exit" onClick={() => navigate('/dashboard/entries')}>
-          <i className="fas fa-arrow-left" aria-hidden="true" /> Exit to My Entries
+        <button type="button" className="sub-exit" onClick={() => navigate(exitTo)}>
+          <i className="fas fa-arrow-left" aria-hidden="true" /> {exitLabel}
         </button>
       </header>
 
@@ -31,6 +33,15 @@ export default function SubmissionLayout() {
       <style>{SUB_CSS}</style>
     </div>
   )
+}
+
+export default function SubmissionLayout() {
+  return <FocusedLayout label="Pearl Awards — Entry" exitTo="/dashboard/entries" exitLabel="Exit to My Entries" />
+}
+
+/** The convention booking flow: registering delegates, and paying for them. */
+export function ConventionLayout() {
+  return <FocusedLayout label="2026 National Convention" exitTo="/dashboard/convention" exitLabel="Exit to Convention" />
 }
 
 const SUB_CSS = `

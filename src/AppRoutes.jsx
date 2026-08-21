@@ -6,8 +6,9 @@ import VerifyEmailPage from './components/auth/VerifyEmailPage'
 import ProtectedRoute from './auth/ProtectedRoute'
 import ApplicantRoute from './auth/ApplicantRoute'
 import AdminRoute from './auth/AdminRoute'
+import RegistrationsAdminRoute from './auth/RegistrationsAdminRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
-import SubmissionLayout from './dashboard/SubmissionLayout'
+import SubmissionLayout, { ConventionLayout } from './dashboard/SubmissionLayout'
 import OverviewPage from './dashboard/pages/OverviewPage'
 import EntriesListPage from './dashboard/pages/EntriesListPage'
 import NewEntryPage from './dashboard/pages/NewEntryPage'
@@ -26,7 +27,11 @@ import FinalsQueuePage from './dashboard/pages/FinalsQueuePage'
 import FinalsBracketPage from './dashboard/pages/FinalsBracketPage'
 import AdjudicatorAdminPage from './dashboard/pages/AdjudicatorAdminPage'
 import FinalsResultsPage from './dashboard/pages/FinalsResultsPage'
-import { SCORING_ENABLED, FINALS_ENABLED } from './dashboard/dashboardNav'
+import ConventionPage from './dashboard/pages/ConventionPage'
+import NewRegistrationPage from './dashboard/pages/NewRegistrationPage'
+import RegistrationDetailPage from './dashboard/pages/RegistrationDetailPage'
+import AdminRegistrationsPage from './dashboard/pages/AdminRegistrationsPage'
+import { SCORING_ENABLED, FINALS_ENABLED, EVENTS_ENABLED } from './dashboard/dashboardNav'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -58,6 +63,17 @@ export default function AppRoutes() {
           </Route>
         </Route>
 
+        {/* Convention booking, outside the dashboard chrome. Signed in still — a booking
+            belongs to an account so the payer can come back to it — just not buried. */}
+        {EVENTS_ENABLED && (
+          <Route element={<ConventionLayout />}>
+            <Route path="/convention/register" element={<NewRegistrationPage />} />
+            {/* Same wizard, resuming a saved draft. */}
+            <Route path="/convention/register/:id" element={<NewRegistrationPage />} />
+            <Route path="/convention/registrations/:id" element={<RegistrationDetailPage />} />
+          </Route>
+        )}
+
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<OverviewPage />} />
           <Route element={<ApplicantRoute />}>
@@ -68,6 +84,17 @@ export default function AppRoutes() {
           <Route path="review/:id" element={<ReviewEntryPage />} />
           {SCORING_ENABLED && <Route path="scoring" element={<ScoringQueuePage />} />}
           {FINALS_ENABLED && <Route path="finals" element={<FinalsQueuePage />} />}
+
+          {/* The convention landing stays in the dashboard — it's where a member finds the
+              thing. Booking and paying happen in their own shell (below): registering a
+              delegation is a task, not a dashboard page, and half the people doing it are
+              not members browsing a dashboard at all. */}
+          {EVENTS_ENABLED && <Route path="convention" element={<ConventionPage />} />}
+          {EVENTS_ENABLED && (
+            <Route element={<RegistrationsAdminRoute />}>
+              <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
+            </Route>
+          )}
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
             {SCORING_ENABLED && <Route path="admin/assessors" element={<AssessorAdminPage />} />}

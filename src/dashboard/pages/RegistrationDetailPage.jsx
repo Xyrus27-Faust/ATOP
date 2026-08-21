@@ -1,0 +1,727 @@
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { api, ApiError } from '@/lib/apiClient'
+import { useAsync } from '../useAsync'
+import { Loading, ErrorState } from '../components/states'
+import { Field, ctl } from '../components/form'
+import Modal from '../components/Modal'
+import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
+import { validateEmail } from '@/lib/validation'
+import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
+import {
+  formatPeso,
+  modeMeta,
+  registrationStatusMeta,
+  delegateStatusMeta,
+  invoiceStatusMeta,
+  canCheckout,
+  isRegistrationEditable,
+  summariseByRate,
+  PARTICIPANT_TYPE_LABELS,
+  MIN_DOWNPAYMENT_RATE,
+} from '@/lib/events'
+
+// While an invoice is open we re-check the registration on a timer. The gateway
+// confirms by webhook, not by the browser redirect — so coming back from the
+// payment page proves nothing, and the only honest thing the UI can do is wait
+// for the server to say it settled.
+const POLL_MS = 5000
+
+export default function RegistrationDetailPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+
+  const { loading, error, data, reload } = useAsync(
+    () => api.get(`/registrations/${id}`, { auth: true }),
+    [id],
+  )
+
+  const [paying, setPaying] = useState(false)
+  const [actionError, setActionError] = useState(null)
+  const [substituting, setSubstituting] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [removingId, setRemovingId] = useState(null)
+  // Paying here offers what the form offered: all of it, or a downpayment. Without this the
+  // button silently meant "pay everything", which is not a choice anyone made.
+  const [payChoice, setPayChoice] = useState('full')
+  const [partAmount, setPartAmount] = useState('')
+  const [amountError, setAmountError] = useState(null)
+
+  const status = data?.status
+  const invoiceStatus = data?.invoice?.status
+
+  // Poll only while there's something to wait for. `reload` is a stable useCallback
+  // from useAsync, so depending on it directly doesn't restart the timer each render.
+  const shouldPoll = invoiceStatus === 'Pending' && data?.balance > 0
+
+  useEffect(() => {
+    if (!shouldPoll) return
+    const timer = setInterval(reload, POLL_MS)
+    return () => clearInterval(timer)
+  }, [shouldPoll, reload])
+
+  const pay = useCallback(async (amount) => {
+    setPaying(true)
+    setActionError(null)
+    try {
+      const origin = globalThis.location?.origin ?? ''
+      const invoice = await api.post(
+        `/registrations/${id}/checkout`,
+        {
+          amount: amount ?? null,
+          successRedirectUrl: `${origin}/convention/registrations/${id}`,
+          failureRedirectUrl: `${origin}/convention/registrations/${id}`,
+        },
+        { auth: true },
+      )
+      if (invoice.checkoutUrl) {
+        globalThis.location.assign(invoice.checkoutUrl)
+      } else {
+        reload()
+      }
+    } catch (err) {
+      setActionError(err)
+      setPaying(false)
+    }
+  }, [id, reload])
+
+  if (loading) return <Loading />
+  if (error) return <ErrorState error={error} onRetry={reload} />
+
+  const reg = data
+  const meta = registrationStatusMeta(reg.status)
+  const editable = isRegistrationEditable(reg.status)
+  const rateLines = summariseByRate(reg.delegates)
+  const activeDelegates = reg.delegates.filter((d) => d.status !== 'Cancelled')
+
+  // Mirrors the server rule: a booking is settled in one go, or by a downpayment and then the
+  // rest. So a part-payment is only on the table before anything has been paid, and only while a
+  // quarter of the total still fits inside what is owed.
+  const canPayInPart = reg.amountPaid === 0 && reg.balance > reg.minimumDownpayment
+
+  function startPayment() {
+    if (!canPayInPart || payChoice === 'full') return pay(null)
+
+    const amount = Number(partAmount)
+    if (!partAmount.trim() || Number.isNaN(amount)) return setAmountError('Enter how much you are paying now.')
+    if (amount < reg.minimumDownpayment) return setAmountError(`That is below the ${formatPeso(reg.minimumDownpayment)} minimum.`)
+    if (amount > reg.balance) return setAmountError(`That is more than the ${formatPeso(reg.balance)} outstanding.`)
+    return pay(amount)
+  }
+
+  return (
+    <>
+      <div className="dash-page-head">
+        <div>
+          <span className="dash-eyebrow">Convention registration</span>
+          <h1 className="dash-h1">{reg.referenceCode}</h1>
+          <p className="dash-sub">
+            {reg.lguName || reg.organizationName || reg.contact.name}
+            {/* The API stores the region enum's name; show the human label. */}
+            {reg.lguRegion && ` · ${labelFor(REGIONS, reg.lguRegion)}`}
+          </p>
+        </div>
+        {reg.balance > 0 && reg.amountPaid > 0 && (
+          <span className="dash-badge tone-warn rd-status">
+            <i className="fas fa-hourglass-half" aria-hidden="true" /> {formatPeso(reg.balance)} balance due
+          </span>
+        )}
+        <span className={`dash-badge tone-${meta.tone} rd-status`}>
+          <i className={`fas ${meta.icon}`} aria-hidden="true" /> {meta.label}
+        </span>
+      </div>
+
+      {reg.status === 'Confirmed' && (
+        <div className="dash-banner rd-banner-ok">
+          <i className="fas fa-circle-check" aria-hidden="true" />
+          <span>
+            {reg.isComplimentary
+              ? <>Issued complimentary by the Secretariat{reg.compReason ? ` — ${reg.compReason}` : ''}.</>
+              : <>Confirmed on {formatDate(reg.confirmedAt)}. Each delegate’s reference code below is their check-in code.</>}
+          </span>
+        </div>
+      )}
+
+      {shouldPoll && (
+        <div className="dash-banner rd-banner-wait">
+          <i className="fas fa-spinner fa-spin" aria-hidden="true" />
+          <span>
+            Waiting for payment confirmation. This updates by itself once the gateway confirms —
+            you can safely close this page and come back.
+          </span>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="dash-banner rd-banner-error">
+          <i className="fas fa-circle-exclamation" aria-hidden="true" />
+          <span>{actionError.message}</span>
+        </div>
+      )}
+
+      <div className="rd-grid">
+        <div>
+          {/* ---- Delegates ---- */}
+          <div className="dash-card dash-card-pad rd-card">
+            <h2 className="dash-card-title">
+              Delegates
+              <span className="rd-count">
+                {reg.inPersonCount > 0 && `${reg.inPersonCount} in person`}
+                {reg.inPersonCount > 0 && reg.virtualCount > 0 && ' · '}
+                {reg.virtualCount > 0 && `${reg.virtualCount} online`}
+              </span>
+            </h2>
+
+            <div className="rd-delegates">
+              {reg.delegates.map((d) => {
+                const dm = modeMeta(d.attendanceMode)
+                const ds = delegateStatusMeta(d.status)
+                const cancelled = d.status === 'Cancelled'
+                return (
+                  <div key={d.id} className={`rd-del${cancelled ? ' is-cancelled' : ''}`}>
+                    <div className="rd-del-main">
+                      <div className="rd-del-name">
+                        {d.fullName}
+                        {d.substitutedFromName && (
+                          <span className="rd-del-sub" title={`Replaced ${d.substitutedFromName}`}>
+                            <i className="fas fa-right-left" aria-hidden="true" /> replaced {d.substitutedFromName}
+                          </span>
+                        )}
+                      </div>
+                      <div className="rd-del-meta">
+                        {d.designation}
+                        {d.participantType !== 'Delegate' && ` · ${PARTICIPANT_TYPE_LABELS[d.participantType] || d.participantType}`}
+                      </div>
+                      <div className="rd-del-contact">{d.email} · {d.mobile}</div>
+                    </div>
+
+                    <div className="rd-del-side">
+                      <span className={`dash-badge tone-${dm.tone}`}>
+                        <i className={`fas ${dm.icon}`} aria-hidden="true" /> {dm.label}
+                      </span>
+                      <span className="rd-del-amount">{formatPeso(d.amount)}</span>
+                      {reg.status === 'Confirmed' && !cancelled && (
+                        <code className="rd-del-code" title="Check-in / access code">{d.referenceCode}</code>
+                      )}
+                      {d.status !== 'Registered' && (
+                        <span className={`dash-badge tone-${ds.tone}`}>
+                          <i className={`fas ${ds.icon}`} aria-hidden="true" /> {ds.label}
+                        </span>
+                      )}
+                      {/* Substitution stays available after payment — LGUs swap people
+                          days out, and the seat is already paid for. */}
+                      {!cancelled && d.status !== 'CheckedIn' && (
+                        <button type="button" className="rd-del-swap" onClick={() => setSubstituting(d)}>
+                          <i className="fas fa-right-left" aria-hidden="true" /> Substitute
+                        </button>
+                      )}
+                      {/* Removal only while the booking is unpaid; afterwards the seat is
+                          paid for and substitution is the right move instead. */}
+                      {editable && !cancelled && activeDelegates.length > 1 && (
+                        <button
+                          type="button"
+                          className="rd-del-remove"
+                          disabled={removingId === d.id}
+                          onClick={async () => {
+                            setActionError(null)
+                            setRemovingId(d.id)
+                            try {
+                              await api.delete(`/registrations/${reg.id}/delegates/${d.id}`, { auth: true })
+                              reload()
+                            } catch (err) {
+                              setActionError(err)
+                            } finally {
+                              setRemovingId(null)
+                            }
+                          }}
+                        >
+                          <i className="fas fa-trash-can" aria-hidden="true" /> Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {editable && (
+              <div className="rd-editable">
+                <button type="button" className="dash-btn" onClick={() => setAdding(true)}>
+                  <i className="fas fa-plus" aria-hidden="true" /> Add delegate
+                </button>
+                <span className="dash-help">You can add or remove delegates until you pay.</span>
+              </div>
+            )}
+            {!editable && reg.status !== 'Cancelled' && (
+              <p className="dash-help rd-editable-note">
+                The delegate list is fixed now that this booking has gone to payment. You can still
+                substitute who fills a seat.
+              </p>
+            )}
+          </div>
+
+          {/* ---- Contact ---- */}
+          <div className="dash-card dash-card-pad rd-card">
+            <h2 className="dash-card-title">Contact</h2>
+            <dl className="rd-dl">
+              <div><dt>Contact</dt><dd>{reg.contact.name} — {reg.contact.designation}</dd></div>
+              {reg.contact.office && <div><dt>Office</dt><dd>{reg.contact.office}</dd></div>}
+              <div><dt>Email</dt><dd>{reg.contact.email}</dd></div>
+              <div><dt>Mobile</dt><dd>{reg.contact.mobile}{reg.contact.landline ? ` · ${reg.contact.landline}` : ''}</dd></div>
+              <div><dt>Billed to</dt><dd>{reg.billing.billingName}</dd></div>
+            </dl>
+            {reg.notes && <p className="rd-notes">{reg.notes}</p>}
+          </div>
+        </div>
+
+        {/* ---- Payment summary ---- */}
+        <aside>
+          <div className="dash-card dash-card-pad rd-pay">
+            <h2 className="dash-card-title">Payment</h2>
+
+            <table className="rd-lines">
+              <tbody>
+                {rateLines.map((line) => (
+                  <tr key={line.rateCode}>
+                    <td>
+                      <span className="rd-line-mode">{modeMeta(line.attendanceMode).label}</span>
+                      <span className="rd-line-qty">{formatPeso(line.unitAmount)} × {line.quantity}</span>
+                    </td>
+                    <td className="rd-line-total">{formatPeso(line.lineTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td className="rd-line-total">{formatPeso(reg.totalAmount)}</td>
+                </tr>
+                {reg.amountPaid > 0 && (
+                  <>
+                    <tr className="rd-paid">
+                      <td>Paid</td>
+                      <td className="rd-line-total">− {formatPeso(reg.amountPaid)}</td>
+                    </tr>
+                    <tr className="rd-balance">
+                      <td>Balance</td>
+                      <td className="rd-line-total">{formatPeso(reg.balance)}</td>
+                    </tr>
+                  </>
+                )}
+              </tfoot>
+            </table>
+
+            <p className="rd-inclusive">All amounts are inclusive of fees — nothing is added at checkout.</p>
+
+            {reg.invoice && (
+              <dl className="rd-invoice">
+                <div>
+                  <dt>Invoice</dt>
+                  <dd>
+                    {reg.invoice.referenceCode}
+                    {' '}
+                    <span className={`dash-badge tone-${invoiceStatusMeta(reg.invoice.status).tone}`}>
+                      {invoiceStatusMeta(reg.invoice.status).label}
+                    </span>
+                  </dd>
+                </div>
+                {reg.invoice.paidAt && <div><dt>Paid</dt><dd>{formatDate(reg.invoice.paidAt, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</dd></div>}
+                {reg.invoice.receiptNo && <div><dt>Receipt no.</dt><dd>{reg.invoice.receiptNo}</dd></div>}
+                {reg.invoice.dueAt && reg.invoice.status === 'Pending' && (
+                  <div><dt>Pay before</dt><dd>{formatDate(reg.invoice.dueAt, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</dd></div>
+                )}
+              </dl>
+            )}
+
+            {reg.status === 'Draft' && (
+              <button
+                className="dash-btn rd-pay-btn"
+                onClick={() => navigate(`/convention/register/${reg.id}`)}
+              >
+                <i className="fas fa-pen-to-square" aria-hidden="true" /> Continue registration
+              </button>
+            )}
+
+            {canCheckout(reg.status, reg.balance) && (
+              <>
+                {/* A part-payment is only on the table while a quarter of the total still fits
+                    inside what is owed — below that, the balance is the only thing left to pay. */}
+                {canPayInPart && (
+                  <div className="rd-pay-opts">
+                    <button
+                      type="button"
+                      className={`rd-pay-opt${payChoice === 'full' ? ' is-active' : ''}`}
+                      onClick={() => { setPayChoice('full'); setAmountError(null) }}
+                    >
+                      <span className="rd-pay-opt-top">
+                        {reg.amountPaid > 0 ? 'Pay the balance' : 'Pay in full'}
+                      </span>
+                      <span className="rd-pay-opt-amount">{formatPeso(reg.balance)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`rd-pay-opt${payChoice === 'part' ? ' is-active' : ''}`}
+                      onClick={() => setPayChoice('part')}
+                    >
+                      <span className="rd-pay-opt-top">Pay part of it</span>
+                      <span className="rd-pay-opt-amount">from {formatPeso(reg.minimumDownpayment)}</span>
+                    </button>
+                  </div>
+                )}
+
+                {canPayInPart && payChoice === 'part' && (
+                  <Field
+                    label="Amount to pay now"
+                    htmlFor="rdAmount"
+                    required
+                    error={amountError}
+                    hint={`At least ${formatPeso(reg.minimumDownpayment)} — ${Math.round(MIN_DOWNPAYMENT_RATE * 100)}% of the ${formatPeso(reg.totalAmount)} total.`}
+                  >
+                    <input
+                      id="rdAmount"
+                      type="number"
+                      inputMode="decimal"
+                      min={reg.minimumDownpayment}
+                      max={reg.balance}
+                      step="0.01"
+                      className={ctl('dash-input', amountError)}
+                      value={partAmount}
+                      onChange={(e) => { setPartAmount(e.target.value); setAmountError(null) }}
+                    />
+                  </Field>
+                )}
+
+                {reg.amountPaid > 0 && (
+                  <p className="rd-inclusive rd-balance-note">
+                    Your delegates are confirmed. This payment settles the remaining balance in full.
+                  </p>
+                )}
+
+                <button
+                  className="dash-btn is-primary rd-pay-btn"
+                  onClick={startPayment}
+                  disabled={paying || activeDelegates.length === 0}
+                >
+                  {paying
+                    ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Opening…</>
+                    : (
+                      <>
+                        <i className="fas fa-credit-card" aria-hidden="true" />
+                        {` Pay ${formatPeso(payChoice === 'part' && canPayInPart
+                          ? (Number(partAmount) || reg.minimumDownpayment)
+                          : reg.balance)}`}
+                      </>
+                    )}
+                </button>
+              </>
+            )}
+
+            {editable && (
+              <button
+                className="dash-btn rd-cancel"
+                onClick={async () => {
+                  setActionError(null)
+                  try {
+                    await api.post(`/registrations/${reg.id}/cancel`, undefined, { auth: true })
+                    navigate('/dashboard/convention')
+                  } catch (err) { setActionError(err) }
+                }}
+              >
+                Cancel this registration
+              </button>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {substituting && (
+        <SubstituteModal
+          delegate={substituting}
+          registrationId={reg.id}
+          onClose={() => setSubstituting(null)}
+          onDone={() => { setSubstituting(null); reload() }}
+        />
+      )}
+
+      {adding && (
+        <AddDelegateModal
+          registrationId={reg.id}
+          onClose={() => setAdding(false)}
+          onDone={() => { setAdding(false); reload() }}
+        />
+      )}
+
+      <style>{`
+        .rd-status { align-self: flex-start; }
+        .rd-pay-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 12px; }
+        .rd-pay-opt {
+          display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer;
+          padding: 10px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+          background: var(--white); transition: var(--transition-fast);
+        }
+        .rd-pay-opt:hover { border-color: var(--gold); }
+        .rd-pay-opt.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); background: var(--off-white); }
+        .rd-pay-opt-top { font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--gray-600); }
+        .rd-pay-opt-amount { font-family: var(--font-heading); font-size: 1rem; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+        .rd-balance-note { margin-top: 10px; }
+        .rd-paid td { color: var(--gray-600); font-weight: 500; }
+        .rd-balance td { color: var(--navy); font-family: var(--font-heading); font-weight: 800; }
+
+        .rd-banner-ok, .rd-banner-wait, .rd-banner-error {
+          display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+          padding: 12px 16px; border-radius: 10px; font-size: 0.86rem;
+        }
+        .rd-banner-ok { background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; }
+        .rd-banner-wait { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+        .rd-banner-error { background: #FEF2F2; border: 1px solid #FECACA; color: #B91C1C; }
+
+        .rd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+        .rd-card { margin-bottom: 16px; }
+        .rd-count { float: right; font-size: 0.78rem; font-weight: 600; color: var(--gray-600); }
+
+        .rd-delegates { display: flex; flex-direction: column; }
+        .rd-del { display: flex; gap: 16px; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--gray-200); }
+        .rd-del:last-child { border-bottom: none; }
+        .rd-del.is-cancelled { opacity: 0.5; }
+        .rd-del.is-cancelled .rd-del-name { text-decoration: line-through; }
+        .rd-del-main { min-width: 0; }
+        .rd-del-name { font-family: var(--font-heading); font-weight: 800; color: var(--navy); }
+        .rd-del-sub { margin-left: 8px; font-family: var(--font-body, inherit); font-size: 0.72rem; font-weight: 600; color: var(--gray-500, #6B7280); }
+        .rd-del-meta { font-size: 0.82rem; color: var(--gray-600); margin-top: 2px; }
+        .rd-del-contact { font-size: 0.76rem; color: var(--gray-500, #6B7280); margin-top: 2px; }
+        .rd-del-side { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+        .rd-del-amount { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 0.9rem; }
+        .rd-del-code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem;
+          padding: 3px 8px; border-radius: 6px; background: var(--gray-100, #F3F4F6);
+          border: 1px solid var(--gray-200); color: var(--navy); letter-spacing: 0.04em;
+        }
+        .rd-del-swap {
+          border: none; background: none; cursor: pointer; color: var(--gray-600);
+          font-size: 0.76rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
+        }
+        .rd-del-swap:hover { background: var(--gray-100, #F3F4F6); color: var(--navy); }
+        .rd-del-remove {
+          border: none; background: none; cursor: pointer; color: #B91C1C;
+          font-size: 0.76rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
+        }
+        .rd-del-remove:hover:not(:disabled) { background: #FEF2F2; }
+        .rd-del-remove:disabled { opacity: 0.5; cursor: default; }
+        .rd-editable { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+        .rd-editable-note { margin-top: 12px; }
+
+        .rd-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; margin: 0; }
+        .rd-dl dt { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500, #6B7280); font-weight: 700; }
+        .rd-dl dd { margin: 2px 0 0; font-size: 0.86rem; color: var(--navy); }
+        .rd-notes { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--gray-200); font-size: 0.84rem; color: var(--gray-600); }
+
+        .rd-pay { position: sticky; top: 18px; }
+        .rd-lines { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .rd-lines td { padding: 8px 0; vertical-align: top; }
+        .rd-lines tbody tr { border-bottom: 1px solid var(--gray-200); }
+        .rd-line-mode { display: block; font-weight: 700; color: var(--navy); }
+        .rd-line-qty { display: block; font-size: 0.76rem; color: var(--gray-600); }
+        .rd-line-total { text-align: right; font-family: var(--font-heading); font-weight: 800; color: var(--navy); white-space: nowrap; }
+        .rd-lines tfoot td { padding-top: 12px; font-family: var(--font-heading); font-weight: 800; color: var(--navy); }
+        .rd-inclusive { font-size: 0.72rem; color: var(--gray-500, #6B7280); font-style: italic; margin: 8px 0 0; }
+
+        .rd-invoice { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--gray-200); display: grid; gap: 10px; }
+        .rd-invoice dt { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500, #6B7280); font-weight: 700; }
+        .rd-invoice dd { margin: 2px 0 0; font-size: 0.82rem; color: var(--navy); }
+
+        .rd-pay-btn { width: 100%; justify-content: center; margin-top: 16px; }
+        .rd-cancel { width: 100%; justify-content: center; margin-top: 8px; color: #B91C1C; }
+
+        @media (max-width: 900px) {
+          .rd-grid { grid-template-columns: 1fr; }
+          .rd-pay { position: static; }
+        }
+        @media (max-width: 640px) {
+          .rd-del { flex-direction: column; }
+          .rd-del-side { justify-content: flex-start; }
+        }
+      `}</style>
+    </>
+  )
+}
+
+/**
+ * Add a delegate to an existing unpaid booking. Uses the same field set as the booking
+ * form, so the required fields and the RA 10173 consent wording can't drift apart.
+ *
+ * Fetches the event for its rates — the detail response carries each delegate's rate
+ * *code*, but not the catalogue you'd pick a new one from.
+ */
+function AddDelegateModal({ registrationId, onClose, onDone }) {
+  const [value, setValue] = useState(emptyDelegate)
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+  const { loading, error, data } = useAsync(() => api.get('/events/'), [])
+
+  const rates = data?.[0]?.rates ?? []
+
+  const onChange = (field, v) => {
+    setValue((prev) => ({ ...prev, [field]: v }))
+    setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
+  async function save() {
+    const e = validateDelegate(value, '', validateEmail)
+    setErrors(e)
+    if (Object.keys(e).length > 0) return
+
+    setSaving(true)
+    try {
+      await api.post(`/registrations/${registrationId}/delegates`, toDelegatePayload(value), { auth: true })
+      onDone()
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors) {
+        setErrors(Object.fromEntries(
+          Object.entries(err.fieldErrors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)]),
+        ))
+      } else {
+        setErrors({ rateCode: err.message })
+      }
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title="Add a delegate" onClose={onClose}>
+      <div className="rd-add-form">
+        {loading && <p className="dash-help">Loading registration types…</p>}
+        {error && <p className="dash-error">Couldn’t load the registration types.</p>}
+
+        {!loading && !error && (
+          <DelegateFields
+            value={value}
+            rates={rates}
+            errors={errors}
+            idPrefix="add"
+            onChange={onChange}
+          />
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+          <button type="button" className="dash-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="dash-btn is-primary" onClick={save} disabled={saving || loading}>
+            {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Adding…</> : 'Add delegate'}
+          </button>
+        </div>
+      </div>
+
+      {/* The dialog is far narrower than the booking card, so the shared two- and
+          four-column rows would be unusable at this width.
+
+          The modal centres itself with no max-height, so this full field set is taller
+          than the viewport and pushes its own title and buttons off-screen. Scroll the
+          body rather than the page, so the header stays put and Add stays reachable. */}
+      <style>{`
+        .rd-add-form .dash-form-row { grid-template-columns: 1fr; gap: 18px; }
+        .rd-add-form { max-height: min(68vh, 620px); overflow-y: auto; padding-right: 4px; }
+      `}</style>
+    </Modal>
+  )
+}
+
+/**
+ * Replace a delegate in place. The reference code, attendance mode, and amount
+ * all stay with the seat — only the person changes.
+ */
+function SubstituteModal({ delegate, registrationId, onClose, onDone }) {
+  const [form, setForm] = useState({
+    firstName: '', middleName: '', lastName: '', suffix: '',
+    designation: delegate.designation || '',
+    officeDepartment: delegate.officeDepartment || '', email: '', mobile: '',
+  })
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((p) => ({ ...p, [k]: undefined })) }
+
+  async function save() {
+    const e = {}
+    if (!form.firstName.trim()) e.firstName = 'First name is required.'
+    if (!form.lastName.trim()) e.lastName = 'Last name is required.'
+    if (!form.designation.trim()) e.designation = 'Designation is required.'
+    const emailErr = validateEmail(form.email)
+    if (emailErr) e.email = emailErr
+    if (!form.mobile.trim()) e.mobile = 'Mobile number is required.'
+    setErrors(e)
+    if (Object.keys(e).length > 0) return
+
+    setSaving(true)
+    try {
+      await api.put(
+        `/registrations/${registrationId}/delegates/${delegate.id}`,
+        {
+          firstName: form.firstName.trim(),
+          middleName: form.middleName.trim() || null,
+          lastName: form.lastName.trim(),
+          suffix: form.suffix.trim() || null,
+          designation: form.designation.trim(),
+          officeDepartment: form.officeDepartment.trim() || null,
+          email: form.email.trim(),
+          mobile: form.mobile.trim(),
+        },
+        { auth: true },
+      )
+      onDone()
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors) {
+        setErrors(Object.fromEntries(
+          Object.entries(err.fieldErrors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)]),
+        ))
+      } else {
+        setErrors({ firstName: err.message })
+      }
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title={`Substitute ${delegate.fullName}`} onClose={onClose}>
+      <div className="rd-sub-form">
+      <p className="dash-help" style={{ marginBottom: 16 }}>
+        The seat, its amount, and the reference code <code>{delegate.referenceCode}</code> stay as they
+        are — only the person attending changes.
+      </p>
+
+      <div className="dash-form-row">
+        <Field label="First name" htmlFor="sFirst" required error={errors.firstName}>
+          <input id="sFirst" className={ctl('dash-input', errors.firstName)} value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
+        </Field>
+        <Field label="Last name" htmlFor="sLast" required error={errors.lastName}>
+          <input id="sLast" className={ctl('dash-input', errors.lastName)} value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
+        </Field>
+      </div>
+      <Field label="Designation" htmlFor="sDesig" required error={errors.designation}>
+        <input id="sDesig" className={ctl('dash-input', errors.designation)} value={form.designation} onChange={(e) => set('designation', e.target.value)} />
+      </Field>
+      <div className="dash-form-row">
+        <Field label="Email" htmlFor="sEmail" required error={errors.email}>
+          <input id="sEmail" type="email" className={ctl('dash-input', errors.email)} value={form.email} onChange={(e) => set('email', e.target.value)} />
+        </Field>
+        <Field label="Mobile" htmlFor="sMobile" required error={errors.mobile}>
+          <input id="sMobile" className={ctl('dash-input', errors.mobile)} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
+        </Field>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+        <button type="button" className="dash-btn" onClick={onClose}>Cancel</button>
+        <button type="button" className="dash-btn is-primary" onClick={save} disabled={saving}>
+          {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : 'Substitute'}
+        </button>
+      </div>
+      </div>
+
+      {/* Same vertical rhythm as the booking form — the shared field primitives carry no
+          outer margin, so stacked controls would otherwise sit flush. */}
+      <style>{`
+        .rd-sub-form .dash-field, .rd-sub-form .dash-form-row { margin-bottom: 18px; }
+        .rd-sub-form .dash-form-row .dash-field { margin-bottom: 0; }
+      `}</style>
+    </Modal>
+  )
+}

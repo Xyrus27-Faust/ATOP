@@ -43,6 +43,13 @@ export const isPureReviewer = (roles = []) => isReviewer(roles) && !roles.includ
 
 export const isAdmin = (roles = []) => roles.includes('Admin')
 
+// Who may work the convention registration list. Mirrors the backend's
+// /admin/events/{id}/registrations policy — Secretariat or Admin. Deliberately
+// narrower than REVIEWER_ROLES: a Validator reviews entries, not bookings.
+export const REGISTRATION_ADMIN_ROLES = ['Admin', 'Secretariat']
+export const canManageRegistrations = (roles = []) =>
+  roles.some((r) => REGISTRATION_ADMIN_ROLES.includes(r))
+
 // Highest-privilege role wins for the badge shown in the shell.
 const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'Applicant']
 
@@ -77,6 +84,9 @@ const FINALS = { to: '/dashboard/finals', label: 'Finals', icon: 'fa-gavel' }
 const ADJUDICATORS = { to: '/dashboard/admin/adjudicators', label: 'Adjudicators', icon: 'fa-user-tie' }
 const WINNERS = { to: '/dashboard/admin/finals', label: 'Finals Results', icon: 'fa-trophy' }
 const ACCESS = { to: '/dashboard/admin/access', label: 'Manage Validators', icon: 'fa-user-shield' }
+// Convention registration (M6): the delegate's own booking, and the secretariat's list of them.
+const CONVENTION = { to: '/dashboard/convention', label: 'Convention', icon: 'fa-calendar-days' }
+const REGISTRATIONS = { to: '/dashboard/admin/registrations', label: 'Registrations', icon: 'fa-ticket' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -90,6 +100,10 @@ const PROFILE = { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge
 export const SCORING_ENABLED = import.meta.env.VITE_FEATURE_SCORING !== 'false'
 // Finals adjudication (M4b) is gated the same way, so it can ship dark ahead of the finals round.
 export const FINALS_ENABLED = import.meta.env.VITE_FEATURE_FINALS !== 'false'
+// Convention registration + payment (M6). Gated the same way so it can ship dark until ATOP
+// confirms the convention dates and the Xendit production keys are in place — until then the
+// seeded event stays Draft and there is nothing safe to show a delegate.
+export const EVENTS_ENABLED = import.meta.env.VITE_FEATURE_EVENTS !== 'false'
 
 export function navForRoles(roles = []) {
   const reviewer = isReviewer(roles)
@@ -101,6 +115,9 @@ export function navForRoles(roles = []) {
 
   const groups = []
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
+  // Anyone with an account may register for the convention — attending isn't tied to a role,
+  // so this sits in its own section rather than under any one of them.
+  if (EVENTS_ENABLED) groups.push({ label: 'Convention', items: [CONVENTION] })
   if (reviewer) groups.push({ label: 'Review', items: [SUMMARY, admin ? SUBMISSIONS : REVIEW] })
   // The assessor's own queue. Admins score too — the endpoints accept Admin and the page gates on
   // isAssessor — but the link was 3PIC-only, so an admin's only way in was typing the URL.
@@ -111,7 +128,11 @@ export function navForRoles(roles = []) {
     const adminItems = [ACCESS]
     if (SCORING_ENABLED) adminItems.push(ASSESSORS, RESULTS)
     if (FINALS_ENABLED) adminItems.push(ADJUDICATORS, WINNERS)
+    if (EVENTS_ENABLED) adminItems.push(REGISTRATIONS)
     groups.push({ label: 'Administration', items: adminItems })
+  } else if (EVENTS_ENABLED && canManageRegistrations(roles)) {
+    // A Secretariat without the Admin role still works the registration list.
+    groups.push({ label: 'Administration', items: [REGISTRATIONS] })
   }
   groups.push({ label: null, items: [AWARDS, PROFILE] })
   return groups
