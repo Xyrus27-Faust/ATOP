@@ -17,6 +17,38 @@ ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO}"
 PROD_API="https://api.tourismofficersph.com"
 STAGING_API="https://api.staging.tourismofficersph.com"
 
+# --- prod ships from main, and only from main -------------------------------
+# The branch is the whole point of having a staging line: work lands on staging, gets looked at on
+# the staging environment, and reaches prod by being merged into main. A prod image built from
+# anywhere else quietly skips that. Overridable by DEPLOY_FROM_ANY_BRANCH=1 — typed on the command
+# line, greppable in shell history, and impossible to reach by forgetting which branch you are on.
+require_main_branch() {
+  local branch behind
+  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+
+  if [[ "${DEPLOY_FROM_ANY_BRANCH:-0}" == "1" ]]; then
+    echo "!! DEPLOY_FROM_ANY_BRANCH=1 — building a PROD image from '${branch}'." >&2
+    return 0
+  fi
+
+  if [[ "$branch" != "main" ]]; then
+    echo "REFUSING: a prod image is built from main, not '${branch}'." >&2
+    echo "          Merge staging into main first (that is what promoting means)," >&2
+    echo "          or re-run with DEPLOY_FROM_ANY_BRANCH=1 if you mean to bypass it." >&2
+    exit 1
+  fi
+
+  # Behind the remote means someone else has promoted something this build would silently drop.
+  git fetch --quiet origin main 2>/dev/null || true
+  if git rev-parse --verify --quiet origin/main >/dev/null; then
+    behind="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
+    if [[ "$behind" != "0" ]]; then
+      echo "REFUSING: main is ${behind} commit(s) behind origin/main. Pull first." >&2
+      exit 1
+    fi
+  fi
+}
+
 MODE="staging"
 if [[ "${1:-}" == "--prod" ]]; then MODE="prod"; shift; fi
 
@@ -42,6 +74,8 @@ VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-857948069033-p09evikg3rk754l0hj4
 # by PUBLISH_LIVE_FEATURES=1, typed on the command line. Deliberate, greppable in shell history, and
 # impossible to reach by forgetting a flag, which is the failure this guard exists to prevent.
 if [[ "$VITE_API_BASE_URL" == "$PROD_API" ]]; then
+  require_main_branch
+
   if [[ "${PUBLISH_LIVE_FEATURES:-0}" == "1" ]]; then
     echo "!! PUBLISH_LIVE_FEATURES=1 — prod bundle with scoring=${VITE_FEATURE_SCORING} finals=${VITE_FEATURE_FINALS}" >&2
     echo "!! Any slice not 'false' above goes LIVE to real users the moment this rolls out." >&2
