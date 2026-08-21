@@ -68,7 +68,13 @@ export default function AdminRegistrationsPage() {
     (acc, r) => ({ inPerson: acc.inPerson + r.inPersonCount, virtual: acc.virtual + r.virtualCount }),
     { inPerson: 0, virtual: 0 },
   )
-  const collected = confirmed.filter((r) => !r.isComplimentary).reduce((s, r) => s + Number(r.totalAmount), 0)
+
+  // Money actually received, not the face value of confirmed bookings. Since a downpayment
+  // confirms, those two stopped being the same number: a booking can be confirmed and still owe.
+  // Summing amountPaid makes the complimentary filter unnecessary — a comped seat paid nothing,
+  // so it contributes nothing on its own.
+  const collected = items.reduce((s, r) => s + Number(r.amountPaid ?? 0), 0)
+  const outstanding = items.reduce((s, r) => s + Number(r.balance ?? 0), 0)
 
   const applySearch = (e) => { e.preventDefault(); setPage(1); setQuery(search.trim()) }
   const changeFilter = (setter) => (value) => { setPage(1); setter(value) }
@@ -83,13 +89,15 @@ export default function AdminRegistrationsPage() {
         </div>
       </div>
 
-      {/* Headcounts and money count CONFIRMED bookings on the rows currently loaded — not the
-          whole event, and not the unpaid ones. Labelled exactly that way so a filtered page is
-          never mistaken for the final catering number. */}
+      {/* Headcounts count CONFIRMED bookings on the rows currently loaded — which now includes
+          anyone who has paid a downpayment, because that is what confirms a booking. Money is
+          counted as money: what has actually been received, and what is still owed. All of it is
+          per-page, labelled so a filtered page is never mistaken for the final catering number. */}
       <div className="dash-grid ar-stats">
         <Stat icon="fa-location-dot" label="In person · confirmed, this page" value={heads.inPerson} />
         <Stat icon="fa-video" label="Online · confirmed, this page" value={heads.virtual} />
-        <Stat icon="fa-peso-sign" label="Collected · excl. complimentary" value={formatPeso(collected)} />
+        <Stat icon="fa-peso-sign" label="Received · this page" value={formatPeso(collected)} />
+        <Stat icon="fa-hourglass-half" label="Outstanding · this page" value={formatPeso(outstanding)} />
         <Stat icon="fa-list-check" label="Bookings matching filters" value={totalCount} />
       </div>
 
@@ -139,6 +147,11 @@ export default function AdminRegistrationsPage() {
                   <span className="ar-ref">
                     {r.referenceCode}
                     {r.isComplimentary && <span className="ar-comp" title="Issued complimentary">COMP</span>}
+                    {!r.isComplimentary && Number(r.balance) > 0 && Number(r.amountPaid) > 0 && (
+                      <span className="ar-owes" title="Downpayment received; balance outstanding">
+                        {formatPeso(r.balance)} DUE
+                      </span>
+                    )}
                   </span>
                   <span className="ar-who">{r.lguName || r.organizationName || '—'}</span>
                   <span className="ar-contact">{r.contactName} · {r.contactEmail}</span>
@@ -202,6 +215,11 @@ export default function AdminRegistrationsPage() {
         .ar-row { display: flex; align-items: center; gap: 16px; padding: 14px 18px; }
         .ar-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .ar-ref { font-family: var(--font-heading); font-weight: 800; color: var(--navy); letter-spacing: 0.02em; }
+        .ar-owes {
+          flex-shrink: 0; font-family: var(--font-heading); font-size: 0.62rem; font-weight: 800;
+          letter-spacing: 0.06em; color: var(--gold-dark); border: 1px solid var(--gold);
+          border-radius: 3px; padding: 1px 5px; white-space: nowrap;
+        }
         .ar-comp {
           margin-left: 8px; font-size: 0.62rem; letter-spacing: 0.08em; padding: 2px 6px;
           border-radius: 4px; background: var(--gold); color: var(--navy); vertical-align: middle;

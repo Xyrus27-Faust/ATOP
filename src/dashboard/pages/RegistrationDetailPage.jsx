@@ -52,7 +52,7 @@ export default function RegistrationDetailPage() {
 
   // Poll only while there's something to wait for. `reload` is a stable useCallback
   // from useAsync, so depending on it directly doesn't restart the timer each render.
-  const shouldPoll = (status === 'PendingPayment' || status === 'PartiallyPaid') && invoiceStatus === 'Pending'
+  const shouldPoll = invoiceStatus === 'Pending' && data?.balance > 0
 
   useEffect(() => {
     if (!shouldPoll) return
@@ -121,6 +121,11 @@ export default function RegistrationDetailPage() {
             {reg.lguRegion && ` · ${labelFor(REGIONS, reg.lguRegion)}`}
           </p>
         </div>
+        {reg.balance > 0 && reg.amountPaid > 0 && (
+          <span className="dash-badge tone-warn rd-status">
+            <i className="fas fa-hourglass-half" aria-hidden="true" /> {formatPeso(reg.balance)} balance due
+          </span>
+        )}
         <span className={`dash-badge tone-${meta.tone} rd-status`}>
           <i className={`fas ${meta.icon}`} aria-hidden="true" /> {meta.label}
         </span>
@@ -337,7 +342,7 @@ export default function RegistrationDetailPage() {
               </button>
             )}
 
-            {canCheckout(reg.status) && (
+            {canCheckout(reg.status, reg.balance) && (
               <>
                 {/* A part-payment is only on the table while a quarter of the total still fits
                     inside what is owed — below that, the balance is the only thing left to pay. */}
@@ -388,7 +393,7 @@ export default function RegistrationDetailPage() {
 
                 {reg.amountPaid > 0 && (
                   <p className="rd-inclusive rd-balance-note">
-                    A downpayment has been received. This payment settles the balance in full.
+                    Your delegates are confirmed. This payment settles the remaining balance in full.
                   </p>
                 )}
 

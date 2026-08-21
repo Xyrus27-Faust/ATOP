@@ -36,7 +36,6 @@ export const IN_PERSON_ONLY_FIELDS = ['dietaryRestrictions', 'shirtSize', 'acces
 export const REGISTRATION_STATUS = {
   Draft: { label: 'Draft', tone: 'neutral', icon: 'fa-pen-ruler' },
   PendingPayment: { label: 'Awaiting payment', tone: 'warn', icon: 'fa-hourglass-half' },
-  PartiallyPaid: { label: 'Reserved · balance due', tone: 'progress', icon: 'fa-hourglass-half' },
   Confirmed: { label: 'Confirmed', tone: 'success', icon: 'fa-circle-check' },
   Expired: { label: 'Expired', tone: 'neutral', icon: 'fa-clock-rotate-left' },
   Cancelled: { label: 'Cancelled', tone: 'danger', icon: 'fa-circle-xmark' },
@@ -52,11 +51,11 @@ export const ALL_REGISTRATION_STATUSES = Object.keys(REGISTRATION_STATUS)
 // after checkout the amounts are on an invoice someone may already be paying.
 export const isRegistrationEditable = (status) => status === 'Draft'
 
-// Statuses from which checkout may still be attempted. Expired is included on
-// purpose: the invoice lapsed, but the booking is still good and can be re-opened.
-// PartiallyPaid too — that booking owes a balance, which is precisely a payment.
-export const canCheckout = (status) =>
-  status === 'Draft' || status === 'PendingPayment' || status === 'PartiallyPaid' || status === 'Expired'
+// Whether there is a payment to make. Not a status question any more: a downpayment confirms the
+// booking, so a Confirmed one may still owe a balance — and paying it is the point. Only a
+// cancelled booking, or one that owes nothing, has nothing to check out.
+export const canCheckout = (status, balance = 0) =>
+  status !== 'Cancelled' && Number(balance) > 0
 
 export const DELEGATE_STATUS = {
   Registered: { label: 'Registered', tone: 'info', icon: 'fa-user-check' },
@@ -203,6 +202,15 @@ export function registrationWindow(event, now = new Date()) {
 }
 
 // ---- Delegate helpers -----------------------------------------------------
+
+/** What a booking's money situation should be called, given it may be confirmed and still owe. */
+export function paymentStandingLabel(registration) {
+  if (!registration) return ''
+  if (registration.isComplimentary) return 'Complimentary'
+  if (Number(registration.balance) > 0 && Number(registration.amountPaid) > 0) return 'Balance due'
+  if (Number(registration.balance) > 0) return 'Unpaid'
+  return 'Paid in full'
+}
 
 /** Build the display name the badge would carry. */
 export function delegateDisplayName(delegate) {
