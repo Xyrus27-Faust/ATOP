@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { isAssessor, isAdmin } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
-import { formatDate, bracketLabel, bracketRank } from '@/lib/pearlAwards'
+import { formatWeighted, formatDate, bracketLabel, bracketRank } from '@/lib/pearlAwards'
 
 // The caller's own progress on an entry — the state that matters most in this queue.
 const MY = {
@@ -46,8 +46,18 @@ export default function ScoringQueuePage() {
 
   const progress = useMemo(() => {
     const all = entries || []
+    const scored = all.filter((e) => e.myAssessmentStatus === 'Submitted' && e.myTotal != null)
     const submitted = all.filter((e) => e.myAssessmentStatus === 'Submitted').length
-    return { total: all.length, submitted, pending: all.length - submitted }
+    // Their own marks only — what anyone else scored stays out of sight until finalize.
+    const totals = scored.map((e) => Number(e.myTotal))
+    return {
+      total: all.length,
+      submitted,
+      pending: all.length - submitted,
+      average: totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null,
+      lowest: totals.length ? Math.min(...totals) : null,
+      highest: totals.length ? Math.max(...totals) : null,
+    }
   }, [entries])
 
   const categoryOptions = useMemo(() => {
@@ -114,7 +124,8 @@ export default function ScoringQueuePage() {
           <h1 className="dash-h1">Scoring queue</h1>
           <p className="dash-sub">
             Score each validated entry in your categories against its rubric. Open an entry, rate every
-            criterion 0–5, then submit — your scoresheet locks once submitted.
+            criterion 0–5, then submit — your scoresheet locks once submitted. Everything you have
+            scored stays here with the mark you gave; open one to read it back, criterion by criterion.
           </p>
         </div>
       </div>
@@ -132,6 +143,13 @@ export default function ScoringQueuePage() {
           <div className="dash-meter">
             <div className={`dash-meter-fill${pct === 100 ? ' is-complete' : ''}`} style={{ width: `${pct}%` }} />
           </div>
+
+          {progress.average != null && (
+            <p className="sc-progress-scores">
+              Your scores so far — average <b>{formatWeighted(progress.average)}</b>, from{' '}
+              <b>{formatWeighted(progress.lowest)}</b> to <b>{formatWeighted(progress.highest)}</b> out of 100.
+            </p>
+          )}
         </div>
       )}
 
@@ -219,7 +237,16 @@ export default function ScoringQueuePage() {
                             <span className="sc-catname">{nameByNumber.get(e.categoryNumber) || `Category ${e.categoryNumber}`}</span>
                           </td>
                           <td className="sc-lgu">{e.lguName}</td>
-                          <td><span className={`dash-badge tone-${mm.tone}`}><i className={`fas ${mm.icon}`} aria-hidden="true" /> {mm.label}</span></td>
+                          <td>
+                            <span className={`dash-badge tone-${mm.tone}`}>
+                              <i className={`fas ${mm.icon}`} aria-hidden="true" /> {mm.label}
+                            </span>
+                            {e.myTotal != null && (
+                              <span className="sc-my-total">
+                                {formatWeighted(e.myTotal)} <span className="sc-my-total-max">/ 100</span>
+                              </span>
+                            )}
+                          </td>
                           <td className="sc-date">{e.submittedAt ? formatDate(e.submittedAt) : '—'}</td>
                           <td className="sc-chevcell"><i className="fas fa-chevron-right sc-chev" aria-hidden="true" /></td>
                         </tr>
@@ -238,6 +265,17 @@ export default function ScoringQueuePage() {
         .sc-progress-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
         .sc-progress-count { font-family: var(--font-body); color: var(--gray-600); font-size: 0.9rem; }
         .sc-progress-count b { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-size: 1.05rem; }
+        .sc-my-total {
+          display: block; margin-top: 5px;
+          font-family: var(--font-heading); font-size: 0.98rem; font-weight: 800;
+          color: var(--navy); font-variant-numeric: tabular-nums; white-space: nowrap;
+        }
+        .sc-my-total-max { font-size: 0.72rem; font-weight: 700; color: var(--gray-400); }
+        .sc-progress-scores {
+          margin: 10px 0 0; font-family: var(--font-body); font-size: 0.88rem; color: var(--gray-600);
+        }
+        .sc-progress-scores b { font-family: var(--font-heading); color: var(--navy); font-variant-numeric: tabular-nums; }
+
         .sc-progress-pending { font-family: var(--font-heading); font-size: 0.78rem; font-weight: 700; color: var(--gold-dark); }
 
         .sc-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
