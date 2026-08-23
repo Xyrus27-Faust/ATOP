@@ -1,5 +1,5 @@
 import { Field, ctl } from './form'
-import { PARTICIPANT_TYPES, formatPeso, modeMeta } from '@/lib/events'
+import { PARTICIPANT_TYPES, DOWNPAYMENT_PER_PAX, formatPeso, modeMeta } from '@/lib/events'
 
 /**
  * The field set for one delegate: rate picker, name, contact, and consents.
@@ -30,12 +30,40 @@ export default function DelegateFields({
       {/* One rate on sale means there is nothing to choose: state the price instead of asking.
           The picker comes back by itself the day ATOP switches online attendance back on. */}
       {rates.length === 1 ? (
-        <div className="dlg-onerate">
-          <span className="dlg-onerate-label">
-            <i className="fas fa-user-tie" aria-hidden="true" /> {rates[0].label}
-          </span>
-          <span className="dlg-onerate-amount">{formatPeso(rates[0].amount)}</span>
-        </div>
+        <>
+          <div className="dlg-onerate">
+            <span className="dlg-onerate-label">
+              <i className="fas fa-user-tie" aria-hidden="true" /> {rates[0].label}
+            </span>
+            <span className="dlg-onerate-amount">{formatPeso(rates[0].amount)}</span>
+          </div>
+
+          {/* Each seat is paid for on its own terms — one delegation can settle three people and
+              reserve two, which is how an LGU's funds actually arrive. */}
+          <Field label="Paying for this delegate" required error={at('paymentMode')}>
+            <div className="dlg-pay">
+              <button
+                type="button"
+                className={`dlg-pay-opt${value.paymentMode !== 'downpayment' ? ' is-active' : ''}`}
+                onClick={() => onChange('paymentMode', 'full')}
+              >
+                <span className="dlg-pay-top">In full</span>
+                <span className="dlg-pay-amount">{formatPeso(rates[0].amount)}</span>
+              </button>
+              <button
+                type="button"
+                className={`dlg-pay-opt${value.paymentMode === 'downpayment' ? ' is-active' : ''}`}
+                onClick={() => onChange('paymentMode', 'downpayment')}
+              >
+                <span className="dlg-pay-top">Reserve now</span>
+                <span className="dlg-pay-amount">{formatPeso(DOWNPAYMENT_PER_PAX)}</span>
+                <span className="dlg-pay-hint">
+                  balance {formatPeso(Math.max(0, rates[0].amount - DOWNPAYMENT_PER_PAX))} before the convention
+                </span>
+              </button>
+            </div>
+          </Field>
+        </>
       ) : (
       <Field label="Registration type" required error={at('rateCode')}>
         <div className="dlg-rates">
@@ -145,6 +173,18 @@ export default function DelegateFields({
     padding: 12px 16px; margin-bottom: 18px;
     background: var(--off-white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
   }
+  .dlg-pay { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .dlg-pay-opt {
+    display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer;
+    padding: 10px 13px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+    background: var(--white); transition: var(--transition-fast);
+  }
+  .dlg-pay-opt:hover { border-color: var(--gold); }
+  .dlg-pay-opt.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); background: var(--off-white); }
+  .dlg-pay-top { font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray-600); }
+  .dlg-pay-amount { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .dlg-pay-hint { font-size: 0.78rem; color: var(--gray-600); }
+
   .dlg-onerate-label { font-family: var(--font-heading); font-weight: 700; font-size: 0.86rem; color: var(--navy); }
   .dlg-onerate-amount { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
 
@@ -171,6 +211,9 @@ export const emptyDelegate = (defaultRateCode = '') => ({
   email: '',
   mobile: '',
   participantType: 'Delegate',
+  // How this seat is being paid for. Not part of the delegate the server stores — it is a choice
+  // about money, carried to checkout.
+  paymentMode: 'full',
   dataPrivacyConsent: false,
   mediaReleaseConsent: false,
 })

@@ -18,7 +18,6 @@ import {
   isRegistrationEditable,
   summariseByRate,
   PARTICIPANT_TYPE_LABELS,
-  MIN_DOWNPAYMENT_RATE,
 } from '@/lib/events'
 
 // While an invoice is open we re-check the registration on a timer. The gateway
@@ -41,10 +40,10 @@ export default function RegistrationDetailPage() {
   const [substituting, setSubstituting] = useState(null)
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState(null)
-  // Paying here offers what the form offered: all of it, or a downpayment. Without this the
-  // button silently meant "pay everything", which is not a choice anyone made.
-  const [payChoice, setPayChoice] = useState('full')
-  const [partAmount, setPartAmount] = useState('')
+  // Which seats this payment is for, and whether each is being settled or merely reserved. Paying
+  // is per delegate now, so the page has to carry a choice per delegate rather than one for all.
+  const [selected, setSelected] = useState(null)   // null = "everyone who still owes", set on first edit
+  const [modes, setModes] = useState({})
   const [amountError, setAmountError] = useState(null)
 
   const status = data?.status
@@ -60,7 +59,7 @@ export default function RegistrationDetailPage() {
     return () => clearInterval(timer)
   }, [shouldPoll, reload])
 
-  const pay = useCallback(async (amount) => {
+  const pay = useCallback(async (payments) => {
     setPaying(true)
     setActionError(null)
     try {
@@ -68,7 +67,7 @@ export default function RegistrationDetailPage() {
       const invoice = await api.post(
         `/registrations/${id}/checkout`,
         {
-          amount: amount ?? null,
+          payments,
           successRedirectUrl: `${origin}/convention/registrations/${id}`,
           failureRedirectUrl: `${origin}/convention/registrations/${id}`,
         },
@@ -94,19 +93,25 @@ export default function RegistrationDetailPage() {
   const rateLines = summariseByRate(reg.delegates)
   const activeDelegates = reg.delegates.filter((d) => d.status !== 'Cancelled')
 
-  // Mirrors the server rule: a booking is settled in one go, or by a downpayment and then the
-  // rest. So a part-payment is only on the table before anything has been paid, and only while a
-  // quarter of the total still fits inside what is owed.
-  const canPayInPart = reg.amountPaid === 0 && reg.balance > reg.minimumDownpayment
+  // Seats that still owe something are the only ones that can be paid for.
+  const owing = activeDelegates.filter((d) => Number(d.balance) > 0)
+  const chosen = selected ?? owing.map((d) => d.id)
+
+  // A seat that has already had its downpayment can only settle: one partial, then the rest. The
+  // server enforces this; offering the choice anyway would be offering a refusal.
+  const modeFor = (seat) => (Number(seat.amountPaid) > 0 ? 'Full' : modes[seat.id] ?? 'Full')
+  const chargeFor = (seat) =>
+    modeFor(seat) === 'Downpayment' ? Math.min(seat.downpaymentAmount, seat.balance) : Number(seat.balance)
+
+  const payingNow = owing.filter((d) => chosen.includes(d.id)).reduce((sum, d) => sum + chargeFor(d), 0)
+
+  const toggleSeat = (id) =>
+    setSelected(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id])
 
   function startPayment() {
-    if (!canPayInPart || payChoice === 'full') return pay(null)
-
-    const amount = Number(partAmount)
-    if (!partAmount.trim() || Number.isNaN(amount)) return setAmountError('Enter how much you are paying now.')
-    if (amount < reg.minimumDownpayment) return setAmountError(`That is below the ${formatPeso(reg.minimumDownpayment)} minimum.`)
-    if (amount > reg.balance) return setAmountError(`That is more than the ${formatPeso(reg.balance)} outstanding.`)
-    return pay(amount)
+    if (chosen.length === 0) return setAmountError('Choose at least one delegate to pay for.')
+    setAmountError(null)
+    return pay(owing.filter((d) => chosen.includes(d.id)).map((d) => ({ delegateId: d.id, mode: modeFor(d) })))
   }
 
   return (
@@ -200,7 +205,17 @@ export default function RegistrationDetailPage() {
                         <i className={`fas ${dm.icon}`} aria-hidden="true" /> {dm.label}
                       </span>
                       <span className="rd-del-amount">{formatPeso(d.amount)}</span>
-                      {reg.status === 'Confirmed' && !cancelled && (
+
+                      {/* The seat's own money, since each is paid for separately. */}
+                      {!cancelled && Number(d.amountPaid) > 0 && Number(d.balance) > 0 && (
+                        <span className="rd-del-owing">{formatPeso(d.balance)} still due</span>
+                      )}
+                      {!cancelled && Number(d.balance) <= 0 && (
+                        <span className="rd-del-settled"><i className="fas fa-check" aria-hidden="true" /> paid</span>
+                      )}
+
+                      {/* A code is a seat someone has paid for — not a booking-wide state. */}
+                      {Number(d.amountPaid) > 0 && !cancelled && (
                         <code className="rd-del-code" title="Check-in / access code">{d.referenceCode}</code>
                       )}
                       {d.status !== 'Registered' && (
@@ -344,57 +359,48 @@ export default function RegistrationDetailPage() {
 
             {canCheckout(reg.status, reg.balance) && (
               <>
-                {/* A part-payment is only on the table while a quarter of the total still fits
-                    inside what is owed — below that, the balance is the only thing left to pay. */}
-                {canPayInPart && (
-                  <div className="rd-pay-opts">
-                    <button
-                      type="button"
-                      className={`rd-pay-opt${payChoice === 'full' ? ' is-active' : ''}`}
-                      onClick={() => { setPayChoice('full'); setAmountError(null) }}
-                    >
-                      <span className="rd-pay-opt-top">
-                        {reg.amountPaid > 0 ? 'Pay the balance' : 'Pay in full'}
-                      </span>
-                      <span className="rd-pay-opt-amount">{formatPeso(reg.balance)}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`rd-pay-opt${payChoice === 'part' ? ' is-active' : ''}`}
-                      onClick={() => setPayChoice('part')}
-                    >
-                      <span className="rd-pay-opt-top">Pay part of it</span>
-                      <span className="rd-pay-opt-amount">from {formatPeso(reg.minimumDownpayment)}</span>
-                    </button>
-                  </div>
-                )}
+                {/* Who this payment is for. Each seat settles or reserves on its own terms, so the
+                    choice is a list, not a single button — a treasurer paying for two stragglers in
+                    November uses exactly the same control as the booking did in August. */}
+                <ul className="rd-seats">
+                  {owing.map((seat) => {
+                    const ticked = chosen.includes(seat.id)
+                    const partPaid = Number(seat.amountPaid) > 0
+                    return (
+                      <li key={seat.id} className={`rd-seat${ticked ? '' : ' is-off'}`}>
+                        <label className="rd-seat-head">
+                          <input
+                            type="checkbox"
+                            checked={ticked}
+                            onChange={() => toggleSeat(seat.id)}
+                          />
+                          <span className="rd-seat-name">{seat.fullName}</span>
+                          <span className="rd-seat-amount">{ticked ? formatPeso(chargeFor(seat)) : '—'}</span>
+                        </label>
 
-                {canPayInPart && payChoice === 'part' && (
-                  <Field
-                    label="Amount to pay now"
-                    htmlFor="rdAmount"
-                    required
-                    error={amountError}
-                    hint={`At least ${formatPeso(reg.minimumDownpayment)} — ${Math.round(MIN_DOWNPAYMENT_RATE * 100)}% of the ${formatPeso(reg.totalAmount)} total.`}
-                  >
-                    <input
-                      id="rdAmount"
-                      type="number"
-                      inputMode="decimal"
-                      min={reg.minimumDownpayment}
-                      max={reg.balance}
-                      step="0.01"
-                      className={ctl('dash-input', amountError)}
-                      value={partAmount}
-                      onChange={(e) => { setPartAmount(e.target.value); setAmountError(null) }}
-                    />
-                  </Field>
-                )}
+                        {partPaid ? (
+                          <p className="rd-seat-note">
+                            {formatPeso(seat.amountPaid)} received — this settles the {formatPeso(seat.balance)} balance.
+                          </p>
+                        ) : (
+                          <select
+                            className="dash-select rd-seat-mode"
+                            value={modeFor(seat)}
+                            disabled={!ticked}
+                            aria-label={`How to pay for ${seat.fullName}`}
+                            onChange={(e) => setModes((m) => ({ ...m, [seat.id]: e.target.value }))}
+                          >
+                            <option value="Full">Pay in full — {formatPeso(seat.balance)}</option>
+                            <option value="Downpayment">Reserve — {formatPeso(seat.downpaymentAmount)}</option>
+                          </select>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
 
-                {reg.amountPaid > 0 && (
-                  <p className="rd-inclusive rd-balance-note">
-                    Your delegates are confirmed. This payment settles the remaining balance in full.
-                  </p>
+                {amountError && (
+                  <p className="rd-inclusive rd-seat-error">{amountError}</p>
                 )}
 
                 <button
@@ -407,9 +413,7 @@ export default function RegistrationDetailPage() {
                     : (
                       <>
                         <i className="fas fa-credit-card" aria-hidden="true" />
-                        {` Pay ${formatPeso(payChoice === 'part' && canPayInPart
-                          ? (Number(partAmount) || reg.minimumDownpayment)
-                          : reg.balance)}`}
+                        {` Pay ${formatPeso(payingNow)}`}
                       </>
                     )}
                 </button>
@@ -453,6 +457,21 @@ export default function RegistrationDetailPage() {
 
       <style>{`
         .rd-status { align-self: flex-start; }
+        .rd-del-owing { font-size: 0.76rem; font-weight: 700; color: var(--gold-dark); font-variant-numeric: tabular-nums; }
+        .rd-del-settled { font-size: 0.76rem; font-weight: 700; color: var(--green-dark, #2f6b46); }
+
+        /* A list, not a table: this lives in a narrow aside, and four columns of anything turn
+           into wrapped names and a select with nowhere to render its value. */
+        .rd-seats { list-style: none; margin: 14px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+        .rd-seat { padding: 10px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); }
+        .rd-seat.is-off { opacity: 0.5; }
+        .rd-seat-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .rd-seat-name { flex: 1; font-family: var(--font-heading); font-weight: 700; font-size: 0.88rem; color: var(--navy); }
+        .rd-seat-amount { font-family: var(--font-heading); font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .rd-seat-note { margin: 6px 0 0; font-size: 0.78rem; color: var(--gray-600); }
+        .rd-seat-mode { margin-top: 8px; width: 100%; padding: 5px 8px; font-size: 0.82rem; }
+        .rd-seat-error { color: var(--danger, #a03328); margin-bottom: 8px; }
+
         .rd-pay-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 12px; }
         .rd-pay-opt {
           display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer;

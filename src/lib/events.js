@@ -132,11 +132,19 @@ export const PARTICIPANT_TYPE_LABELS = Object.fromEntries(
 
 // ---- Paying -----------------------------------------------------------------
 
-/** ATOP's floor for a first payment: a quarter of the booking (2026-08-20). */
-export const MIN_DOWNPAYMENT_RATE = 0.25
+/**
+ * What reserving one seat costs: a flat ₱1,350 per pax (ATOP, 2026-08-23). Not a percentage and not
+ * a floor — choosing a downpayment charges exactly this.
+ *
+ * The server is authoritative; this copy exists because the booking form prices a delegate list that
+ * has not been saved yet. Every figure on a saved booking comes back as `downpaymentAmount` per
+ * delegate, and those are the ones to trust.
+ */
+export const DOWNPAYMENT_PER_PAX = 1350
 
-/** Rounded up to the centavo, exactly as the server computes it — so the two agree. */
-export const minimumDownpayment = (total) => Math.ceil(Number(total) * MIN_DOWNPAYMENT_RATE * 100) / 100
+/** What a seat costs to pay for now, given the mode chosen for it. */
+export const seatCharge = (seatAmount, mode) =>
+  mode === 'downpayment' ? Math.min(DOWNPAYMENT_PER_PAX, Number(seatAmount)) : Number(seatAmount)
 
 // ---- Money ----------------------------------------------------------------
 

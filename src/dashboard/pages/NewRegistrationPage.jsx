@@ -10,8 +10,7 @@ import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload, fro
 import {
   REGISTRANT_TYPES,
   PARTICIPANT_TYPE_LABELS,
-  minimumDownpayment,
-  MIN_DOWNPAYMENT_RATE,
+  seatCharge,
   formatPeso,
   modeMeta,
 } from '@/lib/events'
@@ -67,10 +66,6 @@ export default function NewRegistrationPage() {
     'contact.landline': '',
     notes: '',
   }))
-  // Two ways to pay, and nothing else to decide: the whole thing, or a downpayment
-  // of at least a quarter that reserves the slots with the balance due later.
-  const [payment, setPayment] = useState('full')
-  const [downpayment, setDownpayment] = useState('')
 
   // The booking is saved as a Draft the moment step one is done, and again on every step
   // afterwards, so closing the tab costs nothing. `draftId` is null only before that first save.
@@ -167,6 +162,10 @@ export default function NewRegistrationPage() {
   }, [routeDraftId])
 
   const total = delegates.reduce((sum, d) => sum + Number(rateByCode.get(d.rateCode)?.amount ?? 0), 0)
+
+  // What this checkout actually bills: each seat settled or merely reserved, per its own choice.
+  const payableNow = delegates.reduce(
+    (sum, d) => sum + seatCharge(Number(rateByCode.get(d.rateCode)?.amount ?? 0), d.paymentMode), 0)
   const inPersonCount = delegates.filter((d) => rateByCode.get(d.rateCode)?.attendanceMode === 'InPerson').length
   const virtualCount = delegates.filter((d) => rateByCode.get(d.rateCode)?.attendanceMode === 'Virtual').length
 
@@ -248,17 +247,7 @@ export default function NewRegistrationPage() {
       })
     }
 
-    if (index === 2 && payment === 'downpayment') {
-      const floor = minimumDownpayment(total)
-      const amount = Number(downpayment)
-      if (!downpayment.trim() || Number.isNaN(amount)) {
-        e.amount = 'Enter how much you are paying now.'
-      } else if (amount < floor) {
-        e.amount = `A downpayment must be at least ${formatPeso(floor)}.`
-      } else if (amount > total) {
-        e.amount = `That is more than the ${formatPeso(total)} total. Choose “pay in full” instead.`
-      }
-    }
+
 
     setErrors((prev) => ({ ...prev, ...e }))
     return Object.keys(e).length === 0
@@ -354,18 +343,26 @@ export default function NewRegistrationPage() {
       const id = await saveDraft()
       if (!id) return
 
-      // Straight on to the gateway with the amount they chose on this very step — going via a
-      // second page would ask them to decide the same thing twice.
+      // Straight on to the gateway with the choices made on this very step — going via a second
+      // page would ask them to decide the same thing twice.
+      //
+      // The saved booking hands back its delegates in the order they were sent, which is how a
+      // client-side row is matched to the seat the server now owns. The server prices each one from
+      // its own rate; we only say who, and how much of them.
+      const saved = await api.get(`/registrations/${id}`, { auth: true })
+      const payments = saved.delegates
+        .filter((seat) => Number(seat.balance) > 0)
+        .map((seat, i) => ({
+          delegateId: seat.id,
+          mode: delegates[i]?.paymentMode === 'downpayment' ? 'Downpayment' : 'Full',
+        }))
+
       const origin = globalThis.location?.origin ?? ''
       const back = `${origin}/convention/registrations/${id}`
       try {
         const invoice = await api.post(
           `/registrations/${id}/checkout`,
-          {
-            amount: payment === 'downpayment' ? Number(downpayment) : null,
-            successRedirectUrl: back,
-            failureRedirectUrl: back,
-          },
+          { payments, successRedirectUrl: back, failureRedirectUrl: back },
           { auth: true },
         )
         if (invoice.checkoutUrl) {
@@ -626,57 +623,48 @@ export default function NewRegistrationPage() {
           </div>
 
           <div className="dash-card dash-card-pad nr-card">
-            <h2 className="dash-card-title">How much are you paying now?</h2>
+            <h2 className="dash-card-title">Paying now</h2>
+            <p className="dash-help">
+              Each delegate is paid for on their own terms — settle some outright and reserve the
+              rest. Change any of these on the Delegates step.
+            </p>
 
-            <div className="nr-pay">
-              <button
-                type="button"
-                className={`nr-pay-opt${payment === 'full' ? ' is-active' : ''}`}
-                onClick={() => { setPayment('full'); setErrors((p) => ({ ...p, amount: undefined })) }}
-              >
-                <span className="nr-pay-top"><i className="fas fa-circle-check" aria-hidden="true" /> Pay in full</span>
-                <span className="nr-pay-amount">{formatPeso(total)}</span>
-                <span className="nr-pay-hint">Confirms every delegate on the spot.</span>
-              </button>
-
-              <button
-                type="button"
-                className={`nr-pay-opt${payment === 'downpayment' ? ' is-active' : ''}`}
-                onClick={() => setPayment('downpayment')}
-              >
-                <span className="nr-pay-top"><i className="fas fa-hourglass-half" aria-hidden="true" /> Downpayment</span>
-                <span className="nr-pay-amount">from {formatPeso(minimumDownpayment(total))}</span>
-                <span className="nr-pay-hint">
-                  At least {Math.round(MIN_DOWNPAYMENT_RATE * 100)}% now, the balance before the convention.
-                </span>
-              </button>
-            </div>
-
-            {payment === 'downpayment' && (
-              <Field
-                label="Amount to pay now"
-                htmlFor="dpAmount"
-                required
-                error={errors.amount}
-                hint={`At least ${formatPeso(minimumDownpayment(total))}. The balance of ${formatPeso(Math.max(0, total - (Number(downpayment) || 0)))} stays open on your booking.`}
-              >
-                <input
-                  id="dpAmount"
-                  type="number"
-                  inputMode="decimal"
-                  min={minimumDownpayment(total)}
-                  max={total}
-                  step="0.01"
-                  className={ctl('dash-input', errors.amount)}
-                  value={downpayment}
-                  onChange={(e) => { setDownpayment(e.target.value); setErrors((p) => ({ ...p, amount: undefined })) }}
-                />
-              </Field>
-            )}
+            <table className="nr-review-table">
+              <thead>
+                <tr>
+                  <th>Delegate</th>
+                  <th>Paying</th>
+                  <th className="nr-review-num">Now</th>
+                  <th className="nr-review-num">Later</th>
+                </tr>
+              </thead>
+              <tbody>
+                {delegates.map((d, i) => {
+                  const seat = Number(rateByCode.get(d.rateCode)?.amount ?? 0)
+                  const now = seatCharge(seat, d.paymentMode)
+                  return (
+                    <tr key={i}>
+                      <td>{[d.firstName, d.lastName].filter(Boolean).join(' ') || `Delegate ${i + 1}`}</td>
+                      <td>{d.paymentMode === 'downpayment' ? 'Reserved' : 'In full'}</td>
+                      <td className="nr-review-num">{formatPeso(now)}</td>
+                      <td className="nr-review-num">{seat - now > 0 ? formatPeso(seat - now) : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2}>Total</td>
+                  <td className="nr-review-num"><strong>{formatPeso(payableNow)}</strong></td>
+                  <td className="nr-review-num">{total - payableNow > 0 ? formatPeso(total - payableNow) : '—'}</td>
+                </tr>
+              </tfoot>
+            </table>
 
             <p className="dash-help nr-pay-note">
               Payment is online through Xendit — GCash, Maya, card, bank transfer or over the counter.
-              Your booking is confirmed when the payment clears, not when you return from the payment page.
+              A delegate is confirmed once their payment clears, not when you return from the payment
+              page. Anything left over can be settled from your booking any time before the convention.
             </p>
 
             {submitError && (
@@ -730,8 +718,7 @@ export default function NewRegistrationPage() {
           <button type="button" className="dash-btn is-primary" onClick={submit} disabled={submitting}>
             {submitting
               ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Taking you to payment…</>
-              : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(
-                  payment === 'downpayment' ? (Number(downpayment) || minimumDownpayment(total)) : total)}</>}
+              : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(payableNow)}</>}
           </button>
         )}
       </div>
