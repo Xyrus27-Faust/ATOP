@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
@@ -6,6 +6,7 @@ import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
 import Modal from '../components/Modal'
 import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
+import SeatQr from '../components/SeatQr'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -40,6 +41,7 @@ export default function RegistrationDetailPage() {
   const [substituting, setSubstituting] = useState(null)
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  const [passFor, setPassFor] = useState(null)
   // Which seats this payment is for, and whether each is being settled or merely reserved. Paying
   // is per delegate now, so the page has to carry a choice per delegate rather than one for all.
   const [selected, setSelected] = useState(null)   // null = "everyone who still owes", set on first edit
@@ -184,45 +186,59 @@ export default function RegistrationDetailPage() {
                 const cancelled = d.status === 'Cancelled'
                 return (
                   <div key={d.id} className={`rd-del${cancelled ? ' is-cancelled' : ''}`}>
-                    <div className="rd-del-main">
-                      <div className="rd-del-name">
-                        {d.fullName}
-                        {d.substitutedFromName && (
-                          <span className="rd-del-sub" title={`Replaced ${d.substitutedFromName}`}>
-                            <i className="fas fa-right-left" aria-hidden="true" /> replaced {d.substitutedFromName}
-                          </span>
+                    <div className="rd-del-top">
+                      <div className="rd-del-main">
+                        <div className="rd-del-name">
+                          {d.fullName}
+                          {d.substitutedFromName && (
+                            <span className="rd-del-sub" title={`Replaced ${d.substitutedFromName}`}>
+                              <i className="fas fa-right-left" aria-hidden="true" /> replaced {d.substitutedFromName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="rd-del-meta">
+                          {d.designation}
+                          {d.participantType !== 'Delegate' && ` · ${PARTICIPANT_TYPE_LABELS[d.participantType] || d.participantType}`}
+                        </div>
+                        <div className="rd-del-contact">{d.email} · {d.mobile}</div>
+                      </div>
+
+                      {/* Money gets its own column so it reads down rather than competing across. */}
+                      <div className="rd-del-money">
+                        <span className="rd-del-amount">{formatPeso(d.amount)}</span>
+                        {!cancelled && Number(d.amountPaid) > 0 && Number(d.balance) > 0 && (
+                          <span className="rd-del-owing">{formatPeso(d.balance)} due</span>
+                        )}
+                        {!cancelled && Number(d.balance) <= 0 && (
+                          <span className="rd-del-settled"><i className="fas fa-check" aria-hidden="true" /> paid</span>
+                        )}
+                        {!cancelled && Number(d.amountPaid) === 0 && (
+                          <span className="rd-del-unpaid">not paid yet</span>
                         )}
                       </div>
-                      <div className="rd-del-meta">
-                        {d.designation}
-                        {d.participantType !== 'Delegate' && ` · ${PARTICIPANT_TYPE_LABELS[d.participantType] || d.participantType}`}
-                      </div>
-                      <div className="rd-del-contact">{d.email} · {d.mobile}</div>
+
+                      {/* The pass. Only a seat somebody has paid for has one. */}
+                      {Number(d.amountPaid) > 0 && !cancelled ? (
+                        <SeatQr code={d.referenceCode} onOpen={() => setPassFor(d)} />
+                      ) : (
+                        <div className="rd-del-nopass">no code<br />yet</div>
+                      )}
                     </div>
 
-                    <div className="rd-del-side">
-                      <span className={`dash-badge tone-${dm.tone}`}>
+                    {/* The quiet strip: identifiers and actions, out of the way of the numbers. */}
+                    <div className="rd-del-foot">
+                      {Number(d.amountPaid) > 0 && !cancelled && (
+                        <code className="rd-del-code" title="Check-in code">{d.referenceCode}</code>
+                      )}
+                      <span className={`dash-badge tone-${dm.tone} rd-del-mode`}>
                         <i className={`fas ${dm.icon}`} aria-hidden="true" /> {dm.label}
                       </span>
-                      <span className="rd-del-amount">{formatPeso(d.amount)}</span>
-
-                      {/* The seat's own money, since each is paid for separately. */}
-                      {!cancelled && Number(d.amountPaid) > 0 && Number(d.balance) > 0 && (
-                        <span className="rd-del-owing">{formatPeso(d.balance)} still due</span>
-                      )}
-                      {!cancelled && Number(d.balance) <= 0 && (
-                        <span className="rd-del-settled"><i className="fas fa-check" aria-hidden="true" /> paid</span>
-                      )}
-
-                      {/* A code is a seat someone has paid for — not a booking-wide state. */}
-                      {Number(d.amountPaid) > 0 && !cancelled && (
-                        <code className="rd-del-code" title="Check-in / access code">{d.referenceCode}</code>
-                      )}
                       {d.status !== 'Registered' && (
                         <span className={`dash-badge tone-${ds.tone}`}>
                           <i className={`fas ${ds.icon}`} aria-hidden="true" /> {ds.label}
                         </span>
                       )}
+                      <span className="rd-del-foot-spacer" />
                       {/* Substitution stays available after payment — LGUs swap people
                           days out, and the seat is already paid for. */}
                       {!cancelled && d.status !== 'CheckedIn' && (
@@ -438,6 +454,10 @@ export default function RegistrationDetailPage() {
         </aside>
       </div>
 
+      {passFor && (
+        <PassModal delegate={passFor} reference={reg.referenceCode} onClose={() => setPassFor(null)} />
+      )}
+
       {substituting && (
         <SubstituteModal
           delegate={substituting}
@@ -457,6 +477,26 @@ export default function RegistrationDetailPage() {
 
       <style>{`
         .rd-status { align-self: flex-start; }
+        /* A card per delegate: identity left, money in its own column, the pass on the right, and
+           the identifiers and actions on a quiet strip underneath. The old single row put five
+           competing things on one line and read as noise. */
+        .rd-del { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+        .rd-del-top { display: flex; align-items: flex-start; gap: 16px; }
+        .rd-del-main { flex: 1; min-width: 0; }
+        .rd-del-money { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; white-space: nowrap; }
+        .rd-del-nopass {
+          width: 104px; height: 104px; flex: 0 0 104px; display: grid; place-items: center;
+          border: 1px dashed var(--gray-200); border-radius: var(--radius-sm); background: var(--off-white);
+          font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; color: var(--gray-400);
+          text-align: center; line-height: 1.3;
+        }
+        .rd-del-foot {
+          display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+          padding-top: 10px; border-top: 1px solid var(--gray-100);
+        }
+        .rd-del-foot-spacer { flex: 1; }
+        .rd-del-unpaid { font-size: 0.76rem; color: var(--gray-500, #8b97a6); }
+
         .rd-del-owing { font-size: 0.76rem; font-weight: 700; color: var(--gold-dark); font-variant-numeric: tabular-nums; }
         .rd-del-settled { font-size: 0.76rem; font-weight: 700; color: var(--green-dark, #2f6b46); }
 
@@ -639,6 +679,51 @@ function AddDelegateModal({ registrationId, onClose, onDone }) {
       <style>{`
         .rd-add-form .dash-form-row { grid-template-columns: 1fr; gap: 18px; }
         .rd-add-form { max-height: min(68vh, 620px); overflow-y: auto; padding-right: 4px; }
+      `}</style>
+    </Modal>
+  )
+}
+
+/**
+ * One delegate's pass, big enough to scan off the screen and downloadable for the day the venue
+ * has no signal. The image is redrawn at print size rather than scaled up from the thumbnail — a
+ * QR blown up from 104px is a QR a scanner argues with.
+ */
+function PassModal({ delegate, reference, onClose }) {
+  const canvas = useRef(null)
+
+  function download() {
+    const png = canvas.current?.querySelector('canvas')?.toDataURL('image/png')
+    if (!png) return
+
+    // Named for a human: whoever finds this in Downloads three weeks later should know whose it is.
+    const safeName = delegate.fullName.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const link = document.createElement('a')
+    link.href = png
+    link.download = `ATOP-pass-${safeName}-${delegate.referenceCode}.png`
+    link.click()
+  }
+
+  return (
+    <Modal title={delegate.fullName} onClose={onClose}>
+      <div className="pm" ref={canvas}>
+        <SeatQr code={delegate.referenceCode} size={260} />
+        <div className="pm-code">{delegate.referenceCode}</div>
+        <p className="pm-note">
+          Show this at the registration desk. It admits {delegate.fullName} only, under booking {reference}.
+        </p>
+        <button type="button" className="dash-btn is-primary" onClick={download}>
+          <i className="fas fa-download" aria-hidden="true" /> Download
+        </button>
+      </div>
+
+      <style>{`
+        .pm { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 4px 0 8px; }
+        .pm-code {
+          font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800;
+          letter-spacing: 0.08em; color: var(--navy); font-variant-numeric: tabular-nums;
+        }
+        .pm-note { margin: 0; text-align: center; font-size: 0.86rem; color: var(--gray-600); max-width: 34ch; }
       `}</style>
     </Modal>
   )
