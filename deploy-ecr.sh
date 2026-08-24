@@ -58,11 +58,13 @@ if [[ "$MODE" == "prod" ]]; then
   VITE_API_BASE_URL="${VITE_API_BASE_URL:-$PROD_API}"
   VITE_FEATURE_SCORING="${VITE_FEATURE_SCORING:-false}"
   VITE_FEATURE_FINALS="${VITE_FEATURE_FINALS:-false}"
+  VITE_FEATURE_EVENTS="${VITE_FEATURE_EVENTS:-false}"
   MOVING_TAG="prod"
 else
   VITE_API_BASE_URL="${VITE_API_BASE_URL:-$STAGING_API}"
   VITE_FEATURE_SCORING="${VITE_FEATURE_SCORING:-true}"
   VITE_FEATURE_FINALS="${VITE_FEATURE_FINALS:-true}"
+  VITE_FEATURE_EVENTS="${VITE_FEATURE_EVENTS:-true}"
   MOVING_TAG="latest"
 fi
 VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-857948069033-p09evikg3rk754l0hj4e4gndcjrl5ed0.apps.googleusercontent.com}"
@@ -77,10 +79,12 @@ if [[ "$VITE_API_BASE_URL" == "$PROD_API" ]]; then
   require_main_branch
 
   if [[ "${PUBLISH_LIVE_FEATURES:-0}" == "1" ]]; then
-    echo "!! PUBLISH_LIVE_FEATURES=1 — prod bundle with scoring=${VITE_FEATURE_SCORING} finals=${VITE_FEATURE_FINALS}" >&2
+    echo "!! PUBLISH_LIVE_FEATURES=1 — prod bundle with scoring=${VITE_FEATURE_SCORING} finals=${VITE_FEATURE_FINALS} events=${VITE_FEATURE_EVENTS}" >&2
     echo "!! Any slice not 'false' above goes LIVE to real users the moment this rolls out." >&2
   else
-    for flag in SCORING FINALS; do
+    # Every gated slice, not a list someone remembered to update: convention registration was added
+    # to the app and not to this loop, so a prod build would have shipped it live without a word.
+    for flag in SCORING FINALS EVENTS; do
       val="VITE_FEATURE_${flag}"
       if [[ "${!val}" != "false" ]]; then
         echo "REFUSING: building against the PROD API with VITE_FEATURE_${flag}=${!val}." >&2
@@ -108,7 +112,7 @@ echo "==> Mode:       ${MODE}"
 echo "==> ECR:        ${ECR_URI}"
 echo "==> Tag:        ${TAG} (+ ${MOVING_TAG})"
 echo "==> API base:   ${VITE_API_BASE_URL}"
-echo "==> Features:   scoring=${VITE_FEATURE_SCORING}  finals=${VITE_FEATURE_FINALS}"
+echo "==> Features:   scoring=${VITE_FEATURE_SCORING}  finals=${VITE_FEATURE_FINALS}  events=${VITE_FEATURE_EVENTS}"
 
 aws ecr describe-repositories --repository-names "$REPO" --region "$AWS_REGION" >/dev/null 2>&1 \
   || aws ecr create-repository --repository-name "$REPO" --region "$AWS_REGION" \
@@ -125,6 +129,7 @@ docker build --platform linux/amd64 \
   --build-arg "VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}" \
   --build-arg "VITE_FEATURE_SCORING=${VITE_FEATURE_SCORING}" \
   --build-arg "VITE_FEATURE_FINALS=${VITE_FEATURE_FINALS}" \
+  --build-arg "VITE_FEATURE_EVENTS=${VITE_FEATURE_EVENTS}" \
   -t "${ECR_URI}:${TAG}" \
   -t "${ECR_URI}:${MOVING_TAG}" \
   -f Dockerfile .
