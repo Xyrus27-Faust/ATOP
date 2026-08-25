@@ -85,7 +85,7 @@ const ADJUDICATORS = { to: '/dashboard/admin/adjudicators', label: 'Adjudicators
 const WINNERS = { to: '/dashboard/admin/finals', label: 'Finals Results', icon: 'fa-trophy' }
 const ACCESS = { to: '/dashboard/admin/access', label: 'Manage Validators', icon: 'fa-user-shield' }
 // Convention registration (M6): the delegate's own booking, and the secretariat's list of them.
-const CONVENTION = { to: '/dashboard/convention', label: 'Convention', icon: 'fa-calendar-days' }
+const CONVENTION = { to: '/dashboard/convention', label: 'National Convention 2026', icon: 'fa-calendar-days' }
 const REGISTRATIONS = { to: '/dashboard/admin/registrations', label: 'Registrations', icon: 'fa-ticket' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
