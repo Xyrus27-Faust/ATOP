@@ -31,6 +31,7 @@ import ConventionPage from './dashboard/pages/ConventionPage'
 import NewRegistrationPage from './dashboard/pages/NewRegistrationPage'
 import RegistrationDetailPage from './dashboard/pages/RegistrationDetailPage'
 import AdminRegistrationsPage from './dashboard/pages/AdminRegistrationsPage'
+import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDetailPage'
 import { SCORING_ENABLED, FINALS_ENABLED, EVENTS_ENABLED } from './dashboard/dashboardNav'
 
 // Auth pages are real routes (the email verification link points at
@@ -93,6 +94,7 @@ export default function AppRoutes() {
           {EVENTS_ENABLED && (
             <Route element={<RegistrationsAdminRoute />}>
               <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
+              <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
             </Route>
           )}
           <Route element={<AdminRoute />}>

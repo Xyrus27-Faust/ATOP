@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -171,11 +172,16 @@ export default function AdminRegistrationsPage() {
                   <span className="ar-date">{formatDate(r.confirmedAt || r.createdAt)}</span>
                 </span>
 
-                {r.status !== 'Confirmed' && r.status !== 'Cancelled' && (
-                  <button type="button" className="dash-btn ar-comp-btn" onClick={() => setComping(r)}>
-                    <i className="fas fa-gift" aria-hidden="true" /> Comp
-                  </button>
-                )}
+                <span className="ar-actions">
+                  <Link to={`/dashboard/admin/registrations/${r.id}`} className="dash-btn">
+                    <i className="fas fa-up-right-from-square" aria-hidden="true" /> Open
+                  </Link>
+                  {r.status !== 'Confirmed' && r.status !== 'Cancelled' && (
+                    <button type="button" className="dash-btn ar-comp-btn" onClick={() => setComping(r)}>
+                      <i className="fas fa-gift" aria-hidden="true" /> Comp
+                    </button>
+                  )}
+                </span>
               </div>
             )
           })}
@@ -230,6 +236,7 @@ export default function AdminRegistrationsPage() {
         .ar-amount { font-family: var(--font-heading); font-weight: 800; color: var(--navy); flex-shrink: 0; }
         .ar-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
         .ar-date { font-size: 0.72rem; color: var(--gray-500, #6B7280); }
+        .ar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .ar-comp-btn { flex-shrink: 0; }
 
         .ar-pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 18px; font-size: 0.84rem; color: var(--gray-600); }

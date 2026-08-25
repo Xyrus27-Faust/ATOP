@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
@@ -7,6 +7,7 @@ import { Field, ctl } from '../components/form'
 import Modal from '../components/Modal'
 import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
 import SeatQr from '../components/SeatQr'
+import SeatPassModal from '../components/SeatPassModal'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -455,7 +456,7 @@ export default function RegistrationDetailPage() {
       </div>
 
       {passFor && (
-        <PassModal delegate={passFor} reference={reg.referenceCode} onClose={() => setPassFor(null)} />
+        <SeatPassModal delegate={passFor} reference={reg.referenceCode} onClose={() => setPassFor(null)} />
       )}
 
       {substituting && (
@@ -689,46 +690,6 @@ function AddDelegateModal({ registrationId, onClose, onDone }) {
  * has no signal. The image is redrawn at print size rather than scaled up from the thumbnail — a
  * QR blown up from 104px is a QR a scanner argues with.
  */
-function PassModal({ delegate, reference, onClose }) {
-  const canvas = useRef(null)
-
-  function download() {
-    const png = canvas.current?.querySelector('canvas')?.toDataURL('image/png')
-    if (!png) return
-
-    // Named for a human: whoever finds this in Downloads three weeks later should know whose it is.
-    const safeName = delegate.fullName.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    const link = document.createElement('a')
-    link.href = png
-    link.download = `ATOP-pass-${safeName}-${delegate.referenceCode}.png`
-    link.click()
-  }
-
-  return (
-    <Modal title={delegate.fullName} onClose={onClose}>
-      <div className="pm" ref={canvas}>
-        <SeatQr code={delegate.referenceCode} size={260} />
-        <div className="pm-code">{delegate.referenceCode}</div>
-        <p className="pm-note">
-          Show this at the registration desk. It admits {delegate.fullName} only, under booking {reference}.
-        </p>
-        <button type="button" className="dash-btn is-primary" onClick={download}>
-          <i className="fas fa-download" aria-hidden="true" /> Download
-        </button>
-      </div>
-
-      <style>{`
-        .pm { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 4px 0 8px; }
-        .pm-code {
-          font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800;
-          letter-spacing: 0.08em; color: var(--navy); font-variant-numeric: tabular-nums;
-        }
-        .pm-note { margin: 0; text-align: center; font-size: 0.86rem; color: var(--gray-600); max-width: 34ch; }
-      `}</style>
-    </Modal>
-  )
-}
-
 /**
  * Replace a delegate in place. The reference code, attendance mode, and amount
  * all stay with the seat — only the person changes.
