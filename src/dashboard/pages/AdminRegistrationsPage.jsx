@@ -15,6 +15,9 @@ import {
 
 const PAGE_SIZE = 50
 
+/** Says which set a figure covers, so "12 in person" is never read as the whole convention. */
+const SCOPE = (filtered) => (filtered ? ' · matching filters' : ' · all bookings')
+
 /**
  * The Secretariat's view of who's coming. Filters mirror the backend's query
  * parameters exactly, so what's on screen is what the server actually selected.
@@ -64,18 +67,12 @@ export default function AdminRegistrationsPage() {
 
   const { items, totalCount } = result
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-  const confirmed = items.filter((r) => r.status === 'Confirmed')
-  const heads = confirmed.reduce(
-    (acc, r) => ({ inPerson: acc.inPerson + r.inPersonCount, virtual: acc.virtual + r.virtualCount }),
-    { inPerson: 0, virtual: 0 },
-  )
 
-  // Money actually received, not the face value of confirmed bookings. Since a downpayment
-  // confirms, those two stopped being the same number: a booking can be confirmed and still owe.
-  // Summing amountPaid makes the complimentary filter unnecessary — a comped seat paid nothing,
-  // so it contributes nothing on its own.
-  const collected = items.reduce((s, r) => s + Number(r.amountPaid ?? 0), 0)
-  const outstanding = items.reduce((s, r) => s + Number(r.balance ?? 0), 0)
+  // Totals come from the server, computed across every booking the filters match. They used to be
+  // summed from the rows on screen, which answered a question nobody asks: page one is not a
+  // catering number. Falling back to zeroes keeps the cards rendering against an older API.
+  const totals = result.totals ?? {}
+  const filtered = Boolean(status || mode || region || query)
 
   const applySearch = (e) => { e.preventDefault(); setPage(1); setQuery(search.trim()) }
   const changeFilter = (setter) => (value) => { setPage(1); setter(value) }
@@ -90,16 +87,16 @@ export default function AdminRegistrationsPage() {
         </div>
       </div>
 
-      {/* Headcounts count CONFIRMED bookings on the rows currently loaded — which now includes
-          anyone who has paid a downpayment, because that is what confirms a booking. Money is
-          counted as money: what has actually been received, and what is still owed. All of it is
-          per-page, labelled so a filtered page is never mistaken for the final catering number. */}
+      {/* Seats are counted per delegate on CONFIRMED bookings — which includes anyone who has paid
+          a downpayment, because that is what confirms a booking. Money is counted as money: what has
+          actually arrived, and what is still owed. The suffix says which set these describe, so a
+          filtered view is never mistaken for the whole convention. */}
       <div className="dash-grid ar-stats">
-        <Stat icon="fa-location-dot" label="In person · confirmed, this page" value={heads.inPerson} />
-        <Stat icon="fa-video" label="Online · confirmed, this page" value={heads.virtual} />
-        <Stat icon="fa-peso-sign" label="Received · this page" value={formatPeso(collected)} />
-        <Stat icon="fa-hourglass-half" label="Outstanding · this page" value={formatPeso(outstanding)} />
-        <Stat icon="fa-list-check" label="Bookings matching filters" value={totalCount} />
+        <Stat icon="fa-location-dot" label={`In person · confirmed${SCOPE(filtered)}`} value={totals.inPersonConfirmed ?? 0} />
+        <Stat icon="fa-video" label={`Online · confirmed${SCOPE(filtered)}`} value={totals.virtualConfirmed ?? 0} />
+        <Stat icon="fa-peso-sign" label={`Received${SCOPE(filtered)}`} value={formatPeso(totals.collected ?? 0)} />
+        <Stat icon="fa-hourglass-half" label={`Outstanding${SCOPE(filtered)}`} value={formatPeso(totals.outstanding ?? 0)} />
+        <Stat icon="fa-list-check" label={filtered ? 'Bookings matching filters' : 'Bookings'} value={totalCount} />
       </div>
 
       <div className="dash-card dash-card-pad ar-filters">
