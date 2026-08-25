@@ -65,6 +65,7 @@ export default function ConventionPage() {
           <p className="dash-sub">
             {formatDate(event.startsAt)} – {formatDate(event.endsAt)} · {event.venueName}
           </p>
+          <SeatsLeft remaining={event.seatsRemaining} />
         </div>
         {window.open && (
           <button className="dash-btn is-primary" onClick={() => navigate('/convention/register')}>
@@ -72,6 +73,13 @@ export default function ConventionPage() {
           </button>
         )}
       </div>
+
+      {event.seatsRemaining === 0 && (
+        <div className="dash-banner cv-banner-closed">
+          <i className="fas fa-circle-info" aria-hidden="true" />
+          <span>Every seat for the convention has been taken. No further registrations can be confirmed.</span>
+        </div>
+      )}
 
       {!window.open && (
         <div className="dash-banner cv-banner-closed">
@@ -223,5 +231,37 @@ export default function ConventionPage() {
         }
       `}</style>
     </>
+  )
+}
+
+/**
+ * How many seats are left, when the event is capped.
+ *
+ * The number is the one the checkout gate enforces — confirmed seats plus seats held by a checkout
+ * in flight — so the page never promises a seat that the next click refuses. An uncapped event
+ * says nothing rather than implying room it has not actually counted.
+ */
+function SeatsLeft({ remaining }) {
+  if (remaining === null || remaining === undefined) return null
+
+  const tone = remaining === 0 ? 'is-gone' : remaining <= 50 ? 'is-low' : 'is-open'
+  const text =
+    remaining === 0 ? 'Fully booked'
+      : remaining === 1 ? '1 seat left'
+        : `${remaining.toLocaleString()} seats left`
+
+  return (
+    <span className={`cv-seats ${tone}`}>
+      <i className="fas fa-chair" aria-hidden="true" /> {text}
+      <style>{`
+        .cv-seats {
+          display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
+          padding: 3px 11px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+        }
+        .cv-seats.is-open { background: var(--gray-100, #F3F4F6); color: var(--navy); }
+        .cv-seats.is-low { background: #fef3c7; color: #b45309; }
+        .cv-seats.is-gone { background: var(--gray-200, #E5E7EB); color: var(--gray-600, #4B5563); }
+      `}</style>
+    </span>
   )
 }
