@@ -15,9 +15,6 @@ import {
 
 const PAGE_SIZE = 50
 
-/** Says which set a figure covers, so "12 in person" is never read as the whole convention. */
-const SCOPE = (filtered) => (filtered ? ' · matching filters' : ' · all bookings')
-
 /**
  * The Secretariat's view of who's coming. Filters mirror the backend's query
  * parameters exactly, so what's on screen is what the server actually selected.
@@ -68,9 +65,10 @@ export default function AdminRegistrationsPage() {
   const { items, totalCount } = result
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
-  // Totals come from the server, computed across every booking the filters match. They used to be
-  // summed from the rows on screen, which answered a question nobody asks: page one is not a
-  // catering number. Falling back to zeroes keeps the cards rendering against an older API.
+  // The convention's own figures, from the server. They do not move when a filter is applied —
+  // someone narrowing to one region still needs the number the caterer is cooking for. What the
+  // filter changes is how many records matched, below. Zeroes keep the cards rendering if the
+  // API predates them.
   const totals = result.totals ?? {}
   const filtered = Boolean(status || mode || region || query)
 
@@ -88,16 +86,22 @@ export default function AdminRegistrationsPage() {
       </div>
 
       {/* Seats are counted per delegate on CONFIRMED bookings — which includes anyone who has paid
-          a downpayment, because that is what confirms a booking. Money is counted as money: what has
-          actually arrived, and what is still owed. The suffix says which set these describe, so a
-          filtered view is never mistaken for the whole convention. */}
+          a downpayment, because that is what confirms a booking. Money is counted as money: what
+          has actually arrived, and what is still owed. */}
       <div className="dash-grid ar-stats">
-        <Stat icon="fa-location-dot" label={`In person · confirmed${SCOPE(filtered)}`} value={totals.inPersonConfirmed ?? 0} />
-        <Stat icon="fa-video" label={`Online · confirmed${SCOPE(filtered)}`} value={totals.virtualConfirmed ?? 0} />
-        <Stat icon="fa-peso-sign" label={`Received${SCOPE(filtered)}`} value={formatPeso(totals.collected ?? 0)} />
-        <Stat icon="fa-hourglass-half" label={`Outstanding${SCOPE(filtered)}`} value={formatPeso(totals.outstanding ?? 0)} />
-        <Stat icon="fa-list-check" label={filtered ? 'Bookings matching filters' : 'Bookings'} value={totalCount} />
+        <Stat icon="fa-location-dot" label="In person · confirmed" value={totals.inPersonConfirmed ?? 0} />
+        <Stat icon="fa-video" label="Online · confirmed" value={totals.virtualConfirmed ?? 0} />
+        <Stat icon="fa-peso-sign" label="Received" value={formatPeso(totals.collected ?? 0)} />
+        <Stat icon="fa-hourglass-half" label="Outstanding" value={formatPeso(totals.outstanding ?? 0)} />
+        <Stat
+          icon="fa-list-check"
+          label={filtered ? 'Records · matching filters' : 'Records · all bookings'}
+          value={totalCount}
+        />
       </div>
+      <p className="ar-scope">
+        Figures cover the whole convention{filtered && <> — only the record count follows your filters</>}.
+      </p>
 
       <div className="dash-card dash-card-pad ar-filters">
         <form className="ar-search" onSubmit={applySearch}>
@@ -233,6 +237,7 @@ export default function AdminRegistrationsPage() {
         .ar-amount { font-family: var(--font-heading); font-weight: 800; color: var(--navy); flex-shrink: 0; }
         .ar-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
         .ar-date { font-size: 0.72rem; color: var(--gray-500, #6B7280); }
+        .ar-scope { margin: -6px 2px 14px; font-size: 0.78rem; color: var(--gray-500, #6B7280); }
         .ar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .ar-comp-btn { flex-shrink: 0; }
 
