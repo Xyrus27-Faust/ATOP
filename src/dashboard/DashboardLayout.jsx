@@ -192,7 +192,7 @@ export const DASH_CSS = `
     border-right: 4px solid var(--gold);
     overflow: hidden;
   }
-  .dash-sidebar-top { padding: 28px 24px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .dash-sidebar-top { flex-shrink: 0; padding: 28px 24px 18px; display: flex; flex-direction: column; gap: 14px; }
   .dash-brand { display: inline-flex; align-items: center; gap: 12px; width: fit-content; }
   .dash-emblem { width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 6px 16px rgba(0,0,0,0.4)); }
   .dash-wordmark {
@@ -213,7 +213,23 @@ export const DASH_CSS = `
   }
   .dash-role-chip i { font-size: 0.7rem; }
 
-  .dash-nav { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; flex: 1; }
+  /*
+   * The nav scrolls; the brand above and the footer below stay put.
+   *
+   * min-height: 0 is load-bearing. A flex item will not shrink below its content, so without it
+   * the nav keeps its full height inside a 100vh sidebar that hides its overflow — and a user with
+   * several role sections (an admin has five) simply loses the bottom of the list, with nothing to
+   * scroll and no sign anything is missing.
+   */
+  .dash-nav {
+    display: flex; flex-direction: column; gap: 4px; padding: 14px 16px;
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent;
+  }
+  .dash-nav::-webkit-scrollbar { width: 8px; }
+  .dash-nav::-webkit-scrollbar-track { background: transparent; }
+  .dash-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
+  .dash-nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
   .dash-nav-group { display: flex; flex-direction: column; gap: 4px; }
   .dash-nav-label {
     font-family: var(--font-heading); font-size: 0.6rem; font-weight: 700;
@@ -236,7 +252,7 @@ export const DASH_CSS = `
   }
   .dash-nav-link.active i { color: var(--gold); }
 
-  .dash-sidebar-foot { position: relative; padding: 18px 20px 24px; }
+  .dash-sidebar-foot { position: relative; flex-shrink: 0; padding: 18px 20px 24px; }
   .dash-back-site {
     position: relative; z-index: 1;
     display: inline-flex; align-items: center; gap: 8px; background: none; border: none;
