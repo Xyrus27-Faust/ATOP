@@ -1,0 +1,1181 @@
+src/App.tsx(36,23): error TS7006: Parameter 'pathname' implicitly has an 'any' type.
+src/App.tsx(37,54): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ home: string; about: string; membership: string; programs: string; news: string; resources: string; contact: string; awards: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ home: string; about: string; membership: string; programs: string; news: string; resources: string; contact: string; awards: string; }'.
+src/App.tsx(48,27): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/App.tsx(48,43): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ home: string; about: string; membership: string; programs: string; news: string; resources: string; contact: string; awards: string; }'.
+src/components/About.tsx(1,33): error TS7031: Binding element 'setCurrentPage' implicitly has an 'any' type.
+src/components/ContactPage.tsx(12,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/ContactPage.tsx(134,23): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/Footer.tsx(23,34): error TS7031: Binding element 'setCurrentPage' implicitly has an 'any' type.
+src/components/Footer.tsx(55,38): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ Home: string; 'About Us': string; Membership: string; Programs: string; 'News & Events': string; Resources: string; 'Contact Us': string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ Home: string; 'About Us': string; Membership: string; Programs: string; 'News & Events': string; Resources: string; 'Contact Us': string; }'.
+src/components/Header.tsx(31,34): error TS7031: Binding element 'scrolled' implicitly has an 'any' type.
+src/components/Header.tsx(31,44): error TS7031: Binding element 'currentPage' implicitly has an 'any' type.
+src/components/Header.tsx(31,57): error TS7031: Binding element 'setCurrentPage' implicitly has an 'any' type.
+src/components/Header.tsx(41,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/Header.tsx(42,55): error TS2339: Property 'contains' does not exist on type 'never'.
+src/components/Header.tsx(44,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/Header.tsx(79,43): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/components/Hero.tsx(1,32): error TS7031: Binding element 'setCurrentPage' implicitly has an 'any' type.
+src/components/Membership.tsx(22,38): error TS7031: Binding element 'setCurrentPage' implicitly has an 'any' type.
+src/components/NewsEvents.tsx(40,38): error TS7031: Binding element 'setCurrentPage' implicitly has an 'any' type.
+src/components/NewsPage.tsx(88,34): error TS2339: Property 'month' does not exist on type 'never'.
+src/components/NewsPage.tsx(88,58): error TS2339: Property 'day' does not exist on type 'never'.
+src/components/NewsPage.tsx(88,81): error TS2339: Property 'year' does not exist on type 'never'.
+src/components/NewsPage.tsx(92,59): error TS2339: Property 'title' does not exist on type 'never'.
+src/components/NewsPage.tsx(95,41): error TS2339: Property 'img' does not exist on type 'never'.
+src/components/NewsPage.tsx(95,67): error TS2339: Property 'alt' does not exist on type 'never'.
+src/components/NewsPage.tsx(99,32): error TS2339: Property 'fullContent' does not exist on type 'never'.
+src/components/NewsPage.tsx(99,63): error TS7006: Parameter 'para' implicitly has an 'any' type.
+src/components/NewsPage.tsx(99,69): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/NewsPage.tsx(111,51): error TS2345: Argument of type '{ id: string; img: string; month: string; day: string; year: string; title: string; desc: string; fullContent: string; alt: string; }' is not assignable to parameter of type 'SetStateAction<null>'.
+  Type '{ id: string; img: string; month: string; day: string; year: string; title: string; desc: string; fullContent: string; alt: string; }' provides no match for the signature '(prevState: null): null'.
+src/components/PearlAwards.tsx(3,39): error TS7031: Binding element 'setCurrentPage' implicitly has an 'any' type.
+src/components/PearlAwards.tsx(186,31): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+src/components/PearlAwards.tsx(187,18): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+src/components/PearlAwards.tsx(194,29): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+src/components/PearlAwards.tsx(195,16): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+src/components/PearlAwards.tsx(198,16): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ overview: { title: string; icon: string; content: Element; }; eligibility: { title: string; icon: string; content: Element; }; judging: { title: string; icon: string; content: Element; }; checklist: { ...; }; }'.
+src/components/PublicAwardCategoriesPage.tsx(34,71): error TS2322: Type 'unknown' is not assignable to type 'null'.
+src/components/PublicAwardCategoriesPage.tsx(40,48): error TS2339: Property 'categories' does not exist on type 'never'.
+src/components/PublicAwardCategoriesPage.tsx(42,56): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(47,23): error TS7006: Parameter 'categoryNumber' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(75,64): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(78,36): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(89,60): error TS18047: 'catalog' is possibly 'null'.
+src/components/PublicAwardCategoriesPage.tsx(92,14): error TS18047: 'catalog' is possibly 'null'.
+src/components/PublicAwardCategoriesPage.tsx(93,28): error TS18047: 'catalog' is possibly 'null'.
+src/components/PublicAwardCategoriesPage.tsx(95,65): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/components/PublicAwardCategoriesPage.tsx(97,48): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/components/PublicAwardCategoriesPage.tsx(98,50): error TS2345: Argument of type 'Date | undefined' is not assignable to parameter of type 'string | null | undefined'.
+  Type 'Date' is not assignable to type 'string'.
+src/components/PublicAwardCategoriesPage.tsx(154,51): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(163,27): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(164,56): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(164,59): error TS7006: Parameter 'k' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(165,72): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(171,74): error TS18047: 'catalog' is possibly 'null'.
+src/components/PublicAwardCategoriesPage.tsx(180,53): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ Lgu: string; OfficersOrganization: string; Individual: string; }'.
+src/components/PublicAwardCategoriesPage.tsx(235,23): error TS7031: Binding element 'active' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(235,31): error TS7031: Binding element 'onClick' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(235,40): error TS7031: Binding element 'label' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(235,47): error TS7031: Binding element 'count' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(243,27): error TS7031: Binding element 'category' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(243,37): error TS7031: Binding element 'win' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(243,42): error TS7031: Binding element 'isLoggedIn' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(243,54): error TS7031: Binding element 'isFav' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(243,61): error TS7031: Binding element 'onToggleFav' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(243,74): error TS7031: Binding element 'onBack' implicitly has an 'any' type.
+src/components/PublicAwardCategoriesPage.tsx(243,82): error TS7031: Binding element 'onStart' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(8,3): error TS7031: Binding element 'id' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(9,3): error TS7031: Binding element 'label' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(11,3): error TS7031: Binding element 'icon' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(12,3): error TS7031: Binding element 'error' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(13,3): error TS7031: Binding element 'hint' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(14,3): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(15,3): error TS7031: Binding element 'onChange' implicitly has an 'any' type.
+src/components/auth/AuthField.tsx(16,3): error TS7031: Binding element 'onBlur' implicitly has an 'any' type.
+src/components/auth/AuthLayout.tsx(43,3): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/components/auth/AuthLayout.tsx(44,3): error TS7031: Binding element 'subtitle' implicitly has an 'any' type.
+src/components/auth/AuthLayout.tsx(45,3): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/components/auth/AuthLayout.tsx(46,3): error TS7031: Binding element 'footer' implicitly has an 'any' type.
+src/components/auth/GoogleButton.tsx(8,5): error TS7034: Variable 'gisPromise' implicitly has type 'any' in some locations where its type cannot be determined.
+src/components/auth/GoogleButton.tsx(11,7): error TS7005: Variable 'gisPromise' implicitly has an 'any' type.
+src/components/auth/GoogleButton.tsx(31,40): error TS7031: Binding element 'onSuccess' implicitly has an 'any' type.
+src/components/auth/GoogleButton.tsx(31,51): error TS7031: Binding element 'onError' implicitly has an 'any' type.
+src/components/auth/GoogleButton.tsx(49,9): error TS18048: 'window.google' is possibly 'undefined'.
+src/components/auth/GoogleButton.tsx(63,62): error TS2339: Property 'offsetWidth' does not exist on type 'never'.
+src/components/auth/GoogleButton.tsx(64,9): error TS18048: 'window.google' is possibly 'undefined'.
+src/components/auth/GoogleButton.tsx(74,15): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/components/auth/LoginPage.tsx(19,27): error TS7006: Parameter 'roles' implicitly has an 'any' type.
+src/components/auth/LoginPage.tsx(31,16): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/auth/LoginPage.tsx(31,27): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/auth/LoginPage.tsx(42,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/auth/LoginPage.tsx(53,21): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/LoginPage.tsx(55,21): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/LoginPage.tsx(57,21): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/LoginPage.tsx(60,11): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/LoginPage.tsx(92,18): error TS2339: Property 'kind' does not exist on type 'never'.
+src/components/auth/LoginPage.tsx(95,27): error TS2339: Property 'message' does not exist on type 'never'.
+src/components/auth/LoginPage.tsx(99,18): error TS2339: Property 'kind' does not exist on type 'never'.
+src/components/auth/LoginPage.tsx(118,10): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string | undefined; value: any; }'.
+src/components/auth/LoginPage.tsx(128,25): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/auth/LoginPage.tsx(131,10): error TS2739: Type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; error: any; }' is missing the following properties from type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string | undefined; value: any; }': hint, onBlur
+src/components/auth/LoginPage.tsx(140,25): error TS2339: Property 'password' does not exist on type '{}'.
+src/components/auth/LoginPage.tsx(157,21): error TS7006: Parameter 'me' implicitly has an 'any' type.
+src/components/auth/LoginPage.tsx(158,19): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/components/auth/LoginPage.tsx(160,13): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/RegisterPage.tsx(48,16): error TS7006: Parameter 'field' implicitly has an 'any' type.
+src/components/auth/RegisterPage.tsx(48,27): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/auth/RegisterPage.tsx(62,30): error TS7006: Parameter 'fieldErrors' implicitly has an 'any' type.
+src/components/auth/RegisterPage.tsx(66,22): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ email: string; password: string; firstname: string; lastname: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ email: string; password: string; firstname: string; lastname: string; }'.
+src/components/auth/RegisterPage.tsx(67,19): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/components/auth/RegisterPage.tsx(67,34): error TS18046: 'messages' is of type 'unknown'.
+src/components/auth/RegisterPage.tsx(68,30): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/components/auth/RegisterPage.tsx(71,39): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/RegisterPage.tsx(74,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/auth/RegisterPage.tsx(87,17): error TS2353: Object literal may only specify known properties, and 'email' does not exist in type '(prevState: null) => null'.
+src/components/auth/RegisterPage.tsx(87,57): error TS2339: Property 'message' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(93,11): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/RegisterPage.tsx(104,32): error TS18047: 'done' is possibly 'null'.
+src/components/auth/RegisterPage.tsx(129,61): error TS2339: Property 'email' does not exist on type 'never'.
+src/components/auth/RegisterPage.tsx(163,18): error TS2339: Property 'kind' does not exist on type 'never'.
+src/components/auth/RegisterPage.tsx(166,27): error TS2339: Property 'message' does not exist on type 'never'.
+src/components/auth/RegisterPage.tsx(171,12): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string | undefined; value: any; }'.
+src/components/auth/RegisterPage.tsx(180,27): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(182,12): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string | undefined; value: any; }'.
+src/components/auth/RegisterPage.tsx(191,27): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(195,10): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string | undefined; value: any; }'.
+src/components/auth/RegisterPage.tsx(205,25): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(218,25): error TS2339: Property 'password' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(219,24): error TS2339: Property 'password' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(222,10): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string | undefined; value: any; }'.
+src/components/auth/RegisterPage.tsx(232,25): error TS2339: Property 'confirm' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(250,19): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/components/auth/RegisterPage.tsx(252,13): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '(prevState: null) => null'.
+src/components/auth/VerifyEmailPage.tsx(36,17): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/components/auth/VerifyEmailPage.tsx(39,25): error TS2339: Property 'message' does not exist on type '{}'.
+src/components/auth/VerifyEmailPage.tsx(51,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/auth/VerifyEmailPage.tsx(54,19): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'SetStateAction<null>'.
+  Type 'string' is not assignable to type 'SetStateAction<null>'.
+src/components/auth/VerifyEmailPage.tsx(122,16): error TS2739: Type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; error: null; }' is missing the following properties from type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string | undefined; value: any; }': hint, onBlur
+src/components/auth/VerifyEmailPage.tsx(130,28): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/ui/button.tsx(42,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/button.tsx(55,38): error TS2322: Type 'string' is not assignable to type '"default" | "destructive" | "ghost" | "link" | "outline" | "secondary" | null | undefined'.
+src/components/ui/button.tsx(55,47): error TS2322: Type 'string' is not assignable to type '"default" | "icon" | "icon-lg" | "icon-sm" | "icon-xs" | "lg" | "sm" | "xs" | null | undefined'.
+src/components/ui/card.tsx(6,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/card.tsx(21,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/card.tsx(36,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/card.tsx(48,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/card.tsx(60,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/card.tsx(75,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/card.tsx(82,3): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/dashboard/DashboardLayout.tsx(12,21): error TS7006: Parameter 'user' implicitly has an 'any' type.
+src/dashboard/DashboardLayout.tsx(47,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/DashboardLayout.tsx(48,47): error TS2339: Property 'contains' does not exist on type 'never'.
+src/dashboard/DashboardLayout.tsx(50,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/DashboardLayout.tsx(137,57): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/dashboard/components/CommentThread.tsx(9,41): error TS7031: Binding element 'entryId' implicitly has an 'any' type.
+src/dashboard/components/CommentThread.tsx(17,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/components/CommentThread.tsx(28,25): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/components/CommentThread.tsx(46,20): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/components/CommentThread.tsx(50,21): error TS2339: Property 'map' does not exist on type '{}'.
+src/dashboard/components/CommentThread.tsx(50,26): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(34,23): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(34,30): error TS7006: Parameter 'criteria' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(36,50): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(36,53): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(37,58): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(40,26): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(45,45): error TS2339: Property 'text' does not exist on type '{}'.
+src/dashboard/components/EntryDossier.tsx(49,37): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(59,34): error TS7031: Binding element 'icon' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(59,40): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(59,47): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(68,31): error TS7031: Binding element 'items' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(71,20): error TS7031: Binding element 'k' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(71,23): error TS7031: Binding element 'v' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(88,31): error TS7031: Binding element 'files' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(88,38): error TS7031: Binding element 'onViewEvidence' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(101,19): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(114,34): error TS7031: Binding element 'item' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(114,40): error TS7031: Binding element 'onViewEvidence' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(114,56): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(114,66): error TS7031: Binding element 'id' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(129,36): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(148,43): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(157,37): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(157,44): error TS7031: Binding element 'criteria' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(157,54): error TS7031: Binding element 'onViewEvidence' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(163,22): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(164,12): error TS2739: Type '{ key: any; item: any; onViewEvidence: any; showEmptyEvidence: boolean; }' is missing the following properties from type '{ children: any; className?: string | undefined; id: any; item: any; onViewEvidence: any; showEmptyEvidence?: boolean | undefined; }': children, id
+src/dashboard/components/EntryDossier.tsx(174,25): error TS7031: Binding element 'doc' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(174,30): error TS7031: Binding element 'kind' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(174,36): error TS7031: Binding element 'onViewDoc' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(226,19): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(226,26): error TS7006: Parameter 'category' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(228,74): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(230,6): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(235,32): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(235,39): error TS7031: Binding element 'category' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(235,49): error TS7031: Binding element 'onViewDoc' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(241,23): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(247,36): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(247,43): error TS7031: Binding element 'category' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(247,53): error TS7031: Binding element 'onViewDoc' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(249,74): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(255,39): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(262,38): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(275,38): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(275,45): error TS7031: Binding element 'onViewEndorsement' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(300,30): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(300,37): error TS7031: Binding element 'category' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(314,40): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(314,47): error TS7031: Binding element 'category' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(314,57): error TS7031: Binding element 'criteria' implicitly has an 'any' type.
+src/dashboard/components/EntryDossier.tsx(314,67): error TS7031: Binding element 'files' implicitly has an 'any' type.
+src/dashboard/components/NotificationBell.tsx(12,18): error TS7006: Parameter 'iso' implicitly has an 'any' type.
+src/dashboard/components/NotificationBell.tsx(36,24): error TS2345: Argument of type '{ items: never[]; unreadCount: number; } | {}' is not assignable to parameter of type 'SetStateAction<{ items: never[]; unreadCount: number; }>'.
+  Type '{}' is not assignable to type 'SetStateAction<{ items: never[]; unreadCount: number; }>'.
+src/dashboard/components/NotificationBell.tsx(49,21): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/components/NotificationBell.tsx(49,69): error TS2339: Property 'contains' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(50,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/components/NotificationBell.tsx(63,21): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/components/NotificationBell.tsx(66,15): error TS2345: Argument of type '(d: { items: never[]; unreadCount: number; }) => { items: any[]; unreadCount: number; }' is not assignable to parameter of type 'SetStateAction<{ items: never[]; unreadCount: number; }>'.
+  Type '(d: { items: never[]; unreadCount: number; }) => { items: any[]; unreadCount: number; }' is not assignable to type '(prevState: { items: never[]; unreadCount: number; }) => { items: never[]; unreadCount: number; }'.
+    Type '{ items: any[]; unreadCount: number; }' is not assignable to type '{ items: never[]; unreadCount: number; }'.
+      Types of property 'items' are incompatible.
+        Type 'any[]' is not assignable to type 'never[]'.
+          Type 'any' is not assignable to type 'never'.
+src/dashboard/components/NotificationBell.tsx(67,38): error TS2339: Property 'id' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(67,54): error TS2698: Spread types may only be created from object types.
+src/dashboard/components/NotificationBell.tsx(76,13): error TS2345: Argument of type '(d: { items: never[]; unreadCount: number; }) => { items: any[]; unreadCount: number; }' is not assignable to parameter of type 'SetStateAction<{ items: never[]; unreadCount: number; }>'.
+  Type '(d: { items: never[]; unreadCount: number; }) => { items: any[]; unreadCount: number; }' is not assignable to type '(prevState: { items: never[]; unreadCount: number; }) => { items: never[]; unreadCount: number; }'.
+    Type '{ items: any[]; unreadCount: number; }' is not assignable to type '{ items: never[]; unreadCount: number; }'.
+      Types of property 'items' are incompatible.
+        Type 'any[]' is not assignable to type 'never[]'.
+          Type 'any' is not assignable to type 'never'.
+src/dashboard/components/NotificationBell.tsx(76,52): error TS2698: Spread types may only be created from object types.
+src/dashboard/components/NotificationBell.tsx(106,46): error TS2339: Property 'id' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(106,73): error TS2339: Property 'isRead' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(107,71): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ EntrySubmitted: string; EntryValidated: string; EntryReturned: string; EntryDisqualified: string; }'.
+src/dashboard/components/NotificationBell.tsx(107,79): error TS2339: Property 'type' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(109,56): error TS2339: Property 'title' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(110,55): error TS2339: Property 'body' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(111,63): error TS2339: Property 'createdAt' does not exist on type 'never'.
+src/dashboard/components/NotificationBell.tsx(113,23): error TS2339: Property 'isRead' does not exist on type 'never'.
+src/dashboard/components/Readiness.tsx(4,37): error TS7031: Binding element 'readiness' implicitly has an 'any' type.
+src/dashboard/components/Readiness.tsx(22,23): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/dashboard/components/StatusBadge.tsx(4,39): error TS7031: Binding element 'status' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(5,25): error TS7031: Binding element 'label' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(5,32): error TS7031: Binding element 'htmlFor' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(5,41): error TS7031: Binding element 'required' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(5,51): error TS7031: Binding element 'error' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(5,58): error TS7031: Binding element 'hint' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(5,64): error TS7031: Binding element 'counter' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(5,73): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(36,21): error TS7006: Parameter 'base' implicitly has an 'any' type.
+src/dashboard/components/form.tsx(36,27): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/dashboard/components/states.tsx(12,30): error TS7031: Binding element 'error' implicitly has an 'any' type.
+src/dashboard/components/states.tsx(12,37): error TS7031: Binding element 'onRetry' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(9,21): error TS7006: Parameter 'name' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(9,27): error TS7006: Parameter 'email' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(16,18): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(16,25): error TS7031: Binding element 'sub' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(16,30): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(16,39): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(16,49): error TS7031: Binding element 'foot' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(18,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(44,27): error TS7031: Binding element 'onChanged' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(56,15): error TS2345: Argument of type 'Dispatch<SetStateAction<never[]>>' is not assignable to parameter of type '(value: unknown) => void | PromiseLike<void>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'SetStateAction<never[]>'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(63,25): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(63,28): error TS7006: Parameter 'grant' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(69,18): error TS2345: Argument of type '(rs: never[]) => unknown[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+  Type '(rs: never[]) => unknown[]' is not assignable to type '(prevState: never[]) => never[]'.
+    Type 'unknown[]' is not assignable to type 'never[]'.
+      Type 'unknown' is not assignable to type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(69,43): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(107,28): error TS2339: Property 'roles' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(109,26): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(110,78): error TS2339: Property 'fullName' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(110,90): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(112,48): error TS2339: Property 'fullName' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(112,62): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(113,49): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(118,40): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(121,31): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(157,11): error TS2339: Property 'list' does not exist on type '{ list: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(157,17): error TS2339: Property 'catalog' does not exist on type '{ list: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(159,48): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(160,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(162,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(167,19): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(175,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(183,23): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(227,28): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(241,51): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(243,71): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(263,10): error TS2739: Type '{ title: string; onClose: () => void; children: Element; }' is missing the following properties from type '{ children: any; foot: any; onClose: any; sub: any; title: any; }': foot, sub
+src/dashboard/pages/AdjudicatorAdminPage.tsx(284,30): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(36,46): error TS2339: Property 'filter' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(36,54): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(37,37): error TS2339: Property 'categories' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(38,48): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(40,25): error TS7006: Parameter 'req' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(40,30): error TS7006: Parameter 'action' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(47,25): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(53,34): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(60,25): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(66,23): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(72,22): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(85,41): error TS18047: 'assignFor' is possibly 'null'.
+src/dashboard/pages/AdminAccessPage.tsx(89,25): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(115,83): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(116,17): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(135,27): error TS2339: Property 'map' does not exist on type '{}'.
+src/dashboard/pages/AdminAccessPage.tsx(135,32): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(176,34): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(183,51): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(184,103): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/dashboard/pages/AdminAccessPage.tsx(217,32): error TS2339: Property 'fullName' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(217,54): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(221,30): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(305,18): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(305,25): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(305,34): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(307,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(341,15): error TS2345: Argument of type 'Dispatch<SetStateAction<never[]>>' is not assignable to parameter of type '(value: unknown) => void | PromiseLike<void>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'SetStateAction<never[]>'.
+src/dashboard/pages/AdminAccessPage.tsx(348,25): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(348,28): error TS7006: Parameter 'grant' implicitly has an 'any' type.
+src/dashboard/pages/AdminAccessPage.tsx(354,18): error TS2345: Argument of type '(rs: never[]) => unknown[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+  Type '(rs: never[]) => unknown[]' is not assignable to type '(prevState: never[]) => never[]'.
+    Type 'unknown[]' is not assignable to type 'never[]'.
+      Type 'unknown' is not assignable to type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(354,43): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(382,36): error TS2339: Property 'roles' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(384,27): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(386,48): error TS2339: Property 'fullName' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(386,62): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(387,49): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(391,100): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(392,35): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(395,102): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AdminAccessPage.tsx(396,35): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(9,21): error TS7006: Parameter 'name' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(9,27): error TS7006: Parameter 'email' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(16,18): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(16,25): error TS7031: Binding element 'sub' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(16,30): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(16,39): error TS7031: Binding element 'busy' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(16,45): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(16,55): error TS7031: Binding element 'foot' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(18,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(44,24): error TS7031: Binding element 'onChanged' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(56,15): error TS2345: Argument of type 'Dispatch<SetStateAction<never[]>>' is not assignable to parameter of type '(value: unknown) => void | PromiseLike<void>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'SetStateAction<never[]>'.
+src/dashboard/pages/AssessorAdminPage.tsx(63,25): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(63,28): error TS7006: Parameter 'grant' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(69,18): error TS2345: Argument of type '(rs: never[]) => unknown[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+  Type '(rs: never[]) => unknown[]' is not assignable to type '(prevState: never[]) => never[]'.
+    Type 'unknown[]' is not assignable to type 'never[]'.
+      Type 'unknown' is not assignable to type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(69,43): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(108,28): error TS2339: Property 'roles' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(110,26): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(111,78): error TS2339: Property 'fullName' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(111,90): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(113,48): error TS2339: Property 'fullName' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(113,62): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(114,49): error TS2339: Property 'email' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(119,40): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(122,31): error TS2339: Property 'userId' does not exist on type 'never'.
+src/dashboard/pages/AssessorAdminPage.tsx(163,11): error TS2339: Property 'list' does not exist on type '{ list: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/AssessorAdminPage.tsx(163,17): error TS2339: Property 'catalog' does not exist on type '{ list: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/AssessorAdminPage.tsx(165,48): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(166,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(168,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(173,19): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(181,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(189,23): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/AssessorAdminPage.tsx(234,28): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(235,49): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(246,37): error TS7006: Parameter 'role' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(253,53): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/AssessorAdminPage.tsx(254,105): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/dashboard/pages/AssessorAdminPage.tsx(274,10): error TS2739: Type '{ title: string; onClose: () => void; children: Element; }' is missing the following properties from type '{ busy: any; children: any; foot: any; onClose: any; sub: any; title: any; }': busy, foot, sub
+src/dashboard/pages/AssessorAdminPage.tsx(296,30): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(24,11): error TS2339: Property 'entries' does not exist on type '{ entries: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/EntriesListPage.tsx(24,20): error TS2339: Property 'catalog' does not exist on type '{ entries: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/EntriesListPage.tsx(25,56): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(26,65): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(27,52): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(57,17): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/dashboard/pages/EntriesListPage.tsx(59,42): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<string>'.
+src/dashboard/pages/EntriesListPage.tsx(60,37): error TS2538: Type 'unknown' cannot be used as an index type.
+src/dashboard/pages/EntriesListPage.tsx(61,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(67,28): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(126,17): error TS7031: Binding element 'active' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(126,25): error TS7031: Binding element 'onClick' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(126,34): error TS7031: Binding element 'label' implicitly has an 'any' type.
+src/dashboard/pages/EntriesListPage.tsx(126,41): error TS7031: Binding element 'count' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(49,22): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(49,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(49,66): error TS18046: 'entry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(63,32): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(64,32): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ submissionOpensAt: string; submissionClosesAt: string; resubmissionClosesAt?: string | null | undefined; } | null'.
+src/dashboard/pages/EntryEditorPage.tsx(64,53): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(65,38): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Partial<Entry> | null | undefined'.
+src/dashboard/pages/EntryEditorPage.tsx(68,20): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(68,67): error TS7006: Parameter 'k' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(79,67): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(80,34): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(84,29): error TS7006: Parameter 'res' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(84,48): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/EntryEditorPage.tsx(88,37): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(90,33): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(90,85): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(97,34): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(101,8): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(102,45): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(104,50): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(108,20): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(111,51): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(128,12): error TS2741: Property 'prev' is missing in type '{ next: { key: string; label: string; icon: string; reqKeys: string[]; }; onGo: Dispatch<SetStateAction<string>>; }' but required in type '{ next: any; onGo: any; prev: any; }'.
+src/dashboard/pages/EntryEditorPage.tsx(140,12): error TS2741: Property 'next' is missing in type '{ prev: { key: string; label: string; icon: string; reqKeys: string[]; }; onGo: Dispatch<SetStateAction<string>>; }' but required in type '{ next: any; onGo: any; prev: any; }'.
+src/dashboard/pages/EntryEditorPage.tsx(144,8): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(144,67): error TS18046: 'workingEntry' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(154,26): error TS7031: Binding element 'status' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(157,19): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ Draft: number; ReturnedForRevision: number; Submitted: number; UnderValidation: number; Validated: number; Disqualified: number; }'.
+src/dashboard/pages/EntryEditorPage.tsx(176,27): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(176,34): error TS7031: Binding element 'category' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(176,44): error TS7031: Binding element 'readOnly' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(176,54): error TS7031: Binding element 'onSaved' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(186,49): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(186,57): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(191,58): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(192,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(198,47): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(199,9): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(212,18): error TS7006: Parameter 'label' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(212,28): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(213,83): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(215,20): error TS7006: Parameter 'label' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(217,22): error TS2339: Property 'fileKey' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(217,39): error TS2339: Property 'fileKey' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(219,29): error TS7006: Parameter 'label' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(219,36): error TS7006: Parameter 'file' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(222,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(229,31): error TS18046: 'pres' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(231,61): error TS18046: 'pres' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(234,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(239,23): error TS7006: Parameter 'label' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(243,20): error TS7006: Parameter 'label' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(243,27): error TS7006: Parameter 'link' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(244,44): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(247,26): error TS7006: Parameter 'label' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(249,15): error TS2339: Property 'url' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(252,17): error TS2345: Argument of type '"Save your changes first, then you can view the file."' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(257,23): error TS7006: Parameter 'criterionId' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(257,39): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(259,74): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(260,33): error TS7006: Parameter 'criterionId' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(260,46): error TS7006: Parameter 'file' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(263,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(267,17): error TS2345: Argument of type '"You can attach up to 3 evidence files per criterion."' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(274,31): error TS18046: 'pres' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(276,57): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(276,92): error TS18046: 'pres' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(279,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(284,27): error TS7006: Parameter 'criterionId' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(284,40): error TS7006: Parameter 'fileKey' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(285,51): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(285,82): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(288,31): error TS7006: Parameter 'fileKey' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(290,15): error TS2339: Property 'url' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(293,17): error TS2345: Argument of type '"Save your changes first, then you can view the file."' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(301,56): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(307,25): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(308,49): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(320,9): error TS18046: 'files' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(320,20): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(330,30): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(354,10): error TS2739: Type '{ label: string; htmlFor: string; hint: string; counter: { text: string; over: boolean; }; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': error, required
+src/dashboard/pages/EntryEditorPage.tsx(376,24): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(387,16): error TS2739: Type '{ counter: { text: string; over: boolean; }; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': error, hint, htmlFor, label, required
+src/dashboard/pages/EntryEditorPage.tsx(405,35): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(523,31): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(523,38): error TS7031: Binding element 'readOnly' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(523,48): error TS7031: Binding element 'onSaved' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(536,30): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(564,22): error TS2739: Type '{ saving: boolean; dirty: boolean; banner: null; onSave: () => Promise<void>; saveLabel: string; }' is missing the following properties from type '{ banner: any; blocked: any; blockedMsg: any; dirty: any; onSave: any; saveLabel?: string | undefined; saving: any; }': blocked, blockedMsg
+src/dashboard/pages/EntryEditorPage.tsx(572,31): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(572,38): error TS7031: Binding element 'readOnly' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(572,48): error TS7031: Binding element 'onSaved' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(585,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(590,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(597,31): error TS18046: 'pres' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(599,26): error TS18046: 'pres' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(601,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(609,15): error TS2339: Property 'url' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(612,17): error TS2345: Argument of type '"Save your changes first, then you can view the document."' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(631,30): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(649,17): error TS2339: Property 'endorse' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(649,150): error TS2339: Property 'endorse' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(652,12): error TS2739: Type '{ label: string; required: true; error: any; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, htmlFor
+src/dashboard/pages/EntryEditorPage.tsx(652,77): error TS2339: Property 'file' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(678,22): error TS2739: Type '{ saving: boolean; dirty: boolean; banner: null; onSave: () => Promise<void>; saveLabel: string; }' is missing the following properties from type '{ banner: any; blocked: any; blockedMsg: any; dirty: any; onSave: any; saveLabel?: string | undefined; saving: any; }': blocked, blockedMsg
+src/dashboard/pages/EntryEditorPage.tsx(686,26): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(686,33): error TS7031: Binding element 'catalog' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(686,42): error TS7031: Binding element 'readiness' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(686,53): error TS7031: Binding element 'readOnly' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(686,63): error TS7031: Binding element 'onSaved' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(686,72): error TS7031: Binding element 'goTo' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(701,35): error TS18046: 'res' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(701,60): error TS18046: 'res' is of type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(704,21): error TS2345: Argument of type 'string[]' is not assignable to parameter of type 'SetStateAction<null>'.
+  Type 'string[]' provides no match for the signature '(prevState: null): null'.
+src/dashboard/pages/EntryEditorPage.tsx(706,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(751,48): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(753,85): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(754,65): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(765,89): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(776,51): error TS2339: Property 'map' does not exist on type 'never'.
+src/dashboard/pages/EntryEditorPage.tsx(776,56): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(776,59): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(801,25): error TS7031: Binding element 'icon' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(801,31): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(801,38): error TS7031: Binding element 'desc' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(812,23): error TS7031: Binding element 'prev' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(812,29): error TS7031: Binding element 'next' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(812,35): error TS7031: Binding element 'onGo' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(832,25): error TS7031: Binding element 'entry' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(832,32): error TS7031: Binding element 'win' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(832,37): error TS7031: Binding element 'onWithdrawn' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(832,50): error TS7031: Binding element 'onDeleted' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(844,21): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(844,61): error TS2339: Property 'contains' does not exist on type 'never'.
+src/dashboard/pages/EntryEditorPage.tsx(845,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(860,16): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(872,16): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/EntryEditorPage.tsx(877,19): error TS7006: Parameter 'which' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(907,10): error TS2741: Property 'danger' is missing in type '{ title: string; body: string; confirmLabel: string; busy: boolean; error: null; onConfirm: () => Promise<void>; onCancel: () => void; }' but required in type '{ body: any; busy: any; confirmLabel: any; danger: any; error: any; onCancel: any; onConfirm: any; title: any; }'.
+src/dashboard/pages/EntryEditorPage.tsx(933,26): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(933,33): error TS7031: Binding element 'body' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(933,39): error TS7031: Binding element 'confirmLabel' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(933,53): error TS7031: Binding element 'danger' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(933,61): error TS7031: Binding element 'busy' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(933,67): error TS7031: Binding element 'error' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(933,74): error TS7031: Binding element 'onConfirm' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(933,85): error TS7031: Binding element 'onCancel' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(935,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(965,20): error TS7031: Binding element 'saving' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(965,28): error TS7031: Binding element 'dirty' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(965,35): error TS7031: Binding element 'blocked' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(965,44): error TS7031: Binding element 'banner' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(965,52): error TS7031: Binding element 'onSave' implicitly has an 'any' type.
+src/dashboard/pages/EntryEditorPage.tsx(965,84): error TS7031: Binding element 'blockedMsg' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(15,18): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(29,20): error TS7031: Binding element 'entryId' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(29,29): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(36,26): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(36,51): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(36,70): error TS18046: 'detail' is of type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(37,18): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsBracketPage.tsx(44,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(81,67): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | boolean'.
+  Type 'undefined' is not assignable to type 'string | number | boolean'.
+src/dashboard/pages/FinalsBracketPage.tsx(100,41): error TS2339: Property 'finalists' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(101,53): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(107,25): error TS2339: Property 'myRanks' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(107,54): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(107,57): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(107,85): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(108,42): error TS2339: Property 'finalists' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(109,36): error TS2339: Property 'finalists' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(109,51): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(110,19): error TS2339: Property 'notes' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(111,20): error TS2339: Property 'myBallotStatus' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(116,27): error TS2339: Property 'singleFinalistAutoWin' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(123,67): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | boolean'.
+  Type 'undefined' is not assignable to type 'string | number | boolean'.
+src/dashboard/pages/FinalsBracketPage.tsx(137,17): error TS7006: Parameter 'from' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(137,23): error TS7006: Parameter 'to' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(155,70): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | boolean'.
+  Type 'undefined' is not assignable to type 'string | number | boolean'.
+src/dashboard/pages/FinalsBracketPage.tsx(161,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/FinalsBracketPage.tsx(172,18): error TS7006: Parameter 'trailing' implicitly has an 'any' type.
+src/dashboard/pages/FinalsBracketPage.tsx(190,42): error TS18046: 'data' is of type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(190,66): error TS18046: 'data' is of type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(191,114): error TS18046: 'data' is of type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(265,53): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/FinalsBracketPage.tsx(269,101): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/FinalsBracketPage.tsx(275,58): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(276,56): error TS2339: Property 'lguName' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(276,67): error TS2339: Property 'lguLevel' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(276,86): error TS2339: Property 'lguLevel' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(290,49): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(299,49): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/FinalsBracketPage.tsx(365,26): error TS18046: 'f' is of type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(367,54): error TS18046: 'f' is of type 'unknown'.
+src/dashboard/pages/FinalsQueuePage.tsx(17,20): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(33,31): error TS2339: Property 'filter' does not exist on type '{}'.
+src/dashboard/pages/FinalsQueuePage.tsx(33,39): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(34,35): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(35,96): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/pages/FinalsQueuePage.tsx(41,28): error TS2339: Property 'map' does not exist on type '{}'.
+src/dashboard/pages/FinalsQueuePage.tsx(41,33): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(42,37): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/FinalsQueuePage.tsx(42,54): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/FinalsQueuePage.tsx(43,55): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/FinalsQueuePage.tsx(49,16): error TS2339: Property 'filter' does not exist on type '{}'.
+src/dashboard/pages/FinalsQueuePage.tsx(49,24): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(70,40): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(73,38): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(73,41): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(75,34): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(86,24): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(124,46): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/dashboard/pages/FinalsQueuePage.tsx(124,60): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/dashboard/pages/FinalsQueuePage.tsx(136,17): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/pages/FinalsQueuePage.tsx(177,33): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsQueuePage.tsx(185,59): error TS2339: Property 'closest' does not exist on type 'EventTarget'.
+src/dashboard/pages/FinalsResultsPage.tsx(11,14): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(14,28): error TS7031: Binding element 'state' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(26,35): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(54,37): error TS2339: Property 'categories' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(64,33): error TS2339: Property 'rows' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(64,45): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(68,29): error TS2339: Property 'rows' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(74,70): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(74,73): error TS7006: Parameter 'y' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(81,27): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(82,12): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/FinalsResultsPage.tsx(87,32): error TS7006: Parameter 'entryId' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(88,9): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(88,38): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(94,60): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(98,22): error TS7006: Parameter 'entryId' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(111,23): error TS7006: Parameter 'rows' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(112,25): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(115,25): error TS7006: Parameter 'bracket' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(115,34): error TS7006: Parameter 'rows' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(120,14): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(120,17): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(121,13): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(122,13): error TS2353: Object literal may only specify known properties, and 'bracket' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/FinalsResultsPage.tsx(125,19): error TS7006: Parameter 'from' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(125,25): error TS7006: Parameter 'to' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(127,41): error TS2339: Property 'order' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(128,30): error TS2339: Property 'order' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(131,16): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsResultsPage.tsx(137,21): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsResultsPage.tsx(140,60): error TS2339: Property 'bracket' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(141,21): error TS2339: Property 'order' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(141,39): error TS2339: Property 'reason' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(147,19): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/FinalsResultsPage.tsx(149,23): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsResultsPage.tsx(149,54): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(155,21): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsResultsPage.tsx(157,75): error TS2339: Property 'bracket' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(160,19): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/FinalsResultsPage.tsx(162,23): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsResultsPage.tsx(162,54): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(172,19): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/FinalsResultsPage.tsx(176,63): error TS2339: Property 'missing' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(177,26): error TS2339: Property 'missing' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(178,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/FinalsResultsPage.tsx(178,47): error TS2339: Property 'detail' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(179,70): error TS2339: Property 'tied' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(180,23): error TS2339: Property 'tied' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(181,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/FinalsResultsPage.tsx(181,47): error TS2339: Property 'detail' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(183,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/FinalsResultsPage.tsx(183,45): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(207,28): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(218,30): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(224,33): error TS2339: Property 'complete' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(229,30): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(229,51): error TS2339: Property 'finalizedAt' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(231,55): error TS2339: Property 'finalizedAt' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(240,51): error TS2339: Property 'rows' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(244,28): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(249,60): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(249,100): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(250,47): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(250,145): error TS2339: Property 'text' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(254,35): error TS2339: Property 'length' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(259,30): error TS2339: Property 'map' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(259,35): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(259,38): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(269,29): error TS2339: Property 'length' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(278,27): error TS2339: Property 'map' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(278,32): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(288,24): error TS2339: Property 'rows' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(304,63): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(338,40): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(387,79): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(406,54): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(408,25): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/FinalsResultsPage.tsx(428,34): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(431,77): error TS2339: Property 'bracket' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(439,19): error TS2339: Property 'order' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(439,30): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(439,34): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(440,32): error TS2339: Property 'rows' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(440,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(453,49): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(462,44): error TS2339: Property 'order' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(462,67): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(480,27): error TS2339: Property 'reason' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(481,50): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsResultsPage.tsx(484,30): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(489,17): error TS2339: Property 'error' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(491,90): error TS2339: Property 'error' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(496,19): error TS2339: Property 'rows' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(496,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/FinalsResultsPage.tsx(501,32): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(506,114): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(513,30): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(513,44): error TS2339: Property 'reason' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(514,27): error TS2339: Property 'reason' does not exist on type 'never'.
+src/dashboard/pages/FinalsResultsPage.tsx(516,21): error TS2339: Property 'saving' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(43,21): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(80,67): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<never[]>'.
+src/dashboard/pages/NewEntryPage.tsx(90,22): error TS2339: Property 'categories' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(90,39): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(101,20): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(101,45): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(109,52): error TS2339: Property 'code' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(111,27): error TS2339: Property 'selectable' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(111,66): error TS2339: Property 'code' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(111,116): error TS2339: Property 'name' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(115,16): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(115,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(118,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(120,17): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(120,42): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(131,27): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(137,66): error TS2345: Argument of type 'Dispatch<SetStateAction<never[]>>' is not assignable to parameter of type '(value: unknown) => void | PromiseLike<void>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'SetStateAction<never[]>'.
+src/dashboard/pages/NewEntryPage.tsx(139,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(144,89): error TS2345: Argument of type 'Dispatch<SetStateAction<never[]>>' is not assignable to parameter of type '(value: unknown) => void | PromiseLike<void>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'SetStateAction<never[]>'.
+src/dashboard/pages/NewEntryPage.tsx(146,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(151,26): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(154,35): error TS2339: Property 'categoryNumber' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(155,33): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(156,29): error TS2339: Property 'coverage' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(158,32): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.region"' can't be used to index type '{}'.
+  Property 'lgu.region' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(159,34): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.province"' can't be used to index type '{}'.
+  Property 'lgu.province' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(160,30): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.code"' can't be used to index type '{}'.
+  Property 'lgu.code' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(161,31): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.level"' can't be used to index type '{}'.
+  Property 'lgu.level' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(163,48): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.firstName"' can't be used to index type '{}'.
+  Property 'nominator.firstName' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(164,47): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.lastName"' can't be used to index type '{}'.
+  Property 'nominator.lastName' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(165,50): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.designation"' can't be used to index type '{}'.
+  Property 'nominator.designation' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(166,45): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.office"' can't be used to index type '{}'.
+  Property 'nominator.office' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(168,21): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.email"' can't be used to index type '{}'.
+  Property 'nominator.email' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(169,45): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.mobile"' can't be used to index type '{}'.
+  Property 'nominator.mobile' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(170,54): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.officialAddress"' can't be used to index type '{}'.
+  Property 'nominator.officialAddress' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(172,24): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.officialLguEmail"' can't be used to index type '{}'.
+  Property 'nominator.officialLguEmail' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(174,9): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.isThirdParty"' can't be used to index type '{}'.
+  Property 'nominator.isThirdParty' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(179,21): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(184,31): error TS7006: Parameter 'ev' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(200,19): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/NewEntryPage.tsx(225,28): error TS18046: 'created' is of type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(229,66): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{}'.
+  No index signature with a parameter of type 'string' was found on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(233,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/NewEntryPage.tsx(235,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/NewEntryPage.tsx(256,52): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(258,25): error TS2339: Property 'message' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(288,18): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(288,95): error TS2339: Property 'categoryNumber' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(289,84): error TS2339: Property 'categoryNumber' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(291,22): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(291,46): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(296,18): error TS2741: Property 'counter' is missing in type '{ label: string; htmlFor: string; required: true; error: any; hint: string; children: Element; }' but required in type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }'.
+src/dashboard/pages/NewEntryPage.tsx(296,83): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(297,73): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(299,18): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(299,91): error TS2339: Property 'coverage' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(300,78): error TS2339: Property 'coverage' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(315,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(315,77): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.region"' can't be used to index type '{}'.
+  Property 'lgu.region' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(316,74): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.region"' can't be used to index type '{}'.
+  Property 'lgu.region' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(318,58): error TS2339: Property 'region' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(318,75): error TS2339: Property 'region' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(318,86): error TS2339: Property 'name' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(321,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(321,81): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.province"' can't be used to index type '{}'.
+  Property 'lgu.province' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(322,76): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.province"' can't be used to index type '{}'.
+  Property 'lgu.province' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(324,60): error TS2339: Property 'code' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(324,75): error TS2339: Property 'code' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(324,84): error TS2339: Property 'name' does not exist on type 'never'.
+src/dashboard/pages/NewEntryPage.tsx(329,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(329,88): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.code"' can't be used to index type '{}'.
+  Property 'lgu.code' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(330,72): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.code"' can't be used to index type '{}'.
+  Property 'lgu.code' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(335,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(335,75): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.level"' can't be used to index type '{}'.
+  Property 'lgu.level' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(336,73): error TS7053: Element implicitly has an 'any' type because expression of type '"lgu.level"' can't be used to index type '{}'.
+  Property 'lgu.level' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(350,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(350,80): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.firstName"' can't be used to index type '{}'.
+  Property 'nominator.firstName' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(351,71): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.firstName"' can't be used to index type '{}'.
+  Property 'nominator.firstName' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(353,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(353,78): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.lastName"' can't be used to index type '{}'.
+  Property 'nominator.lastName' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(354,70): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.lastName"' can't be used to index type '{}'.
+  Property 'nominator.lastName' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(358,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(358,81): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.designation"' can't be used to index type '{}'.
+  Property 'nominator.designation' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(359,71): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.designation"' can't be used to index type '{}'.
+  Property 'nominator.designation' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(361,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(361,77): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.office"' can't be used to index type '{}'.
+  Property 'nominator.office' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(362,72): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.office"' can't be used to index type '{}'.
+  Property 'nominator.office' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(366,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(366,75): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.email"' can't be used to index type '{}'.
+  Property 'nominator.email' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(367,84): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.email"' can't be used to index type '{}'.
+  Property 'nominator.email' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(369,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(369,77): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.mobile"' can't be used to index type '{}'.
+  Property 'nominator.mobile' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(370,72): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.mobile"' can't be used to index type '{}'.
+  Property 'nominator.mobile' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(373,18): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(373,83): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.officialAddress"' can't be used to index type '{}'.
+  Property 'nominator.officialAddress' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(374,68): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.officialAddress"' can't be used to index type '{}'.
+  Property 'nominator.officialAddress' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(377,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(377,91): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.officialLguEmail"' can't be used to index type '{}'.
+  Property 'nominator.officialLguEmail' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(378,87): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.officialLguEmail"' can't be used to index type '{}'.
+  Property 'nominator.officialLguEmail' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(380,20): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/NewEntryPage.tsx(384,18): error TS2739: Type '{ error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint, htmlFor, label, required
+src/dashboard/pages/NewEntryPage.tsx(384,31): error TS7053: Element implicitly has an 'any' type because expression of type '"nominator.isThirdParty"' can't be used to index type '{}'.
+  Property 'nominator.isThirdParty' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(422,101): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/dashboard/pages/NewEntryPage.tsx(422,104): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(21,22): error TS18046: 'entries' is of type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(22,16): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(23,14): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(23,17): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(23,23): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/OverviewPage.tsx(23,47): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/OverviewPage.tsx(27,24): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(27,49): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(27,68): error TS18046: 'detail' is of type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(28,53): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Partial<Entry> | null | undefined'.
+src/dashboard/pages/OverviewPage.tsx(41,11): error TS2339: Property 'entries' does not exist on type '{ entries: unknown; catalog: unknown; focus: { detail: unknown; readiness: ReadinessResult; } | null; } | null'.
+src/dashboard/pages/OverviewPage.tsx(41,20): error TS2339: Property 'catalog' does not exist on type '{ entries: unknown; catalog: unknown; focus: { detail: unknown; readiness: ReadinessResult; } | null; } | null'.
+src/dashboard/pages/OverviewPage.tsx(41,29): error TS2339: Property 'focus' does not exist on type '{ entries: unknown; catalog: unknown; focus: { detail: unknown; readiness: ReadinessResult; } | null; } | null'.
+src/dashboard/pages/OverviewPage.tsx(43,18): error TS7006: Parameter 'statuses' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(43,47): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(50,47): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/dashboard/pages/OverviewPage.tsx(51,36): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(125,14): error TS2741: Property 'to' is missing in type '{ href: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(126,14): error TS2741: Property 'href' is missing in type '{ to: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(127,14): error TS2741: Property 'href' is missing in type '{ to: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(128,14): error TS2741: Property 'href' is missing in type '{ to: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(151,25): error TS7031: Binding element 'win' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(151,30): error TS7031: Binding element 'catalog' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(174,124): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/OverviewPage.tsx(188,22): error TS7031: Binding element 'to' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(188,26): error TS7031: Binding element 'href' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(188,32): error TS7031: Binding element 'icon' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(188,38): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/pages/OverviewPage.tsx(188,45): error TS7031: Binding element 'desc' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(14,19): error TS7006: Parameter 'user' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(35,16): error TS7006: Parameter 'k' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(35,23): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(37,31): error TS7006: Parameter 'ev' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(40,35): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(41,34): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(51,9): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/dashboard/pages/ProfilePage.tsx(52,9): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/dashboard/pages/ProfilePage.tsx(54,19): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/ProfilePage.tsx(60,54): error TS7053: Element implicitly has an 'any' type because expression of type '"firstName" | "lastName"' can't be used to index type '{}'.
+  Property 'firstName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(64,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/ProfilePage.tsx(66,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/ProfilePage.tsx(84,43): error TS2339: Property 'roles' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(84,55): error TS2339: Property 'roles' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(89,17): error TS7006: Parameter 'role' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(90,22): error TS7006: Parameter 'role' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(90,40): error TS2339: Property 'some' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(90,46): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(91,22): error TS7006: Parameter 'role' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(92,30): error TS2339: Property 'filter' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(92,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(93,50): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(93,53): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(98,39): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(99,93): error TS2345: Argument of type 'string' is not assignable to parameter of type 'UserRole'.
+src/dashboard/pages/ProfilePage.tsx(117,42): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/dashboard/pages/ProfilePage.tsx(121,29): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(151,56): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/ProfilePage.tsx(152,43): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/ProfilePage.tsx(153,29): error TS2339: Property 'message' does not exist on type 'never'.
+src/dashboard/pages/ProfilePage.tsx(158,14): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/ProfilePage.tsx(158,82): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(159,73): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(161,14): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/ProfilePage.tsx(161,80): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(162,72): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(166,12): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/ProfilePage.tsx(170,12): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/ProfilePage.tsx(174,12): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/ProfilePage.tsx(222,29): error TS7031: Binding element 'roles' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(222,36): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(222,45): error TS7031: Binding element 'onSubmitted' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(228,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ProfilePage.tsx(241,16): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ProfilePage.tsx(261,25): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ReviewEntryPage.tsx(21,22): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(21,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ReviewEntryPage.tsx(21,66): error TS18046: 'entry' is of type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(36,11): error TS2339: Property 'entry' does not exist on type '{ entry: unknown; category: any; } | null'.
+src/dashboard/pages/ReviewEntryPage.tsx(36,18): error TS2339: Property 'category' does not exist on type '{ entry: unknown; category: any; } | null'.
+src/dashboard/pages/ReviewEntryPage.tsx(37,28): error TS2339: Property 'status' does not exist on type 'never'.
+src/dashboard/pages/ReviewEntryPage.tsx(38,46): error TS2339: Property 'decisionReason' does not exist on type 'never'.
+src/dashboard/pages/ReviewEntryPage.tsx(41,25): error TS7006: Parameter 'type' implicitly has an 'any' type.
+src/dashboard/pages/ReviewEntryPage.tsx(47,21): error TS2353: Object literal may only specify known properties, and 'status' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/ReviewEntryPage.tsx(47,29): error TS18046: 'res' is of type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(50,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ReviewEntryPage.tsx(89,10): error TS2741: Property 'criteria' is missing in type '{ entry: any; category: any; files: EntryFilesReturn; }' but required in type '{ category: any; criteria: any; entry: any; files: any; layout?: string | undefined; }'.
+src/dashboard/pages/ReviewEntryPage.tsx(115,121): error TS2345: Argument of type '"disqualify"' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ReviewEntryPage.tsx(116,111): error TS2345: Argument of type '"return"' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ReviewQueuePage.tsx(29,15): error TS7031: Binding element 'label' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(29,22): error TS7031: Binding element 'sortKey' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(29,31): error TS7031: Binding element 'sort' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(29,37): error TS7031: Binding element 'onSort' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(29,45): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(44,28): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(44,35): error TS7031: Binding element 'onChange' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(57,15): error TS2345: Argument of type 'Dispatch<SetStateAction<never[]>>' is not assignable to parameter of type '(value: unknown) => void | PromiseLike<void>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'SetStateAction<never[]>'.
+src/dashboard/pages/ReviewQueuePage.tsx(66,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(66,60): error TS2339: Property 'contains' does not exist on type 'never'.
+src/dashboard/pages/ReviewQueuePage.tsx(71,17): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(108,42): error TS2339: Property 'code' does not exist on type 'never'.
+src/dashboard/pages/ReviewQueuePage.tsx(109,52): error TS2339: Property 'name' does not exist on type 'never'.
+src/dashboard/pages/ReviewQueuePage.tsx(110,51): error TS2339: Property 'context' does not exist on type 'never'.
+src/dashboard/pages/ReviewQueuePage.tsx(156,52): error TS2339: Property 'code' does not exist on type 'never'.
+src/dashboard/pages/ReviewQueuePage.tsx(166,29): error TS2339: Property 'categories' does not exist on type '{}'.
+src/dashboard/pages/ReviewQueuePage.tsx(166,52): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(171,25): error TS2339: Property 'categories' does not exist on type '{}'.
+src/dashboard/pages/ReviewQueuePage.tsx(177,23): error TS2339: Property 'items' does not exist on type '{}'.
+src/dashboard/pages/ReviewQueuePage.tsx(178,23): error TS2339: Property 'total' does not exist on type '{}'.
+src/dashboard/pages/ReviewQueuePage.tsx(188,19): error TS7006: Parameter 'next' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(194,23): error TS7006: Parameter 'next' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(195,18): error TS7006: Parameter 'next' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(196,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(203,17): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(210,22): error TS2339: Property 'ownersReminded' does not exist on type '{}'.
+src/dashboard/pages/ReviewQueuePage.tsx(211,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ReviewQueuePage.tsx(213,20): error TS2345: Argument of type '"Couldn’t send reminders — please try again."' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ReviewQueuePage.tsx(302,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(303,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(304,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(305,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(310,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ReviewQueuePage.tsx(314,57): error TS2339: Property 'closest' does not exist on type 'EventTarget'.
+src/dashboard/pages/ReviewQueuePage.tsx(319,55): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/dashboard/pages/ReviewerAdminPage.tsx(9,21): error TS7006: Parameter 'name' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(9,27): error TS7006: Parameter 'email' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(35,11): error TS2339: Property 'list' does not exist on type '{ list: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/ReviewerAdminPage.tsx(35,17): error TS2339: Property 'catalog' does not exist on type '{ list: unknown; catalog: unknown; } | null'.
+src/dashboard/pages/ReviewerAdminPage.tsx(37,48): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(39,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(45,19): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(54,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(62,23): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/ReviewerAdminPage.tsx(89,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(91,43): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(101,33): error TS7006: Parameter 'role' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(115,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(146,46): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/ReviewerAdminPage.tsx(147,71): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/dashboard/pages/ScoringEntryPage.tsx(26,24): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(26,31): error TS7031: Binding element 'onChange' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(26,41): error TS7031: Binding element 'disabled' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(26,51): error TS7031: Binding element 'inputId' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(26,60): error TS7031: Binding element 'points' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(46,86): error TS18047: 'band' is possibly 'null'.
+src/dashboard/pages/ScoringEntryPage.tsx(73,45): error TS18047: 'band' is possibly 'null'.
+src/dashboard/pages/ScoringEntryPage.tsx(73,93): error TS18047: 'band' is possibly 'null'.
+src/dashboard/pages/ScoringEntryPage.tsx(119,22): error TS7031: Binding element 'index' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(119,29): error TS7031: Binding element 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(119,32): error TS7031: Binding element 'narrative' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(119,43): error TS7031: Binding element 'evidence' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(119,53): error TS7031: Binding element 'rating' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(119,61): error TS7031: Binding element 'onRate' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(119,69): error TS7031: Binding element 'disabled' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(119,79): error TS7031: Binding element 'onViewEvidence' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(153,18): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(177,24): error TS18046: 'catalog' is of type 'unknown'.
+src/dashboard/pages/ScoringEntryPage.tsx(177,49): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(177,68): error TS18046: 'detail' is of type 'unknown'.
+src/dashboard/pages/ScoringEntryPage.tsx(178,16): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/ScoringEntryPage.tsx(196,61): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(224,22): error TS7006: Parameter 'criterionId' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(224,35): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(232,28): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(232,31): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(232,42): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/ScoringEntryPage.tsx(251,17): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ScoringEntryPage.tsx(257,25): error TS7006: Parameter 'cid' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(266,18): error TS7006: Parameter 'trailing' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(278,59): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(279,59): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(279,62): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(365,26): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(365,29): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(372,23): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/ScoringEntryPage.tsx(373,24): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(391,30): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(391,33): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/ScoringEntryPage.tsx(392,27): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(16,17): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(16,23): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ NotStarted: { label: string; tone: string; icon: string; }; Pending: { label: string; tone: string; icon: string; }; Submitted: { label: string; tone: string; icon: string; }; }'.
+src/dashboard/pages/ScoringQueuePage.tsx(43,35): error TS2339: Property 'categories' does not exist on type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(43,58): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(49,27): error TS2339: Property 'filter' does not exist on type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(49,35): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(50,25): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(50,57): error TS2339: Property 'length' does not exist on type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(54,46): error TS2339: Property 'map' does not exist on type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(54,51): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(54,92): error TS18046: 'a' is of type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(54,96): error TS18046: 'b' is of type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(61,35): error TS2339: Property 'map' does not exist on type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(61,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(62,37): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/ScoringQueuePage.tsx(62,54): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/ScoringQueuePage.tsx(63,55): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/ScoringQueuePage.tsx(70,8): error TS2339: Property 'filter' does not exist on type '{}'.
+src/dashboard/pages/ScoringQueuePage.tsx(70,16): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(78,14): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(78,17): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(80,23): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(81,37): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/ScoringQueuePage.tsx(81,68): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/ScoringQueuePage.tsx(99,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(165,23): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/dashboard/pages/ScoringQueuePage.tsx(165,37): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/dashboard/pages/ScoringQueuePage.tsx(212,35): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringQueuePage.tsx(215,93): error TS2339: Property 'closest' does not exist on type 'EventTarget'.
+src/dashboard/pages/ScoringQueuePage.tsx(219,58): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/dashboard/pages/ScoringResultsPage.tsx(13,22): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(14,14): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(18,17): error TS7006: Parameter 'nums' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(26,27): error TS7031: Binding element 'data' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(27,38): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(36,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(36,38): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(41,34): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(42,52): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(51,39): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(52,87): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number | null | undefined'.
+src/dashboard/pages/ScoringResultsPage.tsx(71,29): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(71,32): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(82,24): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(82,31): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(91,32): error TS2339: Property 'getBoundingClientRect' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(99,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(99,49): error TS2339: Property 'contains' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(99,88): error TS2339: Property 'contains' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(100,20): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(144,37): error TS2339: Property 'categories' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(156,29): error TS2339: Property 'rows' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(162,70): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(162,73): error TS7006: Parameter 'y' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(169,27): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(170,12): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<null>'.
+src/dashboard/pages/ScoringResultsPage.tsx(177,32): error TS7006: Parameter 'entryId' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(178,9): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(178,38): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(184,60): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(188,22): error TS7006: Parameter 'entryId' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(205,19): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/ScoringResultsPage.tsx(208,63): error TS2339: Property 'missing' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(209,26): error TS2339: Property 'missing' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(210,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/ScoringResultsPage.tsx(210,47): error TS2339: Property 'detail' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(212,21): error TS2353: Object literal may only specify known properties, and 'tone' does not exist in type '(prevState: null) => null'.
+src/dashboard/pages/ScoringResultsPage.tsx(212,45): error TS2339: Property 'message' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(236,28): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(252,26): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(254,29): error TS2339: Property 'complete' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(259,26): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(259,47): error TS2339: Property 'finalizedAt' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(260,83): error TS2339: Property 'finalizedAt' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(264,33): error TS2339: Property 'maxFinalists' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(264,85): error TS2339: Property 'finalistThreshold' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(271,59): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(281,38): error TS2339: Property 'complete' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(281,58): error TS2339: Property 'rows' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(283,34): error TS2339: Property 'complete' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(285,87): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(292,56): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(293,43): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(293,91): error TS2339: Property 'tone' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(294,29): error TS2339: Property 'text' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(298,31): error TS2339: Property 'length' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(302,26): error TS2339: Property 'map' does not exist on type 'never'.
+src/dashboard/pages/ScoringResultsPage.tsx(302,31): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(302,34): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(313,20): error TS2339: Property 'rows' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(341,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/dashboard/pages/ScoringResultsPage.tsx(342,54): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(345,38): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/ScoringResultsPage.tsx(363,44): error TS2339: Property 'finalized' does not exist on type '{}'.
+src/dashboard/pages/SummaryPage.tsx(27,16): error TS7006: Parameter 'buckets' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(27,25): error TS7006: Parameter 'dim' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(42,22): error TS7006: Parameter 'counts' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(42,30): error TS7006: Parameter 'statuses' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(42,60): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(42,63): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(63,16): error TS18046: 'data' is of type 'unknown'.
+src/dashboard/pages/SummaryPage.tsx(64,19): error TS18046: 'data' is of type 'unknown'.
+src/dashboard/pages/SummaryPage.tsx(65,13): error TS18046: 'data' is of type 'unknown'.
+src/dashboard/pages/SummaryPage.tsx(73,25): error TS7031: Binding element 'buckets' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(73,34): error TS7031: Binding element 'categories' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(73,46): error TS7031: Binding element 'year' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(73,52): error TS7031: Binding element 'admin' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(73,59): error TS7031: Binding element 'dim' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(73,64): error TS7031: Binding element 'setDim' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(75,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(84,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/SummaryPage.tsx(84,27): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/dashboard/pages/SummaryPage.tsx(106,20): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(112,20): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/dashboard/pages/SummaryPage.tsx(124,48): error TS2339: Property 'Validated' does not exist on type '{}'.
+src/dashboard/pages/SummaryPage.tsx(125,47): error TS2339: Property 'ReturnedForRevision' does not exist on type '{}'.
+src/dashboard/pages/SummaryPage.tsx(126,51): error TS2339: Property 'Disqualified' does not exist on type '{}'.
+src/dashboard/pages/SummaryPage.tsx(182,49): error TS2532: Object is possibly 'undefined'.

@@ -1,0 +1,260 @@
+src/components/ContactPage.tsx(134,23): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/Header.tsx(79,43): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/components/PublicAwardCategoriesPage.tsx(95,65): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/components/PublicAwardCategoriesPage.tsx(97,48): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/components/PublicAwardCategoriesPage.tsx(98,50): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/components/auth/LoginPage.tsx(118,10): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string; value: any; }'.
+src/components/auth/LoginPage.tsx(128,25): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/auth/LoginPage.tsx(131,10): error TS2739: Type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; error: any; }' is missing the following properties from type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string; value: any; }': hint, onBlur
+src/components/auth/LoginPage.tsx(140,25): error TS2339: Property 'password' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(68,30): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/components/auth/RegisterPage.tsx(87,57): error TS2339: Property 'message' does not exist on type 'unknown'.
+src/components/auth/RegisterPage.tsx(171,12): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string; value: any; }'.
+src/components/auth/RegisterPage.tsx(180,27): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(182,12): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string; value: any; }'.
+src/components/auth/RegisterPage.tsx(191,27): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(195,10): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string; value: any; }'.
+src/components/auth/RegisterPage.tsx(205,25): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(218,25): error TS2339: Property 'password' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(219,24): error TS2339: Property 'password' does not exist on type '{}'.
+src/components/auth/RegisterPage.tsx(222,10): error TS2741: Property 'hint' is missing in type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; onBlur: () => void; error: any; }' but required in type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string; value: any; }'.
+src/components/auth/RegisterPage.tsx(232,25): error TS2339: Property 'confirm' does not exist on type '{}'.
+src/components/auth/VerifyEmailPage.tsx(39,25): error TS2339: Property 'message' does not exist on type 'unknown'.
+src/components/auth/VerifyEmailPage.tsx(122,16): error TS2739: Type '{ id: string; label: string; type: string; icon: string; placeholder: string; autoComplete: string; value: string; onChange: (e: any) => void; error: any; }' is missing the following properties from type '{ [x: string]: any; error: any; hint: any; icon: any; id: any; label: any; onBlur: any; onChange: any; type?: string; value: any; }': hint, onBlur
+src/components/ui/button.tsx(55,38): error TS2322: Type 'string' is not assignable to type '"default" | "destructive" | "ghost" | "link" | "outline" | "secondary"'.
+src/components/ui/button.tsx(55,47): error TS2322: Type 'string' is not assignable to type '"default" | "icon" | "icon-lg" | "icon-sm" | "icon-xs" | "lg" | "sm" | "xs"'.
+src/dashboard/DashboardLayout.tsx(137,57): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/dashboard/components/CommentThread.tsx(46,20): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/components/CommentThread.tsx(50,21): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/components/EntryDossier.tsx(45,45): error TS2339: Property 'text' does not exist on type 'unknown'.
+src/dashboard/components/EntryDossier.tsx(164,12): error TS2739: Type '{ key: any; item: any; onViewEvidence: any; showEmptyEvidence: boolean; }' is missing the following properties from type '{ children: any; className?: string; id: any; item: any; onViewEvidence: any; showEmptyEvidence?: boolean; }': children, id
+src/dashboard/components/NotificationBell.tsx(36,24): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<{ items: any[]; unreadCount: number; }>'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(158,30): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(160,24): error TS2339: Property 'find' does not exist on type 'unknown'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(206,13): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(227,23): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(243,71): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/dashboard/pages/AdjudicatorAdminPage.tsx(263,10): error TS2739: Type '{ title: string; onClose: () => void; children: Element; }' is missing the following properties from type '{ children: any; foot: any; onClose: any; sub: any; title: any; }': foot, sub
+src/dashboard/pages/AdminAccessPage.tsx(36,46): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/AdminAccessPage.tsx(37,37): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/AdminAccessPage.tsx(115,83): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/AdminAccessPage.tsx(116,17): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/AdminAccessPage.tsx(135,27): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/AdminAccessPage.tsx(184,103): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/dashboard/pages/AssessorAdminPage.tsx(164,30): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/AssessorAdminPage.tsx(166,24): error TS2339: Property 'find' does not exist on type 'unknown'.
+src/dashboard/pages/AssessorAdminPage.tsx(212,13): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/AssessorAdminPage.tsx(234,23): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/AssessorAdminPage.tsx(254,105): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/dashboard/pages/AssessorAdminPage.tsx(274,10): error TS2739: Type '{ title: string; onClose: () => void; children: Element; }' is missing the following properties from type '{ busy: any; children: any; foot: any; onClose: any; sub: any; title: any; }': busy, foot, sub
+src/dashboard/pages/EntriesListPage.tsx(25,40): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/EntriesListPage.tsx(26,57): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/EntriesListPage.tsx(27,47): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/EntriesListPage.tsx(33,64): error TS2339: Property 'year' does not exist on type 'unknown'.
+src/dashboard/pages/EntriesListPage.tsx(42,16): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/EntriesListPage.tsx(54,105): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/EntriesListPage.tsx(57,17): error TS2322: Type 'unknown' is not assignable to type 'Key'.
+src/dashboard/pages/EntriesListPage.tsx(59,42): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<string>'.
+src/dashboard/pages/EntriesListPage.tsx(60,37): error TS2538: Type 'unknown' cannot be used as an index type.
+src/dashboard/pages/EntriesListPage.tsx(61,32): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(49,30): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(49,72): error TS2339: Property 'categoryNumber' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(64,32): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ submissionOpensAt: string; submissionClosesAt: string; resubmissionClosesAt?: string; }'.
+  Type '{}' is missing the following properties from type '{ submissionOpensAt: string; submissionClosesAt: string; resubmissionClosesAt?: string; }': submissionOpensAt, submissionClosesAt
+src/dashboard/pages/EntryEditorPage.tsx(128,12): error TS2741: Property 'prev' is missing in type '{ next: { key: string; label: string; icon: string; reqKeys: string[]; }; onGo: Dispatch<SetStateAction<string>>; }' but required in type '{ next: any; onGo: any; prev: any; }'.
+src/dashboard/pages/EntryEditorPage.tsx(140,12): error TS2741: Property 'next' is missing in type '{ prev: { key: string; label: string; icon: string; reqKeys: string[]; }; onGo: Dispatch<SetStateAction<string>>; }' but required in type '{ next: any; onGo: any; prev: any; }'.
+src/dashboard/pages/EntryEditorPage.tsx(217,22): error TS2339: Property 'fileKey' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(217,39): error TS2339: Property 'fileKey' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(229,36): error TS2339: Property 'uploadUrl' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(231,66): error TS2339: Property 'fileKey' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(249,15): error TS2339: Property 'url' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(274,36): error TS2339: Property 'uploadUrl' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(276,97): error TS2339: Property 'fileKey' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(290,15): error TS2339: Property 'url' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(301,56): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(320,15): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(354,10): error TS2739: Type '{ label: string; htmlFor: string; hint: string; counter: { text: string; over: boolean; }; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': error, required
+src/dashboard/pages/EntryEditorPage.tsx(387,16): error TS2739: Type '{ counter: { text: string; over: boolean; }; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': error, hint, htmlFor, label, required
+src/dashboard/pages/EntryEditorPage.tsx(564,22): error TS2739: Type '{ saving: boolean; dirty: boolean; banner: any; onSave: () => Promise<void>; saveLabel: string; }' is missing the following properties from type '{ banner: any; blocked: any; blockedMsg: any; dirty: any; onSave: any; saveLabel?: string; saving: any; }': blocked, blockedMsg
+src/dashboard/pages/EntryEditorPage.tsx(597,36): error TS2339: Property 'uploadUrl' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(599,31): error TS2339: Property 'fileKey' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(609,15): error TS2339: Property 'url' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(649,17): error TS2339: Property 'endorse' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(649,150): error TS2339: Property 'endorse' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(652,12): error TS2739: Type '{ label: string; required: true; error: any; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, htmlFor
+src/dashboard/pages/EntryEditorPage.tsx(652,77): error TS2339: Property 'file' does not exist on type '{}'.
+src/dashboard/pages/EntryEditorPage.tsx(678,22): error TS2739: Type '{ saving: boolean; dirty: boolean; banner: any; onSave: () => Promise<void>; saveLabel: string; }' is missing the following properties from type '{ banner: any; blocked: any; blockedMsg: any; dirty: any; onSave: any; saveLabel?: string; saving: any; }': blocked, blockedMsg
+src/dashboard/pages/EntryEditorPage.tsx(701,39): error TS2339: Property 'status' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(701,64): error TS2339: Property 'submittedAt' does not exist on type 'unknown'.
+src/dashboard/pages/EntryEditorPage.tsx(751,48): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(753,85): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(754,65): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(765,89): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/EntryEditorPage.tsx(907,10): error TS2741: Property 'danger' is missing in type '{ title: string; body: string; confirmLabel: string; busy: boolean; error: any; onConfirm: () => Promise<void>; onCancel: () => void; }' but required in type '{ body: any; busy: any; confirmLabel: any; danger: any; error: any; onCancel: any; onConfirm: any; title: any; }'.
+src/dashboard/pages/FinalsBracketPage.tsx(36,34): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(36,77): error TS2339: Property 'entry' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(37,18): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/FinalsBracketPage.tsx(100,41): error TS2339: Property 'finalists' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(107,25): error TS2339: Property 'myRanks' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(108,42): error TS2339: Property 'finalists' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(109,36): error TS2339: Property 'finalists' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(110,19): error TS2339: Property 'notes' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(111,20): error TS2339: Property 'myBallotStatus' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(116,27): error TS2339: Property 'singleFinalistAutoWin' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(190,47): error TS2339: Property 'categoryNumber' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(190,71): error TS2339: Property 'categoryName' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(191,119): error TS2339: Property 'bracket' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(275,58): error TS2339: Property 'title' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(276,56): error TS2339: Property 'lguName' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(276,67): error TS2339: Property 'lguLevel' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(276,86): error TS2339: Property 'lguLevel' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(290,49): error TS2339: Property 'title' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(299,49): error TS2339: Property 'title' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(365,28): error TS2339: Property 'entryId' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsBracketPage.tsx(367,56): error TS2339: Property 'title' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsQueuePage.tsx(33,31): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsQueuePage.tsx(35,96): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsQueuePage.tsx(41,28): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsQueuePage.tsx(42,37): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/FinalsQueuePage.tsx(42,54): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/FinalsQueuePage.tsx(43,55): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/FinalsQueuePage.tsx(49,16): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsQueuePage.tsx(124,46): error TS2322: Type 'unknown' is not assignable to type 'Key'.
+src/dashboard/pages/FinalsQueuePage.tsx(124,60): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[]'.
+src/dashboard/pages/FinalsQueuePage.tsx(136,17): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsQueuePage.tsx(185,59): error TS2339: Property 'closest' does not exist on type 'EventTarget'.
+src/dashboard/pages/FinalsResultsPage.tsx(54,37): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsResultsPage.tsx(176,63): error TS2339: Property 'missing' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsResultsPage.tsx(177,26): error TS2339: Property 'missing' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsResultsPage.tsx(178,47): error TS2339: Property 'detail' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsResultsPage.tsx(179,70): error TS2339: Property 'tied' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsResultsPage.tsx(180,23): error TS2339: Property 'tied' does not exist on type 'unknown'.
+src/dashboard/pages/FinalsResultsPage.tsx(181,47): error TS2339: Property 'detail' does not exist on type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(80,67): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<any[]>'.
+src/dashboard/pages/NewEntryPage.tsx(90,22): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(101,28): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(120,25): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(154,35): error TS2339: Property 'categoryNumber' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(155,33): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(156,29): error TS2339: Property 'coverage' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(225,36): error TS2339: Property 'id' does not exist on type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(288,18): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(288,95): error TS2339: Property 'categoryNumber' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(289,84): error TS2339: Property 'categoryNumber' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(291,30): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/NewEntryPage.tsx(296,18): error TS2741: Property 'counter' is missing in type '{ label: string; htmlFor: string; required: true; error: any; hint: string; children: Element; }' but required in type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }'.
+src/dashboard/pages/NewEntryPage.tsx(296,83): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(297,73): error TS2339: Property 'title' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(299,18): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(299,91): error TS2339: Property 'coverage' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(300,78): error TS2339: Property 'coverage' does not exist on type '{}'.
+src/dashboard/pages/NewEntryPage.tsx(315,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(321,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(329,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(335,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(350,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(353,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(358,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(361,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(366,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(369,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(373,18): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(377,20): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/NewEntryPage.tsx(380,20): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/NewEntryPage.tsx(384,18): error TS2739: Type '{ error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint, htmlFor, label, required
+src/dashboard/pages/OverviewPage.tsx(22,8): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(23,23): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/OverviewPage.tsx(23,47): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/OverviewPage.tsx(27,32): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(27,75): error TS2339: Property 'categoryNumber' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(42,32): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ submissionOpensAt: string; submissionClosesAt: string; resubmissionClosesAt?: string; }'.
+  Type '{}' is missing the following properties from type '{ submissionOpensAt: string; submissionClosesAt: string; resubmissionClosesAt?: string; }': submissionOpensAt, submissionClosesAt
+src/dashboard/pages/OverviewPage.tsx(43,39): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(48,46): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(50,47): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/dashboard/pages/OverviewPage.tsx(51,28): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(57,65): error TS2339: Property 'year' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(125,14): error TS2741: Property 'to' is missing in type '{ href: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(126,14): error TS2741: Property 'href' is missing in type '{ to: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(127,14): error TS2741: Property 'href' is missing in type '{ to: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(127,104): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/OverviewPage.tsx(128,14): error TS2741: Property 'href' is missing in type '{ to: string; icon: string; title: string; desc: string; }' but required in type '{ desc: any; href: any; icon: any; title: any; to: any; }'.
+src/dashboard/pages/OverviewPage.tsx(174,124): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'string'.
+src/dashboard/pages/ProfilePage.tsx(40,35): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(41,34): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(84,43): error TS2339: Property 'roles' does not exist on type 'unknown'.
+src/dashboard/pages/ProfilePage.tsx(84,55): error TS2339: Property 'roles' does not exist on type 'unknown'.
+src/dashboard/pages/ProfilePage.tsx(90,40): error TS2339: Property 'some' does not exist on type 'unknown'.
+src/dashboard/pages/ProfilePage.tsx(92,30): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/ProfilePage.tsx(99,93): error TS2345: Argument of type 'string' is not assignable to parameter of type 'UserRole'.
+src/dashboard/pages/ProfilePage.tsx(117,42): error TS2339: Property 'fullName' does not exist on type 'User'.
+src/dashboard/pages/ProfilePage.tsx(158,14): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/ProfilePage.tsx(158,82): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(159,73): error TS2339: Property 'firstName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(161,14): error TS2739: Type '{ label: string; htmlFor: string; required: true; error: any; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, hint
+src/dashboard/pages/ProfilePage.tsx(161,80): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(162,72): error TS2339: Property 'lastName' does not exist on type '{}'.
+src/dashboard/pages/ProfilePage.tsx(166,12): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/ProfilePage.tsx(170,12): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/ProfilePage.tsx(174,12): error TS2739: Type '{ label: string; htmlFor: string; hint: string; children: Element; }' is missing the following properties from type '{ children: any; counter: any; error: any; hint: any; htmlFor: any; label: any; required: any; }': counter, error, required
+src/dashboard/pages/ReviewEntryPage.tsx(21,30): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(21,72): error TS2339: Property 'categoryNumber' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(37,44): error TS2339: Property 'status' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(38,69): error TS2339: Property 'decisionReason' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(67,73): error TS2339: Property 'categoryNumber' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(70,43): error TS2339: Property 'title' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(72,39): error TS2339: Property 'lguName' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(72,56): error TS2339: Property 'lguLevel' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(72,75): error TS2339: Property 'lguRegion' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(72,123): error TS2339: Property 'coverage' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(74,18): error TS2339: Property 'submittedAt' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(74,111): error TS2339: Property 'submittedAt' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewEntryPage.tsx(89,10): error TS2741: Property 'criteria' is missing in type '{ entry: unknown; category: any; files: EntryFilesReturn; }' but required in type '{ category: any; criteria: any; entry: any; files: any; layout?: string; }'.
+src/dashboard/pages/ReviewEntryPage.tsx(125,37): error TS2339: Property 'id' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewQueuePage.tsx(166,29): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewQueuePage.tsx(171,25): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewQueuePage.tsx(177,23): error TS2339: Property 'items' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewQueuePage.tsx(178,23): error TS2339: Property 'total' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewQueuePage.tsx(210,22): error TS2339: Property 'ownersReminded' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewQueuePage.tsx(302,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(303,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(304,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(305,22): error TS2741: Property 'className' is missing in type '{ label: string; sortKey: string; sort: { key: string; dir: string; }; onSort: (key: any) => void; }' but required in type '{ className: any; label: any; onSort: any; sort: any; sortKey: any; }'.
+src/dashboard/pages/ReviewQueuePage.tsx(314,57): error TS2339: Property 'closest' does not exist on type 'EventTarget'.
+src/dashboard/pages/ReviewQueuePage.tsx(319,55): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/dashboard/pages/ReviewerAdminPage.tsx(36,30): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewerAdminPage.tsx(81,13): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewerAdminPage.tsx(89,17): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/ReviewerAdminPage.tsx(147,71): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/dashboard/pages/ScoringEntryPage.tsx(177,32): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringEntryPage.tsx(177,75): error TS2339: Property 'entry' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringEntryPage.tsx(178,16): error TS2698: Spread types may only be created from object types.
+src/dashboard/pages/ScoringQueuePage.tsx(43,35): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(49,27): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(50,25): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(50,57): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(54,46): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(54,92): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/ScoringQueuePage.tsx(54,96): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/ScoringQueuePage.tsx(61,35): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(62,37): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/ScoringQueuePage.tsx(62,54): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/ScoringQueuePage.tsx(63,55): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/dashboard/pages/ScoringQueuePage.tsx(70,8): error TS2339: Property 'filter' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringQueuePage.tsx(81,37): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/ScoringQueuePage.tsx(81,68): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/dashboard/pages/ScoringQueuePage.tsx(165,23): error TS2322: Type 'unknown' is not assignable to type 'Key'.
+src/dashboard/pages/ScoringQueuePage.tsx(165,37): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[]'.
+src/dashboard/pages/ScoringQueuePage.tsx(215,93): error TS2339: Property 'closest' does not exist on type 'EventTarget'.
+src/dashboard/pages/ScoringQueuePage.tsx(219,58): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/dashboard/pages/ScoringResultsPage.tsx(52,87): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+src/dashboard/pages/ScoringResultsPage.tsx(144,37): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringResultsPage.tsx(208,63): error TS2339: Property 'missing' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringResultsPage.tsx(209,26): error TS2339: Property 'missing' does not exist on type 'unknown'.
+src/dashboard/pages/ScoringResultsPage.tsx(210,47): error TS2339: Property 'detail' does not exist on type 'unknown'.
+src/dashboard/pages/SummaryPage.tsx(63,21): error TS2339: Property 'buckets' does not exist on type 'unknown'.
+src/dashboard/pages/SummaryPage.tsx(64,24): error TS2339: Property 'categories' does not exist on type 'unknown'.
+src/dashboard/pages/SummaryPage.tsx(65,18): error TS2339: Property 'year' does not exist on type 'unknown'.
+src/dashboard/pages/SummaryPage.tsx(124,48): error TS2339: Property 'Validated' does not exist on type '{}'.
+src/dashboard/pages/SummaryPage.tsx(125,47): error TS2339: Property 'ReturnedForRevision' does not exist on type '{}'.
+src/dashboard/pages/SummaryPage.tsx(126,51): error TS2339: Property 'Disqualified' does not exist on type '{}'.
