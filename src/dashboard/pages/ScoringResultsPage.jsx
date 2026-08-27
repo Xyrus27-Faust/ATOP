@@ -23,9 +23,30 @@ function median(nums) {
 }
 
 // Per-assessor score matrix for one entry: rows = assessors, columns = each criterion (0–5) + total.
-function AssessorMatrix({ data }) {
+function AssessorMatrix({ data, entryId, entryTitle, finalized, onReopened }) {
   const totals = data.assessors.map((a) => a.total)
   const med = median(totals)
+  const [asking, setAsking] = useState(null)   // assessorUserId awaiting confirmation
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
+
+  async function reopen(assessor) {
+    setBusy(assessor.assessorUserId)
+    setError(null)
+    try {
+      // No body, like finalize: the endpoint takes none.
+      await api.post(
+        `/admin/scoring/entries/${entryId}/assessors/${assessor.assessorUserId}/reopen`,
+        undefined, { auth: true })
+      setAsking(null)
+      await onReopened()
+    } catch (e) {
+      setError(e?.message || 'Could not reopen that scoresheet.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   return (
     <div className="sr-bd">
       <div className="sr-bd-wrap">
@@ -35,6 +56,7 @@ function AssessorMatrix({ data }) {
               <th className="sr-bd-name">Assessor</th>
               {data.criteria.map((c, i) => <th key={c.criterionId} title={c.name}>C{i + 1}</th>)}
               <th className="sr-bd-total">Total</th>
+              <th className="sr-bd-act" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -61,12 +83,50 @@ function AssessorMatrix({ data }) {
                       />
                     )}
                   </td>
+
+                  {/* Only a submitted sheet is locked, so only a submitted sheet can be reopened.
+                      A finalized category is closed to everyone, including this. */}
+                  <td className="sr-bd-act">
+                    {a.status === 'Submitted' && !finalized && (
+                      asking === a.assessorUserId ? (
+                        <span className="sr-bd-confirm">
+                          <span className="sr-bd-q">Let {a.name.split(' ')[0]} edit this again?</span>
+                          <button
+                            type="button"
+                            className="dash-btn is-primary sr-bd-btn"
+                            disabled={busy === a.assessorUserId}
+                            onClick={() => reopen(a)}
+                          >
+                            {busy === a.assessorUserId ? 'Reopening…' : 'Reopen'}
+                          </button>
+                          <button type="button" className="dash-btn sr-bd-btn" onClick={() => setAsking(null)}>
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="dash-btn sr-bd-btn"
+                          onClick={() => { setError(null); setAsking(a.assessorUserId) }}
+                          title={`Unlock ${a.name}'s scoresheet for ${entryTitle}`}
+                        >
+                          <i className="fas fa-lock-open" aria-hidden="true" /> Reopen
+                        </button>
+                      )
+                    )}
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
+      {error && (
+        <div className="sr-bd-msg is-error">
+          <i className="fas fa-circle-exclamation" aria-hidden="true" /> {error}
+        </div>
+      )}
+
       <div className="sr-bd-legend">
         {data.criteria.map((c, i) => <span key={c.criterionId}><b>C{i + 1}</b> {c.name}</span>)}
         <span className="sr-bd-legend-note">
@@ -196,6 +256,13 @@ export default function ScoringResultsPage() {
     setMissing(null)
     setConfirming(false)
     setExpanded(new Set())
+  }
+
+  async function refreshBreakdown(entryId) {
+    const data = await api.get(`/admin/scoring/entries/${entryId}/breakdown`, { auth: true })
+    setBreakdowns((b) => ({ ...b, [entryId]: { data } }))
+    // The entry's own totals and its projected-finalist standing move with it.
+    await resultsQ.reload()
   }
 
   async function loadBreakdown(entryId) {
@@ -404,7 +471,15 @@ export default function ScoringResultsPage() {
                                     ) : bd?.data ? (
                                       bd.data.assessors.length === 0
                                         ? <div className="sr-bd-msg">No scoresheets yet for this entry.</div>
-                                        : <AssessorMatrix data={bd.data} />
+                                        : (
+                                          <AssessorMatrix
+                                            data={bd.data}
+                                            entryId={r.entryId}
+                                            entryTitle={r.title}
+                                            finalized={results.finalized}
+                                            onReopened={() => refreshBreakdown(r.entryId)}
+                                          />
+                                        )
                                     ) : null}
                                   </td>
                                 </tr>
@@ -497,6 +572,10 @@ export default function ScoringResultsPage() {
         .sr-detail-row .sr-bd-table td.sr-bd-total { font-size: 0.95rem; font-weight: 800; }
         .sr-bd-div { margin-left: 7px; font-size: 0.66rem; color: var(--gold-dark); }
         .sr-bd-status { margin-left: 8px; font-family: var(--font-heading); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #C2410C; background: #FFF7ED; border: 1px solid #FED7AA; padding: 1px 7px; border-radius: 999px; }
+        .sr-bd-act { text-align: right; white-space: nowrap; }
+        .sr-bd-btn { padding: 4px 10px; font-size: 0.76rem; }
+        .sr-bd-confirm { display: inline-flex; align-items: center; gap: 8px; }
+        .sr-bd-q { font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700; color: var(--navy); }
         .sr-bd-legend { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-top: 12px; font-family: var(--font-body); font-size: 0.74rem; color: var(--gray-600); }
         .sr-bd-legend b { color: var(--gold-dark); font-family: var(--font-heading); margin-right: 2px; }
         .sr-bd-legend-note { display: inline-flex; align-items: center; gap: 4px; color: var(--gray-600); }

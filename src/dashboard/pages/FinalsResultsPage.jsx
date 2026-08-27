@@ -11,7 +11,27 @@ import { bracketLabel, bracketRank, placementMeta, formatDate } from '@/lib/pear
 const avg = (n) => (n == null ? '—' : Number(n).toFixed(2))
 
 // Each adjudicator's position for one finalist — the transparency view behind the average.
-function BallotBreakdown({ state }) {
+function BallotBreakdown({ state, categoryNumber, bracket, finalized, onReopened }) {
+  const [asking, setAsking] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
+
+  async function reopen(adjudicator) {
+    setBusy(adjudicator.adjudicatorUserId)
+    setError(null)
+    try {
+      await api.post(
+        `/admin/finals/${categoryNumber}/${encodeURIComponent(bracket)}/adjudicators/${adjudicator.adjudicatorUserId}/reopen`,
+        undefined, { auth: true })
+      setAsking(null)
+      await onReopened()
+    } catch (e) {
+      setError(e?.message || 'Could not reopen that ballot.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   if (state?.loading) return <div className="fr-bd fr-bd-note"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Loading ballots…</div>
   if (state?.error) return <div className="fr-bd fr-bd-note fr-bd-err">{state.error}</div>
   const data = state?.data
@@ -28,10 +48,39 @@ function BallotBreakdown({ state }) {
               <span className="fr-bd-name">{a.name}</span>
               {a.status !== 'Submitted' && <span className="fr-bd-status">{a.status}</span>}
               <span className="fr-bd-rank">{a.rank == null ? '—' : `#${a.rank}`}</span>
+
+              {/* A ballot locks on submit and only an admin can lift it — which the adjudicator's
+                  own page tells them. A finalized category is closed to this too. */}
+              {a.status === 'Submitted' && !finalized && (
+                asking === a.adjudicatorUserId ? (
+                  <span className="fr-bd-confirm">
+                    <span className="fr-bd-q">Let {a.name.split(' ')[0]} re-rank?</span>
+                    <button
+                      type="button"
+                      className="dash-btn is-primary fr-bd-btn"
+                      disabled={busy === a.adjudicatorUserId}
+                      onClick={() => reopen(a)}
+                    >
+                      {busy === a.adjudicatorUserId ? 'Reopening…' : 'Reopen'}
+                    </button>
+                    <button type="button" className="dash-btn fr-bd-btn" onClick={() => setAsking(null)}>Cancel</button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="dash-btn fr-bd-btn"
+                    onClick={() => { setError(null); setAsking(a.adjudicatorUserId) }}
+                    title={`Unlock ${a.name}'s ranking for this bracket`}
+                  >
+                    <i className="fas fa-lock-open" aria-hidden="true" /> Reopen
+                  </button>
+                )
+              )}
             </li>
           ))}
         </ul>
       )}
+      {error && <p className="fr-bd-note fr-bd-err">{error}</p>}
       <p className="fr-bd-legend">The position each adjudicator gave this finalist. Their average is the rank that decides the placement.</p>
     </div>
   )
@@ -82,6 +131,13 @@ export default function FinalsResultsPage() {
     setCat(Number(n))
     setBanner(null); setMissing(null); setTied(null); setConfirming(false)
     setExpanded(new Set())
+  }
+
+  async function refreshBallots(entryId) {
+    const data = await api.get(`/admin/finals/entries/${entryId}/breakdown`, { auth: true })
+    setBreakdowns((b) => ({ ...b, [entryId]: { data } }))
+    // A withdrawn ranking changes the bracket's averages and therefore its placements.
+    await resultsQ.reload()
   }
 
   async function loadBreakdown(entryId) {
@@ -384,7 +440,15 @@ export default function FinalsResultsPage() {
                                   </tr>
                                   {isOpen && (
                                     <tr className="fr-bdrow">
-                                      <td colSpan={7}><BallotBreakdown state={breakdowns[r.entryId]} /></td>
+                                      <td colSpan={7}>
+                                        <BallotBreakdown
+                                          state={breakdowns[r.entryId]}
+                                          categoryNumber={selected}
+                                          bracket={r.bracket}
+                                          finalized={results.finalized}
+                                          onReopened={() => refreshBallots(r.entryId)}
+                                        />
+                                      </td>
                                     </tr>
                                   )}
                                 </Fragment>
@@ -582,6 +646,9 @@ export default function FinalsResultsPage() {
         .fr-bd-name { color: var(--navy); font-family: var(--font-heading); font-weight: 600; }
         .fr-bd-status { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; color: var(--gold-dark); }
         .fr-bd-rank { font-family: var(--font-heading); font-weight: 800; color: var(--navy); }
+        .fr-bd-btn { padding: 3px 9px; font-size: 0.74rem; }
+        .fr-bd-confirm { display: inline-flex; align-items: center; gap: 7px; }
+        .fr-bd-q { font-family: var(--font-heading); font-size: 0.74rem; font-weight: 700; color: var(--navy); }
         .fr-bd-legend { font-size: 0.76rem; color: var(--gray-600); }
 
         .fr-modal { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(15,25,46,0.55); backdrop-filter: blur(2px); }

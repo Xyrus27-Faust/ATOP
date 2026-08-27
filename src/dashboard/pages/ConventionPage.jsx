@@ -65,7 +65,6 @@ export default function ConventionPage() {
           <p className="dash-sub">
             {formatDate(event.startsAt)} – {formatDate(event.endsAt)} · {event.venueName}
           </p>
-          <SeatsLeft remaining={event.seatsRemaining} />
         </div>
         {window.open && (
           <button className="dash-btn is-primary" onClick={() => navigate('/convention/register')}>
@@ -73,6 +72,8 @@ export default function ConventionPage() {
           </button>
         )}
       </div>
+
+      <SeatsLeft remaining={event.seatsRemaining} closesAt={event.registrationClosesAt} />
 
       {event.seatsRemaining === 0 && (
         <div className="dash-banner cv-banner-closed">
@@ -241,27 +242,77 @@ export default function ConventionPage() {
  * in flight — so the page never promises a seat that the next click refuses. An uncapped event
  * says nothing rather than implying room it has not actually counted.
  */
-function SeatsLeft({ remaining }) {
+/**
+ * How many seats are left, said loudly.
+ *
+ * The figure is the server's, which is the figure checkout enforces — confirmed seats plus seats
+ * held by a checkout in flight — so the page never promises a seat the next click refuses. An
+ * uncapped event shows nothing rather than implying room nobody counted.
+ */
+function SeatsLeft({ remaining, closesAt }) {
   if (remaining === null || remaining === undefined) return null
 
-  const tone = remaining === 0 ? 'is-gone' : remaining <= 50 ? 'is-low' : 'is-open'
-  const text =
-    remaining === 0 ? 'Fully booked'
-      : remaining === 1 ? '1 seat left'
-        : `${remaining.toLocaleString()} seats left`
+  const gone = remaining === 0
+  const low = remaining > 0 && remaining <= 50
+  const tone = gone ? 'is-gone' : low ? 'is-low' : 'is-open'
 
   return (
-    <span className={`cv-seats ${tone}`}>
-      <i className="fas fa-chair" aria-hidden="true" /> {text}
+    <section className={`cv-seats ${tone}`} aria-live="polite">
+      <div className="cv-seats-figure">
+        <span className="cv-seats-number">{gone ? '0' : remaining.toLocaleString()}</span>
+        <span className="cv-seats-unit">{remaining === 1 ? 'seat' : 'seats'}</span>
+      </div>
+
+      <div className="cv-seats-words">
+        <h2 className="cv-seats-head">
+          {gone ? 'Fully booked' : low ? 'Almost full' : 'Still available'}
+        </h2>
+        <p className="cv-seats-sub">
+          {gone
+            ? 'Every seat has been taken. No further registrations can be confirmed.'
+            : low
+              ? 'Very few seats remain. Reserve now to hold yours.'
+              : closesAt
+                ? `Registration closes ${formatDate(closesAt)}.`
+                : 'Seats are confirmed in the order they are paid for.'}
+        </p>
+      </div>
+
       <style>{`
         .cv-seats {
-          display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
-          padding: 3px 11px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+          display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+          margin: 0 0 18px; padding: 20px 26px; border-radius: 14px;
+          border: 1px solid var(--gray-200, #E5E7EB); background: #fff;
         }
-        .cv-seats.is-open { background: var(--gray-100, #F3F4F6); color: var(--navy); }
-        .cv-seats.is-low { background: #fef3c7; color: #b45309; }
-        .cv-seats.is-gone { background: var(--gray-200, #E5E7EB); color: var(--gray-600, #4B5563); }
+        .cv-seats.is-open { border-left: 6px solid var(--gold); }
+        .cv-seats.is-low { border-left: 6px solid #b45309; background: #fffbeb; }
+        .cv-seats.is-gone { border-left: 6px solid var(--gray-300, #D1D5DB); background: var(--gray-50, #F9FAFB); }
+
+        .cv-seats-figure { display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; }
+        .cv-seats-number {
+          font-family: var(--font-heading); font-weight: 800; line-height: 1;
+          font-size: clamp(2.6rem, 7vw, 3.9rem); letter-spacing: -0.02em;
+          font-variant-numeric: tabular-nums; color: var(--navy);
+        }
+        .cv-seats.is-low .cv-seats-number { color: #b45309; }
+        .cv-seats.is-gone .cv-seats-number { color: var(--gray-500, #6B7280); }
+        .cv-seats-unit {
+          font-size: 0.95rem; font-weight: 700; letter-spacing: 0.1em;
+          text-transform: uppercase; color: var(--gray-500, #6B7280);
+        }
+
+        .cv-seats-words { min-width: 0; }
+        .cv-seats-head {
+          margin: 0; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800;
+          color: var(--navy);
+        }
+        .cv-seats.is-low .cv-seats-head { color: #b45309; }
+        .cv-seats-sub { margin: 3px 0 0; font-size: 0.88rem; color: var(--gray-600); max-width: 46ch; }
+
+        @media (max-width: 560px) {
+          .cv-seats { gap: 14px; padding: 18px 20px; }
+        }
       `}</style>
-    </span>
+    </section>
   )
 }
