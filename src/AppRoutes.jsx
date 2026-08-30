@@ -32,7 +32,6 @@ import NewRegistrationPage from './dashboard/pages/NewRegistrationPage'
 import RegistrationDetailPage from './dashboard/pages/RegistrationDetailPage'
 import AdminRegistrationsPage from './dashboard/pages/AdminRegistrationsPage'
 import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDetailPage'
-import { SCORING_ENABLED, FINALS_ENABLED, EVENTS_ENABLED } from './dashboard/dashboardNav'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -48,11 +47,11 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
             chrome) — opened in a new tab from the scoring queue. Role-gated in-page. */}
-        {SCORING_ENABLED && <Route path="/scoring/:id" element={<ScoringEntryPage />} />}
+        <Route path="/scoring/:id" element={<ScoringEntryPage />} />
 
         {/* Ranking a bracket's finalists is likewise a focused, full-screen task — the adjudicator
             orders the whole field in one sitting, so it gets its own shell. Role-gated in-page. */}
-        {FINALS_ENABLED && <Route path="/finals/:categoryNumber/:bracket" element={<FinalsBracketPage />} />}
+        <Route path="/finals/:categoryNumber/:bracket" element={<FinalsBracketPage />} />
 
         {/* The submission flow lives outside the dashboard in a focused shell —
             composing an entry is an application, not a dashboard page. It's
@@ -66,14 +65,12 @@ export default function AppRoutes() {
 
         {/* Convention booking, outside the dashboard chrome. Signed in still — a booking
             belongs to an account so the payer can come back to it — just not buried. */}
-        {EVENTS_ENABLED && (
-          <Route element={<ConventionLayout />}>
-            <Route path="/convention/register" element={<NewRegistrationPage />} />
-            {/* Same wizard, resuming a saved draft. */}
-            <Route path="/convention/register/:id" element={<NewRegistrationPage />} />
-            <Route path="/convention/registrations/:id" element={<RegistrationDetailPage />} />
-          </Route>
-        )}
+        <Route element={<ConventionLayout />}>
+          <Route path="/convention/register" element={<NewRegistrationPage />} />
+          {/* Same wizard, resuming a saved draft. */}
+          <Route path="/convention/register/:id" element={<NewRegistrationPage />} />
+          <Route path="/convention/registrations/:id" element={<RegistrationDetailPage />} />
+        </Route>
 
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<OverviewPage />} />
@@ -83,26 +80,24 @@ export default function AppRoutes() {
           <Route path="summary" element={<SummaryPage />} />
           <Route path="review" element={<ReviewQueuePage />} />
           <Route path="review/:id" element={<ReviewEntryPage />} />
-          {SCORING_ENABLED && <Route path="scoring" element={<ScoringQueuePage />} />}
-          {FINALS_ENABLED && <Route path="finals" element={<FinalsQueuePage />} />}
+          <Route path="scoring" element={<ScoringQueuePage />} />
+          <Route path="finals" element={<FinalsQueuePage />} />
 
           {/* The convention landing stays in the dashboard — it's where a member finds the
               thing. Booking and paying happen in their own shell (below): registering a
               delegation is a task, not a dashboard page, and half the people doing it are
               not members browsing a dashboard at all. */}
-          {EVENTS_ENABLED && <Route path="convention" element={<ConventionPage />} />}
-          {EVENTS_ENABLED && (
-            <Route element={<RegistrationsAdminRoute />}>
-              <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
-              <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
-            </Route>
-          )}
+          <Route path="convention" element={<ConventionPage />} />
+          <Route element={<RegistrationsAdminRoute />}>
+            <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
+            <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
+          </Route>
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
-            {SCORING_ENABLED && <Route path="admin/assessors" element={<AssessorAdminPage />} />}
-            {SCORING_ENABLED && <Route path="admin/scoring" element={<ScoringResultsPage />} />}
-            {FINALS_ENABLED && <Route path="admin/adjudicators" element={<AdjudicatorAdminPage />} />}
-            {FINALS_ENABLED && <Route path="admin/finals" element={<FinalsResultsPage />} />}
+            <Route path="admin/assessors" element={<AssessorAdminPage />} />
+            <Route path="admin/scoring" element={<ScoringResultsPage />} />
+            <Route path="admin/adjudicators" element={<AdjudicatorAdminPage />} />
+            <Route path="admin/finals" element={<FinalsResultsPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />

@@ -1,5 +1,3 @@
-import { SCORING_ENABLED, FINALS_ENABLED } from '@/dashboard/dashboardNav';
-
 export default function ResourcesPage() {
   const documents = [
     {
@@ -20,24 +18,18 @@ export default function ResourcesPage() {
       link: '/guides/validator-guide.pdf',
       desc: 'How to register as a validator and review submitted entries — request access, get approved, then validate.',
     },
-    // Both judging guides are listed only where their round is live — publishing one while the
-    // stage is still dark would advertise judging nobody can reach yet.
-    ...(SCORING_ENABLED
-      ? [{
-          title: 'Pearl Awards — Assessor Guide',
-          type: 'PDF Document',
-          link: '/guides/assessor-guide.pdf',
-          desc: 'How the pre-finals are scored: read the entry, rate every criterion on the 0–5 scale, and submit — the highest averages become finalists.',
-        }]
-      : []),
-    ...(FINALS_ENABLED
-      ? [{
-          title: 'Pearl Awards — Adjudicator Guide',
-          type: 'PDF Document',
-          link: '/guides/adjudicator-guide.pdf',
-          desc: 'How the finals are judged: read each finalist’s dossier, rank the bracket in your order of merit, and submit — the lowest average rank wins.',
-        }]
-      : []),
+    {
+      title: 'Pearl Awards — Assessor Guide',
+      type: 'PDF Document',
+      link: '/guides/assessor-guide.pdf',
+      desc: 'How the pre-finals are scored: read the entry, rate every criterion on the 0–5 scale, and submit — the highest averages become finalists.',
+    },
+    {
+      title: 'Pearl Awards — Adjudicator Guide',
+      type: 'PDF Document',
+      link: '/guides/adjudicator-guide.pdf',
+      desc: 'How the finals are judged: read each finalist’s dossier, rank the bracket in your order of merit, and submit — the lowest average rank wins.',
+    },
   ];
 
   return (

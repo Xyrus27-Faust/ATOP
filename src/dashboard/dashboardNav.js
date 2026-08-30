@@ -95,16 +95,6 @@ const PROFILE = { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge
 // Sidebar nav grouped into role-based sections: [{ label, items }]. A user with several roles gets
 // several sections; the trailing section (label null) is the always-present general links. The shell
 // only renders section headers when there's more than one role section, so single-role users stay flat.
-// Pre-finals scoring (3PIC) is gated by a build flag so it can ship dark to prod (hidden until UAT).
-// Enabled by default; disabled only when VITE_FEATURE_SCORING is explicitly 'false'.
-export const SCORING_ENABLED = import.meta.env.VITE_FEATURE_SCORING !== 'false'
-// Finals adjudication (M4b) is gated the same way, so it can ship dark ahead of the finals round.
-export const FINALS_ENABLED = import.meta.env.VITE_FEATURE_FINALS !== 'false'
-// Convention registration + payment (M6). Gated the same way so it can ship dark until ATOP
-// confirms the convention dates and the Xendit production keys are in place — until then the
-// seeded event stays Draft and there is nothing safe to show a delegate.
-export const EVENTS_ENABLED = import.meta.env.VITE_FEATURE_EVENTS !== 'false'
-
 export function navForRoles(roles = []) {
   const reviewer = isReviewer(roles)
   const assessor = isAssessor(roles)
@@ -117,20 +107,16 @@ export function navForRoles(roles = []) {
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
   // Anyone with an account may register for the convention — attending isn't tied to a role,
   // so this sits in its own section rather than under any one of them.
-  if (EVENTS_ENABLED) groups.push({ label: 'Convention', items: [CONVENTION] })
+  groups.push({ label: 'Convention', items: [CONVENTION] })
   if (reviewer) groups.push({ label: 'Review', items: [SUMMARY, admin ? SUBMISSIONS : REVIEW] })
   // The assessor's own queue. Admins score too — the endpoints accept Admin and the page gates on
   // isAssessor — but the link was 3PIC-only, so an admin's only way in was typing the URL.
-  if (SCORING_ENABLED && assessor) groups.push({ label: 'Scoring', items: [SCORING] })
-  if (FINALS_ENABLED && roles.includes('Adjudicator')) groups.push({ label: 'Finals', items: [FINALS] }) // the adjudicator's own queue
+  if (assessor) groups.push({ label: 'Scoring', items: [SCORING] })
+  if (roles.includes('Adjudicator')) groups.push({ label: 'Finals', items: [FINALS] }) // the adjudicator's own queue
 
   if (admin) {
-    const adminItems = [ACCESS]
-    if (SCORING_ENABLED) adminItems.push(ASSESSORS, RESULTS)
-    if (FINALS_ENABLED) adminItems.push(ADJUDICATORS, WINNERS)
-    if (EVENTS_ENABLED) adminItems.push(REGISTRATIONS)
-    groups.push({ label: 'Administration', items: adminItems })
-  } else if (EVENTS_ENABLED && canManageRegistrations(roles)) {
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, WINNERS, REGISTRATIONS] })
+  } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list.
     groups.push({ label: 'Administration', items: [REGISTRATIONS] })
   }

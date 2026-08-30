@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom'
-import { EVENTS_ENABLED } from '@/dashboard/dashboardNav'
 
 export default function Hero({ setCurrentPage }) {
   const navigate = useNavigate()
@@ -11,28 +10,16 @@ export default function Hero({ setCurrentPage }) {
       <div className="hero-overlay" aria-hidden="true"></div>
 
       {/* Centered announcement pill, floating over the banner (absolute — doesn't shift the content
-          below). It carries whatever is open right now: convention registration while that is the
-          live thing, and the awards call for entries otherwise. */}
+          below). It carries what is open right now: convention registration. */}
       <div className="hero-awards-banner">
-        {EVENTS_ENABLED ? (
-          <button
-            type="button"
-            className="hero-awards-pill"
-            onClick={() => { navigate('/convention/register'); window.scrollTo(0, 0); }}
-          >
-            <i className="fas fa-calendar-check" aria-hidden="true"></i>
-            2026 ATOP National Convention — online registration is open
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="hero-awards-pill"
-            onClick={() => { setCurrentPage('awards'); window.scrollTo(0, 0); }}
-          >
-            <i className="fas fa-trophy" aria-hidden="true"></i>
-            ATOP National Pearl Awards 2026 — now accepting entries
-          </button>
-        )}
+        <button
+          type="button"
+          className="hero-awards-pill"
+          onClick={() => { navigate('/convention/register'); window.scrollTo(0, 0); }}
+        >
+          <i className="fas fa-calendar-check" aria-hidden="true"></i>
+          2026 ATOP National Convention — online registration is open
+        </button>
       </div>
 
       <div className="container">

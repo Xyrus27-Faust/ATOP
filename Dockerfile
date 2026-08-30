@@ -18,18 +18,8 @@ COPY . ./
 # Baked into the bundle at build time (see src/lib/apiClient.js, GoogleButton.jsx).
 ARG VITE_API_BASE_URL
 ARG VITE_GOOGLE_CLIENT_ID
-# Every feature flag defaults to ENABLED in code (the check is `!== 'false'`), so an unpassed flag
-# ships that feature VISIBLE. Prod must pass each one explicitly as "false" to keep a slice dark —
-# and a flag missing from this list cannot be passed at all, which is how convention registration
-# came within one build of going live on its own.
-ARG VITE_FEATURE_SCORING
-ARG VITE_FEATURE_FINALS
-ARG VITE_FEATURE_EVENTS
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
-    VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
-    VITE_FEATURE_SCORING=$VITE_FEATURE_SCORING \
-    VITE_FEATURE_FINALS=$VITE_FEATURE_FINALS \
-    VITE_FEATURE_EVENTS=$VITE_FEATURE_EVENTS
+    VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
 # --- Static server ---
