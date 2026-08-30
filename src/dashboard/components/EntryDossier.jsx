@@ -185,12 +185,16 @@ function DocumentItem({ doc, kind, onViewDoc }) {
       <div className="ed-doc">
         <span className="ed-doc-label">{doc.label}</span>
         {embed ? (
-          <a className="dash-btn is-ghost is-sm" href={doc.link} target="_blank" rel="noopener noreferrer">
-            <i className="fas fa-up-right-from-square" aria-hidden="true" /> Open in {embed.provider}
+          <a className="dash-btn is-ghost is-sm ed-doc-action" href={doc.link} target="_blank" rel="noopener noreferrer"
+             title={`Open in ${embed.provider}`}>
+            <i className="fas fa-up-right-from-square" aria-hidden="true" />
+            <span className="ed-doc-action-text">Open in {embed.provider}</span>
           </a>
         ) : (
-          <button type="button" className="dash-btn is-ghost is-sm" onClick={() => onViewDoc(doc.label)}>
-            <i className={`fas ${doc.fileKey ? 'fa-file-lines' : 'fa-link'}`} aria-hidden="true" /> {doc.fileName || (doc.fileKey ? 'View file' : 'Open link')}
+          <button type="button" className="dash-btn is-ghost is-sm ed-doc-action" onClick={() => onViewDoc(doc.label)}
+                  title={doc.fileName || (doc.fileKey ? 'View file' : 'Open link')}>
+            <i className={`fas ${doc.fileKey ? 'fa-file-lines' : 'fa-link'}`} aria-hidden="true" />
+            <span className="ed-doc-action-text">{doc.fileName || (doc.fileKey ? 'View file' : 'Open link')}</span>
           </button>
         )}
       </div>
@@ -281,7 +285,7 @@ export function DocumentsReferenceSection({ entry, category, onViewDoc }) {
   const docs = (bb.supportingDocuments || []).filter((d) => !videoLabels.has(d.label))
 
   return (
-    <details className="dash-card dash-card-pad ed-docs-ref">
+    <details className="dash-card dash-card-pad ed-docs-ref" open>
       <summary className="ed-docs-ref-summary">
         <span className="ed-section-title" style={{ margin: 0 }}>
           <i className="fas fa-paperclip" aria-hidden="true" /> Submitted documents ({docs.length})
@@ -323,8 +327,10 @@ export function EndorsementSection({ entry, onViewEndorsement }) {
           {e.fileKey && (
             <div className="ed-doc" style={{ marginTop: 10 }}>
               <span className="ed-doc-label">Signed endorsement</span>
-              <button type="button" className="dash-btn is-ghost is-sm" onClick={onViewEndorsement}>
-                <i className="fas fa-file-lines" aria-hidden="true" /> {e.fileName || 'View document'}
+              <button type="button" className="dash-btn is-ghost is-sm ed-doc-action" onClick={onViewEndorsement}
+                      title={e.fileName || 'View document'}>
+                <i className="fas fa-file-lines" aria-hidden="true" />
+                <span className="ed-doc-action-text">{e.fileName || 'View document'}</span>
               </button>
             </div>
           )}
@@ -398,8 +404,21 @@ export const DOSSIER_CSS = `
   .ed-evidence-label { font-family: var(--font-heading); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray-600); display: inline-flex; align-items: center; gap: 6px; margin-right: 2px; }
   .ed-evidence-label i { color: var(--gold-dark); }
 
-  .ed-doc { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .ed-doc-label { font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.9rem; }
+  .ed-doc { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .ed-doc-label { flex: 1; min-width: 0; font-family: var(--font-heading); font-weight: 600; color: var(--navy); font-size: 0.9rem; }
+  /* The action is a fixed column, not content-sized. Labels run from "AIP/TDP reference" to a full
+     sentence, and the button's own text is sometimes a filename — so a content-sized button leaves
+     every row's action at a different width, and wraps onto two lines when the label is long. Fixed
+     width + nowrap puts every action in the same place; a long filename ellipsises and keeps the
+     full text in its title. */
+  /* min-width:0 is load-bearing: a flex item's default min-width:auto is its content size, so
+     the longest action would blow past the basis and sit out of line with every other row.
+     Zeroing it holds the column and lets the text inside ellipsise. 184px is measured, not
+     picked: "Open in YouTube" is the longest fixed label at 122px of text, plus 28px padding,
+     the 9px gap and the icon. A filename longer than that ellipsises, which is what the title
+     attribute is for. */
+  .ed-doc-action { flex: 0 0 184px; min-width: 0; }
+  .ed-doc-action-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ed-doc-item { padding: 12px 0; border-top: 1px solid var(--gray-100); }
   .ed-doc-item:first-of-type { border-top: none; padding-top: 0; }
 
@@ -418,5 +437,9 @@ export const DOSSIER_CSS = `
   .ed-docs-ref-body { padding: 0 20px 16px; border-top: 1px solid var(--gray-100); }
   .ed-docs-ref-body .ed-doc-item:first-of-type { padding-top: 14px; }
 
-  @media (max-width: 620px) { .ed-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) {
+    .ed-grid { grid-template-columns: 1fr; }
+    .ed-doc { flex-direction: column; align-items: stretch; gap: 10px; }
+    .ed-doc-action { flex: 0 0 auto; }
+  }
 `
