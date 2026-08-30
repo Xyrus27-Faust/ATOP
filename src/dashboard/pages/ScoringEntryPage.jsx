@@ -7,7 +7,7 @@ import { isAssessor } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import StatusBadge from '../components/StatusBadge'
 import {
-  EvidenceRow, ExecutiveSummarySection, VideoSection,
+  EvidenceRow, ExecutiveSummarySection, VideoSection, DocumentsReferenceSection,
   DeclarationSection, EndorsementSection, DOSSIER_CSS,
 } from '../components/EntryDossier'
 import { useEntryFiles } from '@/lib/entryFiles'
@@ -405,6 +405,11 @@ export default function ScoringEntryPage() {
 
           <ExecutiveSummarySection entry={entry} />
 
+          {/* What else the entrant attached, collapsed and ahead of the rubric so it's reference an
+              assessor can open while they read — not a block that competes with the work itself.
+              Whether the required set is complete stays the reviewer's call at validation. */}
+          <DocumentsReferenceSection entry={entry} category={data.category} onViewDoc={files.viewDoc} />
+
           <RatingGuide />
 
           <div className="sc-rubric-intro">
@@ -433,9 +438,6 @@ export default function ScoringEntryPage() {
               once they've formed one, and it never affects the total. */}
           <FeedbackSection value={feedback} onChange={setFeedbackText} disabled={readOnly} />
 
-          {/* No supporting-documents block: an assessor scores on the video, the narratives, and the
-              evidence attached to each criterion above. Compliance with the rubric's required
-              submissions is the reviewer's job, and they see the full list. */}
           <DeclarationSection entry={entry} />
           <EndorsementSection entry={entry} onViewEndorsement={files.viewEndorsement} />
         </div>

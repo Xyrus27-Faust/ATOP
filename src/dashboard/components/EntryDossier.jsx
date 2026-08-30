@@ -19,6 +19,10 @@
 //   "judging" — assessors and adjudicators judge the work, so the entry video leads the page and
 //               the "Supporting documents" block is gone: the material a judgment rests on is the
 //               video, the narratives, and the evidence attached to each criterion.
+//
+// Scoring, which composes the sections itself, additionally shows <DocumentsReferenceSection> — the
+// same documents, collapsed and minus the video, so an assessor can consult what was attached
+// without it leading the page. See the note on that component.
 
 import { formatDate, labelFor, COVERAGE_OPTIONS, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
 
@@ -259,6 +263,39 @@ export function DocumentsSection({ entry, category, onViewDoc }) {
   )
 }
 
+/**
+ * The same documents, as reference for a judge: collapsed, and without the entry video, which
+ * already leads the page. A judgment still rests on the video, the narratives and the evidence
+ * attached to each criterion — this is here so an assessor who wants to see what the entrant
+ * actually attached doesn't have to go asking someone with reviewer access.
+ *
+ * It lists what *is* attached and never flags a missing slot: whether the required set is complete
+ * was settled by the reviewer at validation, and re-opening that question on the scoresheet is what
+ * pulls an assessor into judging compliance instead of the work.
+ */
+export function DocumentsReferenceSection({ entry, category, onViewDoc }) {
+  const bb = entry.bidbook || emptyBidbook
+  const kindByLabel = new Map((category?.requiredSubmissions || []).map((r) => [r.label, r.kind]))
+  const videoLabels = new Set(videosOf(entry, category).map((d) => d.label))
+  const docs = (bb.supportingDocuments || []).filter((d) => !videoLabels.has(d.label))
+
+  return (
+    <details className="dash-card dash-card-pad ed-docs-ref">
+      <summary className="ed-docs-ref-summary">
+        <span className="ed-section-title" style={{ margin: 0 }}>
+          <i className="fas fa-paperclip" aria-hidden="true" /> Submitted documents ({docs.length})
+        </span>
+        <i className="fas fa-chevron-down ed-docs-ref-chev" aria-hidden="true" />
+      </summary>
+      <div className="ed-docs-ref-body">
+        {docs.length === 0
+          ? <p className="ed-empty">No other documents were attached to this entry.</p>
+          : docs.map((d) => <DocumentItem key={d.label} doc={d} kind={kindByLabel.get(d.label)} onViewDoc={onViewDoc} />)}
+      </div>
+    </details>
+  )
+}
+
 export function DeclarationSection({ entry }) {
   return (
     <DossierSection icon="fa-file-signature" title="Declaration">
@@ -370,6 +407,14 @@ export const DOSSIER_CSS = `
   .ed-video-fallback i { color: var(--gold-dark); margin-top: 2px; }
   .ed-video-fallback strong { color: var(--navy); display: block; margin-bottom: 2px; }
   .ed-video-link { color: var(--gold-dark); word-break: break-all; font-size: 0.84rem; text-decoration: underline; text-underline-offset: 2px; }
+
+  .ed-docs-ref { padding: 0; }
+  .ed-docs-ref-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; cursor: pointer; list-style: none; }
+  .ed-docs-ref-summary::-webkit-details-marker { display: none; }
+  .ed-docs-ref-chev { color: var(--gray-400); font-size: 0.8rem; transition: transform 0.15s ease; }
+  .ed-docs-ref[open] .ed-docs-ref-chev { transform: rotate(180deg); }
+  .ed-docs-ref-body { padding: 0 20px 16px; border-top: 1px solid var(--gray-100); }
+  .ed-docs-ref-body .ed-doc-item:first-of-type { padding-top: 14px; }
 
   @media (max-width: 620px) { .ed-grid { grid-template-columns: 1fr; } }
 `
