@@ -295,8 +295,13 @@ function Money({ registration: r }) {
   const total = Number(r.totalAmount ?? 0)
   const paid = Number(r.amountPaid ?? 0)
   const due = Number(r.balance ?? 0)
-  const settled = r.isComplimentary || due <= 0
-  const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
+
+  // A booking with nothing priced owes nothing, which is not the same as having been paid. Most
+  // drafts are exactly this — someone opened the form and never added a delegate — and reading
+  // "owes nothing" as "settled" put "Paid in full" on every one of them.
+  const priced = total > 0
+  const settled = r.isComplimentary || (priced && due <= 0)
+  const pct = priced ? Math.min(100, Math.round((paid / total) * 100)) : 0
 
   return (
     <span className="ar-money">
@@ -304,6 +309,8 @@ function Money({ registration: r }) {
 
       {r.isComplimentary ? (
         <span className="ar-money-note is-comp">Complimentary</span>
+      ) : !priced ? (
+        <span className="ar-money-note is-unpaid">No seats yet</span>
       ) : (
         <>
           <span className="ar-bar" aria-hidden="true">
