@@ -17,12 +17,13 @@
 //   "full"    — the reviewer/TWG validates technical compliance, so they see every required
 //               submission listed against the rubric's slots.
 //   "judging" — assessors and adjudicators judge the work, so the entry video leads the page and
-//               the "Supporting documents" block is gone: the material a judgment rests on is the
-//               video, the narratives, and the evidence attached to each criterion.
+//               the flat "Supporting documents" block gives way to <DocumentsReferenceSection>:
+//               the same documents, collapsed and minus the video, so they stay consultable
+//               without competing with what a judgment rests on — the video, the narratives,
+//               and the evidence attached to each criterion.
 //
-// Scoring, which composes the sections itself, additionally shows <DocumentsReferenceSection> — the
-// same documents, collapsed and minus the video, so an assessor can consult what was attached
-// without it leading the page. See the note on that component.
+// Scoring composes the sections itself rather than rendering the layout, but shows the same
+// reference block in the same place. See the note on that component.
 
 import { formatDate, labelFor, COVERAGE_OPTIONS, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
 
@@ -266,8 +267,8 @@ export function DocumentsSection({ entry, category, onViewDoc }) {
 /**
  * The same documents, as reference for a judge: collapsed, and without the entry video, which
  * already leads the page. A judgment still rests on the video, the narratives and the evidence
- * attached to each criterion — this is here so an assessor who wants to see what the entrant
- * actually attached doesn't have to go asking someone with reviewer access.
+ * attached to each criterion — this is here so an assessor or adjudicator who wants to see what
+ * the entrant actually attached doesn't have to go asking someone with reviewer access.
  *
  * It lists what *is* attached and never flags a missing slot: whether the required set is complete
  * was settled by the reviewer at validation, and re-opening that question on the scoresheet is what
@@ -359,6 +360,7 @@ export default function EntryDossier({ entry, category, criteria, files, layout 
         {judging && <VideoSection entry={entry} category={category} onViewDoc={files.viewDoc} />}
         <NominatorSection entry={entry} />
         <ExecutiveSummarySection entry={entry} />
+        {judging && <DocumentsReferenceSection entry={entry} category={category} onViewDoc={files.viewDoc} />}
         <NarrativesSection
           entry={entry}
           criteria={criteria}

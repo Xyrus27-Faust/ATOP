@@ -26,16 +26,9 @@ function Shell({ children }) {
 // stays the focus. Renders the shared dossier in its "judging" layout, the same shape the 3PIC
 // assessor scores against: the entry video first, then the narratives with each criterion's own
 // evidence, then declaration and LCE endorsement.
-function Dossier({ entryId, onClose }) {
+function Dossier({ entryId, category, onClose }) {
   const { loading, error, data, reload } = useAsync(
-    () =>
-      api.get(`/finals/entries/${entryId}`, { auth: true }).then(async (detail) => {
-        // The rubric's requiredSubmissions tell us which links are *meant* to be videos, so an
-        // unplayable one can say so instead of failing silently.
-        const catalog = await api.get('/award-categories/')
-        const category = catalog.categories.find((c) => c.number === detail.entry.categoryNumber) || null
-        return { ...detail, category }
-      }),
+    () => api.get(`/finals/entries/${entryId}`, { auth: true }),
     [entryId],
   )
   const files = useEntryFiles(`/finals/entries/${entryId}`)
@@ -55,7 +48,7 @@ function Dossier({ entryId, onClose }) {
           <div className="fb-drawer-id">
             <span className="dash-eyebrow">Finalist dossier</span>
             <h2 className="fb-drawer-title">{entry?.title || 'Loading…'}</h2>
-            {entry && <EntryFacts entry={entry} category={data.category} />}
+            {entry && <EntryFacts entry={entry} category={category} />}
           </div>
           <button type="button" className="fb-drawer-x" onClick={onClose} aria-label="Close dossier">
             <i className="fas fa-xmark" aria-hidden="true" />
@@ -65,10 +58,48 @@ function Dossier({ entryId, onClose }) {
         <div className="fb-drawer-body">
           {loading ? <Loading />
             : error ? <ErrorState error={error} onRetry={reload} title="We couldn’t open this dossier" />
-              : <EntryDossier entry={entry} category={data.category} criteria={data.criteria} files={files} layout="judging" />}
+              : <EntryDossier entry={entry} category={category} criteria={data.criteria} files={files} layout="judging" />}
         </div>
       </aside>
     </div>
+  )
+}
+
+/**
+ * What the bracket is judged on. Collapsed and above the list, because an adjudicator ranks whole
+ * entries against each other rather than working criterion by criterion — the rubric is context
+ * they open once, not a form they fill in. The points are the pre-finals weighting, shown so the
+ * ranking is made on the same ground the finalists reached the bracket on.
+ */
+function CriteriaSummary({ category }) {
+  const criteria = category?.criteria || []
+  if (criteria.length === 0) return null
+  const total = criteria.reduce((n, c) => n + c.points, 0)
+
+  return (
+    <details className="dash-card fb-criteria">
+      <summary className="fb-criteria-summary">
+        <span className="fb-criteria-title">
+          <i className="fas fa-list-check" aria-hidden="true" /> Judging criteria ({criteria.length})
+        </span>
+        <i className="fas fa-chevron-down fb-criteria-chev" aria-hidden="true" />
+      </summary>
+      <div className="fb-criteria-body">
+        {criteria.map((c) => (
+          <div key={c.id} className="fb-criterion">
+            <div className="fb-criterion-head">
+              <span className="fb-criterion-name">{c.order}. {c.name}</span>
+              <span className="dash-badge tone-progress">{c.points} pts</span>
+            </div>
+            {c.indicators && <p className="fb-criterion-ind">{c.indicators}</p>}
+          </div>
+        ))}
+        <p className="fb-criteria-note">
+          {total} points in total — the weighting the pre-finals scoring used. The finals ballot is a
+          ranking, not a re-score: place the finalists in order of merit.
+        </p>
+      </div>
+    </details>
   )
 }
 
@@ -78,7 +109,18 @@ export default function FinalsBracketPage() {
   const { user } = useAuth()
 
   const { loading, error, data, reload } = useAsync(
-    () => api.get(`/finals/${categoryNumber}/${encodeURIComponent(bracket)}`, { auth: true }),
+    async () => {
+      const [detail, catalog] = await Promise.all([
+        api.get(`/finals/${categoryNumber}/${encodeURIComponent(bracket)}`, { auth: true }),
+        api.get('/award-categories/'),
+      ])
+      // The category carries two things the page needs: the rubric this bracket is judged on, and
+      // the requiredSubmissions that tell a dossier which links are *meant* to be videos (so an
+      // unplayable one can say so instead of failing silently). Fetched once here rather than
+      // once per dossier the adjudicator opens.
+      const category = catalog.categories.find((c) => c.number === detail.categoryNumber) || null
+      return { ...detail, category }
+    },
     [categoryNumber, bracket],
   )
 
@@ -214,6 +256,8 @@ export default function FinalsBracketPage() {
             <i className="fas fa-circle-exclamation" aria-hidden="true" /> {banner}
           </div>
         )}
+
+        <CriteriaSummary category={data.category} />
 
         {autoWin ? (
           // The manual: a bracket with a single finalist is declared Grand Winner outright — no
@@ -381,7 +425,7 @@ export default function FinalsBracketPage() {
         </div>
       )}
 
-      {dossier && <Dossier entryId={dossier} onClose={() => setDossier(null)} />}
+      {dossier && <Dossier entryId={dossier} category={data.category} onClose={() => setDossier(null)} />}
     </Shell>
   )
 }
@@ -479,6 +523,22 @@ const FB_CSS = `
   .fb-review li:first-child { border-top: none; }
   .fb-review-title { font-family: var(--font-heading); font-size: 0.88rem; font-weight: 600; color: var(--navy); }
   .fb-modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  /* The rubric, collapsed — context for the ranking, not part of it. */
+  .fb-criteria { margin-bottom: 18px; }
+  .fb-criteria-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; cursor: pointer; list-style: none; }
+  .fb-criteria-summary::-webkit-details-marker { display: none; }
+  .fb-criteria-title { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-heading); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy); }
+  .fb-criteria-title i { color: var(--gold-dark); }
+  .fb-criteria-chev { color: var(--gray-400); font-size: 0.8rem; transition: transform 0.15s ease; }
+  .fb-criteria[open] .fb-criteria-chev { transform: rotate(180deg); }
+  .fb-criteria-body { padding: 0 20px 6px; border-top: 1px solid var(--gray-100); }
+  .fb-criterion { padding: 14px 0; border-top: 1px solid var(--gray-100); }
+  .fb-criterion:first-of-type { border-top: none; }
+  .fb-criterion-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .fb-criterion-name { font-family: var(--font-heading); font-weight: 700; color: var(--navy); font-size: 0.92rem; }
+  .fb-criterion-ind { color: var(--gray-600); font-size: 0.84rem; line-height: 1.55; margin-top: 6px; }
+  .fb-criteria-note { padding: 12px 0 16px; border-top: 1px solid var(--gray-100); font-size: 0.8rem; color: var(--gray-600); line-height: 1.6; }
 
   /* Dossier drawer — the bidbook the ranking is actually made on. */
   .fb-drawer { position: fixed; inset: 0; z-index: 400; display: flex; justify-content: flex-end; background: rgba(15,25,46,0.5); backdrop-filter: blur(2px); }
