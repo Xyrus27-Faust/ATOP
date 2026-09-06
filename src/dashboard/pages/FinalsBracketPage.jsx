@@ -154,8 +154,19 @@ export default function FinalsBracketPage() {
     setReordered(seeded) // a saved ballot is already a deliberate order; a fresh list is not
   }, [data])
 
-  const readOnly = status === 'Submitted'
+  // Two different reasons the ballot can't be touched, and they read nothing alike: the finals are
+  // still in preview (ranking hasn't opened — come back later), or this adjudicator has already
+  // submitted (it's done — an admin has to reopen it).
+  const previewOnly = data?.rankingOpen === false
+  const readOnly = status === 'Submitted' || previewOnly
   const autoWin = !!data?.singleFinalistAutoWin
+
+  const opensAt = data?.rankingOpensAt ? new Date(data.rankingOpensAt) : null
+  const opensLabel = opensAt
+    ? opensAt.toLocaleString(undefined, {
+        day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      })
+    : null
 
   // The list is always a strict 1..N permutation by construction, so the payload can never be
   // rejected for a duplicate or missing rank — the whole class of errors the API guards is designed out.
@@ -240,7 +251,8 @@ export default function FinalsBracketPage() {
               {saveState === 'error' && <><i className="fas fa-triangle-exclamation" aria-hidden="true" /> Not saved</>}
             </span>
           )}
-          {readOnly && <span className="dash-badge tone-success"><i className="fas fa-lock" aria-hidden="true" /> Ranking submitted</span>}
+          {previewOnly && <span className="dash-badge tone-info"><i className="fas fa-eye" aria-hidden="true" /> Preview only</span>}
+          {readOnly && !previewOnly && <span className="dash-badge tone-success"><i className="fas fa-lock" aria-hidden="true" /> Ranking submitted</span>}
         </div>
       </header>
 
@@ -285,13 +297,24 @@ export default function FinalsBracketPage() {
         ) : (
           <>
             <div className="fb-head">
-              <h1 className="fb-h1">Rank the finalists</h1>
+              <h1 className="fb-h1">{previewOnly ? 'Review the finalists' : 'Rank the finalists'}</h1>
               <p className="fb-sub">
-                Drag them into your order of merit, best at the top — or use the arrows.
+                {previewOnly
+                  ? 'Open each bidbook to read the narratives, videos and documents before ranking opens.'
+                  : 'Drag them into your order of merit, best at the top — or use the arrows.'}
               </p>
             </div>
 
-            {readOnly && (
+            {previewOnly && (
+              <div className="dash-banner tone-info fb-banner">
+                <i className="fas fa-eye" aria-hidden="true" />{' '}
+                {opensLabel
+                  ? <>Ranking opens on <b>{opensLabel}</b>. Until then you can read every finalist’s bidbook here — the order below isn’t saved.</>
+                  : <>Ranking hasn’t opened yet. You can read every finalist’s bidbook here in the meantime — the order below isn’t saved.</>}
+              </div>
+            )}
+
+            {readOnly && !previewOnly && (
               <div className="dash-banner tone-info fb-banner">
                 <i className="fas fa-lock" aria-hidden="true" /> Your ranking is submitted and locked. Ask an admin to reopen it if you need to change it.
               </div>

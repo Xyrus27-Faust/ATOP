@@ -28,6 +28,9 @@ export default function FinalsQueuePage() {
 
   const brackets = useMemo(() => data || [], [data])
 
+  // The ranking window is edition-wide, so every bracket agrees; read it off the first one.
+  const previewOnly = brackets.length > 0 && brackets[0].rankingOpen === false
+
   // Auto-win brackets need no ballot, so they never count toward "still to rank".
   const progress = useMemo(() => {
     const rankable = brackets.filter((b) => !b.singleFinalistAutoWin)
@@ -92,13 +95,22 @@ export default function FinalsQueuePage() {
           <span className="dash-eyebrow">{admin ? 'Admin · Finals' : 'Adjudicator · Finals'}</span>
           <h1 className="dash-h1">Finals</h1>
           <p className="dash-sub">
-            Each bracket is its own contest. Put its finalists in your order of merit — top of the list is your
-            Grand Winner. Every adjudicator’s positions are averaged, and the lowest average rank wins.
+            {previewOnly
+              ? 'Each bracket is its own contest. Read the finalists now; ranking opens later, and the Grand Winner is the one with the lowest average position across every adjudicator.'
+              : 'Each bracket is its own contest. Put its finalists in your order of merit — top of the list is your Grand Winner. Every adjudicator’s positions are averaged, and the lowest average rank wins.'}
           </p>
         </div>
       </div>
 
-      {progress.total > 0 && (
+      {previewOnly && (
+        <div className="dash-banner tone-info">
+          <i className="fas fa-eye" aria-hidden="true" /> Ranking hasn’t opened yet. Open any bracket to read
+          its finalists’ bidbooks — you’ll be able to place them in order once it does.
+        </div>
+      )}
+
+      {/* "0 of 14 ranked" is noise while nobody is allowed to rank. */}
+      {progress.total > 0 && !previewOnly && (
         <div className="dash-card fq-progress">
           <div className="fq-progress-head">
             <span className="fq-progress-count">
@@ -195,6 +207,8 @@ export default function FinalsQueuePage() {
                         <td>
                           {auto ? (
                             <span className="dash-badge tone-success"><i className="fas fa-trophy" aria-hidden="true" /> Automatic winner</span>
+                          ) : previewOnly ? (
+                            <span className="dash-badge tone-info"><i className="fas fa-eye" aria-hidden="true" /> Preview only</span>
                           ) : (
                             <span className={`dash-badge tone-${mm.tone}`}><i className={`fas ${mm.icon}`} aria-hidden="true" /> {mm.label}</span>
                           )}
