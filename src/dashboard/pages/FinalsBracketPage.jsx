@@ -298,11 +298,27 @@ export default function FinalsBracketPage() {
           <>
             <div className="fb-head">
               <h1 className="fb-h1">{previewOnly ? 'Review the finalists' : 'Rank the finalists'}</h1>
-              <p className="fb-sub">
-                {previewOnly
-                  ? 'Open each bidbook to read the narratives, videos and documents before ranking opens.'
-                  : 'Drag them into your order of merit, best at the top — or use the arrows.'}
-              </p>
+              {previewOnly ? (
+                <p className="fb-sub">
+                  Open each bidbook to read the narratives, videos and documents. When ranking opens
+                  you’ll put these in order — <b>click and drag</b> a row, or use the <b>up and down
+                  arrows</b> on the right of it.
+                </p>
+              ) : (
+                <>
+                  <p className="fb-sub">
+                    <b>Click and drag</b> a row to move it up or down the list — or use the <b>up and
+                    down arrows</b> on the right of it. The big gold number is the rank you are giving
+                    that finalist, so <b>whoever sits at 1 is your Grand Winner</b>.
+                  </p>
+                  {/* Dragging is mouse-only — HTML5 drag events never fire on touch — and the arrows
+                      are unlabelled chevrons, so a tablet user has no way to discover them. */}
+                  <p className="fb-sub fb-sub-fine">
+                    Dragging needs a mouse; on a phone or tablet, use the arrows. Your order saves by
+                    itself as you go, and nothing is final until you press Submit ranking.
+                  </p>
+                </>
+              )}
             </div>
 
             {previewOnly && (
@@ -355,6 +371,7 @@ export default function FinalsBracketPage() {
                           onClick={() => move(i, i - 1)}
                           disabled={i === 0}
                           aria-label={`Move ${f.title} up to rank ${i}`}
+                          title={i === 0 ? 'Already first' : `Move up to ${i}`}
                         >
                           <i className="fas fa-chevron-up" aria-hidden="true" />
                         </button>
@@ -364,6 +381,7 @@ export default function FinalsBracketPage() {
                           onClick={() => move(i, i + 1)}
                           disabled={i === order.length - 1}
                           aria-label={`Move ${f.title} down to rank ${i + 2}`}
+                          title={i === order.length - 1 ? 'Already last' : `Move down to ${i + 2}`}
                         >
                           <i className="fas fa-chevron-down" aria-hidden="true" />
                         </button>
@@ -480,6 +498,8 @@ const FB_CSS = `
   .fb-h1 { font-family: var(--font-heading); font-size: 1.6rem; font-weight: 800; color: var(--navy); }
   .fb-sub { color: var(--gray-600); font-size: 0.92rem; line-height: 1.6; margin-top: 6px; max-width: 64ch; }
   .fb-sub b { color: var(--navy); }
+  /* The practical footnotes — touch, autosave, submit — sit under the instruction proper. */
+  .fb-sub-fine { font-size: 0.84rem; margin-top: 8px; }
   /* Fine print, not a callout — no bar, no tint, nothing competing with the cards above it. */
   .fb-caveat { display: flex; gap: 10px; align-items: flex-start; max-width: 70ch; margin: 0 2px 18px; color: var(--gray-600); font-size: 0.84rem; line-height: 1.65; }
   .fb-caveat i { color: var(--gray-400); margin-top: 4px; flex-shrink: 0; }
