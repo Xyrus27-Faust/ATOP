@@ -83,6 +83,9 @@ const RESULTS = { to: '/dashboard/admin/scoring', label: 'Scoring Results', icon
 const FINALS = { to: '/dashboard/finals', label: 'Finals', icon: 'fa-gavel' }
 const ADJUDICATORS = { to: '/dashboard/admin/adjudicators', label: 'Adjudicators', icon: 'fa-user-tie' }
 const WINNERS = { to: '/dashboard/admin/finals', label: 'Finals Results', icon: 'fa-trophy' }
+// The whole finalist roster on one screen, shaped like the official list so the two can be read
+// against each other — the per-category boards answer a different question.
+const ROSTER = { to: '/dashboard/admin/finalists', label: 'All Finalists', icon: 'fa-list-ol' }
 const ACCESS = { to: '/dashboard/admin/access', label: 'Manage Validators', icon: 'fa-user-shield' }
 // Convention registration (M6): the delegate's own booking, and the secretariat's list of them.
 const CONVENTION = { to: '/dashboard/convention', label: 'National Convention 2026', icon: 'fa-calendar-days' }
@@ -115,7 +118,7 @@ export function navForRoles(roles = []) {
   if (roles.includes('Adjudicator')) groups.push({ label: 'Finals', items: [FINALS] }) // the adjudicator's own queue
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, WINNERS, REGISTRATIONS] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS] })
   } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list.
     groups.push({ label: 'Administration', items: [REGISTRATIONS] })
