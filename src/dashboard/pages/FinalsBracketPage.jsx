@@ -161,12 +161,18 @@ export default function FinalsBracketPage() {
   const readOnly = status === 'Submitted' || previewOnly
   const autoWin = !!data?.singleFinalistAutoWin
 
-  const opensAt = data?.rankingOpensAt ? new Date(data.rankingOpensAt) : null
-  const opensLabel = opensAt
-    ? opensAt.toLocaleString(undefined, {
-        day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
-      })
-    : null
+  const when = (iso) =>
+    iso
+      ? new Date(iso).toLocaleString(undefined, {
+          day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+        })
+      : null
+
+  const opensLabel = when(data?.rankingOpensAt)
+  const closesLabel = when(data?.rankingClosesAt)
+  // A sitting that has been and gone reads nothing like one that hasn't started: "wait" versus
+  // "it's over, ask an admin". Both arrive as rankingOpen=false, so the close date separates them.
+  const hasClosed = !!data?.rankingClosesAt && new Date(data.rankingClosesAt) <= new Date()
 
   // The list is always a strict 1..N permutation by construction, so the payload can never be
   // rejected for a duplicate or missing rank — the whole class of errors the API guards is designed out.
@@ -322,11 +328,28 @@ export default function FinalsBracketPage() {
             </div>
 
             {previewOnly && (
+              hasClosed ? (
+                <div className="dash-banner tone-warn fb-banner">
+                  <i className="fas fa-hourglass-end" aria-hidden="true" />{' '}
+                  Your ranking window closed on <b>{closesLabel}</b>. You can still read the bidbooks;
+                  ask an admin to reopen it if you need to change or finish a ballot.
+                </div>
+              ) : (
+                <div className="dash-banner tone-info fb-banner">
+                  <i className="fas fa-eye" aria-hidden="true" />{' '}
+                  {opensLabel
+                    ? <>Ranking opens on <b>{opensLabel}</b>. Until then you can read every finalist’s bidbook here — the order below isn’t saved.</>
+                    : <>Ranking hasn’t opened yet. You can read every finalist’s bidbook here in the meantime — the order below isn’t saved.</>}
+                </div>
+              )
+            )}
+
+            {/* A timeboxed sitting is no use if the deadline is invisible. */}
+            {!previewOnly && !autoWin && closesLabel && (
               <div className="dash-banner tone-info fb-banner">
-                <i className="fas fa-eye" aria-hidden="true" />{' '}
-                {opensLabel
-                  ? <>Ranking opens on <b>{opensLabel}</b>. Until then you can read every finalist’s bidbook here — the order below isn’t saved.</>
-                  : <>Ranking hasn’t opened yet. You can read every finalist’s bidbook here in the meantime — the order below isn’t saved.</>}
+                <i className="fas fa-clock" aria-hidden="true" />{' '}
+                Your ranking window closes at <b>{closesLabel}</b>. Submit before then — after it
+                closes you’ll need an admin to reopen it.
               </div>
             )}
 
