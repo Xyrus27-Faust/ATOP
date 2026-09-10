@@ -8,6 +8,7 @@ import Modal from '../components/Modal'
 import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
 import SeatQr from '../components/SeatQr'
 import SeatPassModal from '../components/SeatPassModal'
+import ConventionExtras from '../components/ConventionExtras'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -291,6 +292,12 @@ export default function RegistrationDetailPage() {
               </p>
             )}
           </div>
+
+          {/* ---- Tours & kit ---- */}
+          {/* Sits under the delegates rather than in the sidebar: it is a per-person checklist, and
+              it reads as a continuation of the list it is asking about. Renders nothing until a
+              seat on this booking is actually eligible. */}
+          <ConventionExtras registrationId={reg.id} />
 
           {/* ---- Contact ---- */}
           <div className="dash-card dash-card-pad rd-card">

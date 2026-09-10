@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 /**
  * A centred dialog over a dimmed page. Closes on Escape or a click on the backdrop itself
@@ -7,6 +8,13 @@ import { useEffect } from 'react'
  * Carries its own styles so a page can drop it in without copying CSS. Three admin pages
  * (AdminAccess, AssessorAdmin, AdjudicatorAdmin) still define their own identical copy —
  * they can move over to this one whenever they're next touched.
+ *
+ * Rendered through a portal to <body>, which is not fussiness: `position: fixed` is measured
+ * against the nearest ancestor carrying a transform, filter or containment rather than the
+ * viewport. RegistrationDetailPage's `.rd-grid` has exactly such a transform, so a modal opened
+ * from a card inside it lands wherever the grid happens to be — off the top of the screen, with
+ * the sticky sub-bar painted over its close button. The page's own modals dodge this only by
+ * being rendered as siblings of the grid, which is a constraint no caller should have to know.
  */
 export default function Modal({ title, onClose, children }) {
   useEffect(() => {
@@ -15,7 +23,7 @@ export default function Modal({ title, onClose, children }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  return createPortal(
     <div className="dash-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="dash-modal" role="dialog" aria-modal="true" aria-label={title}>
         <div className="dash-modal-head">
@@ -37,6 +45,7 @@ export default function Modal({ title, onClose, children }) {
         .dash-modal-body { padding: 20px; }
         @keyframes dashModalFade { from { opacity: 0 } to { opacity: 1 } }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   )
 }
