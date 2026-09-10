@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
-import TourPicker from './TourPicker'
 
 /**
  * Tour and shirt size, per delegate, on the booking page.
@@ -21,14 +21,13 @@ export default function ConventionExtras({ registrationId }) {
     [registrationId],
   )
 
-  const [picking, setPicking] = useState(null)
+  const navigate = useNavigate()
   const [savingSize, setSavingSize] = useState(null)
   const [sizeError, setSizeError] = useState(null)
 
-  const onPicked = useCallback((opts) => {
-    reload()
-    if (!opts?.keepOpen) setPicking(null)
-  }, [reload])
+  // The picker is a route, not a dialog — the posters need the whole page to be legible.
+  const pick = (delegateId) =>
+    navigate(`/convention/registrations/${registrationId}/tours/${delegateId}`)
 
   // Keyed on `data`, not `loading`: useAsync flips loading on every reload while keeping the last
   // payload, and hiding the card each time someone picks a tour would make it blink out from under
@@ -109,7 +108,7 @@ export default function ConventionExtras({ registrationId }) {
                       type="button"
                       className="ce-chosen"
                       disabled={closed}
-                      onClick={() => setPicking(d)}
+                      onClick={() => pick(d.delegateId)}
                     >
                       <i className="fas fa-van-shuttle" aria-hidden="true" />
                       <span>
@@ -122,7 +121,7 @@ export default function ConventionExtras({ registrationId }) {
                       type="button"
                       className="ce-choose"
                       disabled={closed}
-                      onClick={() => setPicking(d)}
+                      onClick={() => pick(d.delegateId)}
                     >
                       <i className="fas fa-plus" aria-hidden="true" /> Choose a tour
                     </button>
@@ -148,16 +147,6 @@ export default function ConventionExtras({ registrationId }) {
           </div>
         ))}
       </div>
-
-      {picking && (
-        <TourPicker
-          registrationId={registrationId}
-          delegate={picking}
-          packages={data.packages}
-          onClose={() => setPicking(null)}
-          onDone={onPicked}
-        />
-      )}
 
       <style>{ceStyles}</style>
     </div>

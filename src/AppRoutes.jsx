@@ -31,6 +31,7 @@ import FinalistRosterPage from './dashboard/pages/FinalistRosterPage'
 import ConventionPage from './dashboard/pages/ConventionPage'
 import NewRegistrationPage from './dashboard/pages/NewRegistrationPage'
 import RegistrationDetailPage from './dashboard/pages/RegistrationDetailPage'
+import TourPickerPage from './dashboard/pages/TourPickerPage'
 import AdminRegistrationsPage from './dashboard/pages/AdminRegistrationsPage'
 import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDetailPage'
 
@@ -71,6 +72,9 @@ export default function AppRoutes() {
           {/* Same wizard, resuming a saved draft. */}
           <Route path="/convention/register/:id" element={<NewRegistrationPage />} />
           <Route path="/convention/registrations/:id" element={<RegistrationDetailPage />} />
+          {/* The tour picker earns a route rather than a dialog: the six posters carry the
+              itineraries and inclusions, and they have to be big enough to read. */}
+          <Route path="/convention/registrations/:id/tours/:delegateId" element={<TourPickerPage />} />
         </Route>
 
         <Route path="/dashboard" element={<DashboardLayout />}>
