@@ -16,7 +16,7 @@ import { useAsync } from '../useAsync'
  * open — would refetch the whole catalogue for no reason.</p>
  */
 export default function ConventionExtras({ registrationId }) {
-  const { data, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => api.get(`/registrations/${registrationId}/tours`, { auth: true }),
     [registrationId],
   )
@@ -29,25 +29,65 @@ export default function ConventionExtras({ registrationId }) {
   const pick = (delegateId) =>
     navigate(`/convention/registrations/${registrationId}/tours/${delegateId}`)
 
-  // Keyed on `data`, not `loading`: useAsync flips loading on every reload while keeping the last
-  // payload, and hiding the card each time someone picks a tour would make it blink out from under
-  // the cursor. A failed first load stays silent — the booking is the page, this is an addition to it.
-  if (!data || data.packages.length === 0) return null
-
-  const eligible = data.delegates.filter((d) => d.canChoose)
-  if (eligible.length === 0 && data.delegates.every((d) => !d.canChoose)) {
-    // Nobody on this booking can choose yet — an all-virtual or wholly unpaid delegation. One line
-    // explaining why beats a card of disabled controls.
-    const reason = data.delegates[0]?.ineligibleReason
-    if (!reason) return null
+  // Still keyed on `data` for the happy path: useAsync flips loading on every reload while keeping
+  // the last payload, and hiding the card each time someone picks a tour would make it blink out
+  // from under the cursor. So only the *first* load — the one with nothing to show yet — reports
+  // its state.
+  //
+  // It used to stay silent on failure too, on the reasoning that the booking is the page and this
+  // is an addition to it. That stopped being true the day ATOP mailed every delegate a link telling
+  // them to come here and choose: a failed load removed the entire card, and a page that looks
+  // complete with no tour section on it is indistinguishable from an event with no tours. People
+  // reported it as "I paid but I can't get into the tour", which is exactly what they saw.
+  if (error && !data) {
     return (
       <div className="dash-card dash-card-pad rd-card">
-        <h2 className="dash-card-title">Tours & convention kit</h2>
-        <p className="dash-help">{reason}</p>
+        <h2 className="dash-card-title">Tours &amp; convention kit</h2>
+        <p className="dash-help">
+          {error.message || 'We couldn’t load the tours just now.'}
+        </p>
+        <button type="button" className="dash-btn" onClick={reload}>
+          <i className="fas fa-rotate-right" aria-hidden="true" /> Try again
+        </button>
         <style>{ceStyles}</style>
       </div>
     )
   }
+
+  if (loading && !data) {
+    return (
+      <div className="dash-card dash-card-pad rd-card">
+        <h2 className="dash-card-title">Tours &amp; convention kit</h2>
+        <p className="dash-help" role="status" aria-live="polite">
+          <i className="fas fa-spinner fa-spin" aria-hidden="true" /> Loading the tours…
+        </p>
+        <style>{ceStyles}</style>
+      </div>
+    )
+  }
+
+  if (!data || data.packages.length === 0) return null
+
+  const eligible = data.delegates.filter((d) => d.canChoose)
+  const reasons = new Set(data.delegates.map((d) => d.ineligibleReason).filter(Boolean))
+
+  // Nobody on this booking can choose yet. One line explaining why beats a card of disabled
+  // controls — but only when there is genuinely one reason to give. A mixed delegation has more
+  // than one, and picking the first delegate's told a five-person booking with two online and
+  // three unpaid seats that "the tours are for delegates attending in person": true of the two the
+  // list happened to be sorted by, useless to the three whose seats simply need settling. Where
+  // the reasons differ, fall through to the rows, which name each person beside their own.
+  if (eligible.length === 0 && reasons.size === 1) {
+    return (
+      <div className="dash-card dash-card-pad rd-card">
+        <h2 className="dash-card-title">Tours &amp; convention kit</h2>
+        <p className="dash-help">{[...reasons][0]}</p>
+        <style>{ceStyles}</style>
+      </div>
+    )
+  }
+
+  if (eligible.length === 0 && reasons.size === 0) return null
 
   const outstanding = eligible.filter((d) => !d.tourBatchId || !d.shirtSize).length
   const closed = !data.selectionOpen
