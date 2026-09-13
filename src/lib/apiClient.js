@@ -69,11 +69,29 @@ function toApiError(status, body) {
   // ProblemDetails: { type, title, status, errors?: { field: [msgs] } }
   if (body && typeof body === 'object') {
     const fieldErrors = body.errors && typeof body.errors === 'object' ? body.errors : null
+
+    // When `errors` is present the payload is a ValidationProblemDetails, and its
+    // `title` is always ASP.NET's placeholder — "One or more validation errors
+    // occurred." The sentence a person actually needs is down in `errors`, and
+    // reading the title instead threw it away: a delegation refused at checkout
+    // because the convention was full was told "One or more validation errors
+    // occurred." and nothing else, while "The convention is fully booked. No
+    // further seats can be confirmed." sat unread in the body.
+    //
+    // Keyed on the presence of `errors` rather than on matching that English
+    // string, which is a server-side detail we do not control.
+    const detailed = fieldErrors ? Object.values(fieldErrors).flat().filter(Boolean) : []
+
     const message =
-      body.title ||
-      body.detail ||
-      body.message ||
-      'Something went wrong. Please try again.'
+      detailed.length > 0
+        ? detailed.join(' ')
+        : body.title ||
+          body.detail ||
+          body.message ||
+          'Something went wrong. Please try again.'
+
+    // `fieldErrors` is left intact: forms still render each message against its
+    // own field, and only fall back to `message` when they have nowhere to put it.
     return new ApiError({ status, message, fieldErrors, raw: body })
   }
   return new ApiError({
@@ -83,16 +101,43 @@ function toApiError(status, body) {
   })
 }
 
+// A bare fetch() waits forever. On the venue wifi and on provincial mobile data
+// it regularly does: the connection stalls, no response and no error ever
+// arrives, and every `finally` waiting on it never runs. That is what left the
+// tour picker on its spinner permanently and the shirt-size select greyed out
+// after a delegate had chosen a size — the request was still "in flight" an hour
+// later. A request that cannot finish has to fail so the UI can say so.
+const REQUEST_TIMEOUT_MS = 20_000
+
+/** status 0 — the request never reached the server, so there is no HTTP status to report. */
+const NO_RESPONSE = 0
+
 async function rawRequest(path, { method = 'GET', body, token } = {}) {
   const headers = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+  let res
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+  } catch (cause) {
+    // Reaching the server and being refused is an ApiError with a status; never
+    // reaching it is this. Both are ApiError so callers keep one catch, and the
+    // status tells them apart — the refresh path below depends on that.
+    throw new ApiError({
+      status: NO_RESPONSE,
+      message:
+        cause?.name === 'TimeoutError'
+          ? 'The server took too long to answer. Check your connection and try again.'
+          : 'Could not reach the server. Check your connection and try again.',
+      raw: cause,
+    })
+  }
 
   const parsed = await parseBody(res)
   if (!res.ok) throw toApiError(res.status, parsed)
@@ -136,7 +181,14 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
     try {
       const newAccess = await refreshAccessToken()
       return await rawRequest(path, { method, body, token: newAccess })
-    } catch {
+    } catch (refreshErr) {
+      // A refresh that never reached the server says nothing about the session.
+      // Now that a stalled request fails instead of hanging, treating that as
+      // expiry would sign people out for a tunnel or a dropped bar of signal —
+      // and take their rotated refresh token with it. Only the server rejecting
+      // the token ends a session; a network failure is just a network failure.
+      if (refreshErr instanceof ApiError && refreshErr.status === NO_RESPONSE) throw refreshErr
+
       clearTokens()
       notifySessionExpired()
       throw new SessionExpiredError()
