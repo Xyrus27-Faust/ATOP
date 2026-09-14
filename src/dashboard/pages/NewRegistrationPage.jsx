@@ -615,6 +615,7 @@ export default function NewRegistrationPage() {
                   errorPrefix={`delegates[${i}].`}
                   idPrefix={`d${i}`}
                   onChange={(field, val) => setDelegate(i, field, val)}
+                  showPaymentChoice={!repMode}
                 />
               </div>
             )
@@ -704,20 +705,22 @@ export default function NewRegistrationPage() {
               <thead>
                 <tr>
                   <th>Delegate</th>
-                  <th>Paying</th>
-                  <th className="nr-review-num">Now</th>
-                  <th className="nr-review-num">Later</th>
+                  {/* A representative pays nothing at this step — their region's allocation holds
+                      the place — so "Now / Later" would read as a bill that is half due today. */}
+                  <th>{repMode ? 'Place' : 'Paying'}</th>
+                  <th className="nr-review-num">{repMode ? 'Seat fee' : 'Now'}</th>
+                  <th className="nr-review-num">{repMode ? 'Due after' : 'Later'}</th>
                 </tr>
               </thead>
               <tbody>
                 {delegates.map((d, i) => {
                   const seat = Number(rateByCode.get(d.rateCode)?.amount ?? 0)
-                  const now = seatCharge(seat, d.paymentMode)
+                  const now = repMode ? 0 : seatCharge(seat, d.paymentMode)
                   return (
                     <tr key={i}>
                       <td>{[d.firstName, d.lastName].filter(Boolean).join(' ') || `Delegate ${i + 1}`}</td>
-                      <td>{d.paymentMode === 'downpayment' ? 'Reserved' : 'In full'}</td>
-                      <td className="nr-review-num">{formatPeso(now)}</td>
+                      <td>{repMode ? 'Regional slot' : d.paymentMode === 'downpayment' ? 'Reserved' : 'In full'}</td>
+                      <td className="nr-review-num">{formatPeso(repMode ? seat : now)}</td>
                       <td className="nr-review-num">{seat - now > 0 ? formatPeso(seat - now) : '—'}</td>
                     </tr>
                   )
@@ -726,8 +729,12 @@ export default function NewRegistrationPage() {
               <tfoot>
                 <tr>
                   <td colSpan={2}>Total</td>
-                  <td className="nr-review-num"><strong>{formatPeso(payableNow)}</strong></td>
-                  <td className="nr-review-num">{total - payableNow > 0 ? formatPeso(total - payableNow) : '—'}</td>
+                  <td className="nr-review-num"><strong>{formatPeso(repMode ? total : payableNow)}</strong></td>
+                  <td className="nr-review-num">
+                    {repMode
+                      ? formatPeso(total)
+                      : total - payableNow > 0 ? formatPeso(total - payableNow) : '—'}
+                  </td>
                 </tr>
               </tfoot>
             </table>

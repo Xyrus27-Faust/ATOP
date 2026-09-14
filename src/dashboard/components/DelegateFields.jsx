@@ -20,6 +20,11 @@ export default function DelegateFields({
   errorPrefix = '',
   idPrefix = 'dlg',
   onChange,
+  // A regional representative does not choose how to pay at this point: their region's allocation
+  // holds the place, and the fee is settled afterwards from the booking. Offering "In full /
+  // Reserve now" here asks a question whose answer is then ignored — which is exactly what it did,
+  // and the booking came out looking as though a payment had been chosen and lost.
+  showPaymentChoice = true,
 }) {
   const at = (field) => errors[`${errorPrefix}${field}`]
   const id = (field) => `${idPrefix}-${field}`
@@ -40,6 +45,7 @@ export default function DelegateFields({
 
           {/* Each seat is paid for on its own terms — one delegation can settle three people and
               reserve two, which is how an LGU's funds actually arrive. */}
+          {showPaymentChoice && (
           <Field label="Paying for this delegate" required error={at('paymentMode')}>
             <div className="dlg-pay">
               <button
@@ -63,6 +69,7 @@ export default function DelegateFields({
               </button>
             </div>
           </Field>
+          )}
         </>
       ) : (
       <Field label="Registration type" required error={at('rateCode')}>

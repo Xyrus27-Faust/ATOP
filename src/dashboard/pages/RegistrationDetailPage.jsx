@@ -216,13 +216,19 @@ export default function RegistrationDetailPage() {
                         {!cancelled && Number(d.balance) <= 0 && (
                           <span className="rd-del-settled"><i className="fas fa-check" aria-hidden="true" /> paid</span>
                         )}
-                        {!cancelled && Number(d.amountPaid) === 0 && (
-                          <span className="rd-del-unpaid">not paid yet</span>
+                        {!cancelled && Number(d.amountPaid) === 0 && Number(d.balance) > 0 && (
+                          <span className="rd-del-unpaid">
+                            {reg.isRegionalAllocation ? `${formatPeso(d.balance)} to pay` : 'not paid yet'}
+                          </span>
                         )}
                       </div>
 
-                      {/* The pass. Only a seat somebody has paid for has one. */}
-                      {Number(d.amountPaid) > 0 && !cancelled ? (
+                      {/* The pass. A seat that is SECURED has one — which is not the same as paid,
+                          and the server is the one that knows: a comped seat and a seat held on a
+                          region's allocation are both coming, with nothing yet received for them.
+                          Reading amountPaid here showed a blank square to delegates whose QR had
+                          already been emailed to them. */}
+                      {d.isSecured && !cancelled ? (
                         <SeatQr code={d.referenceCode} onOpen={() => setPassFor(d)} />
                       ) : (
                         <div className="rd-del-nopass">no code<br />yet</div>
@@ -231,7 +237,7 @@ export default function RegistrationDetailPage() {
 
                     {/* The quiet strip: identifiers and actions, out of the way of the numbers. */}
                     <div className="rd-del-foot">
-                      {Number(d.amountPaid) > 0 && !cancelled && (
+                      {d.isSecured && !cancelled && (
                         <code className="rd-del-code" title="Check-in code">{d.referenceCode}</code>
                       )}
                       <span className={`dash-badge tone-${dm.tone} rd-del-mode`}>
