@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
+import { isRegionalRep } from '../dashboardNav'
+import { REGIONS, labelFor } from '@/lib/pearlAwards'
 import { validateEmail } from '@/lib/validation'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -47,7 +49,19 @@ function stepForKey(key) {
 export default function NewRegistrationPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { loading, error, data, reload } = useAsync(() => api.get('/events/'), [])
+  // The allocation comes along for the ride: a regional representative books the same way as
+  // anyone else right up to the last step, where their seats are claimed rather than paid for.
+  // A 403 just means "not a representative", which is the ordinary case — not an error.
+  const { loading, error, data, reload } = useAsync(
+    () =>
+      Promise.all([
+        api.get('/events/'),
+        isRegionalRep(user?.roles)
+          ? api.get('/regional/allocation', { auth: true }).catch(() => null)
+          : Promise.resolve(null),
+      ]).then(([events, allocation]) => ({ events, allocation })),
+    [],
+  )
 
   const [step, setStep] = useState(0)
   // The contact defaults to the signed-in user — they're usually the one going.
@@ -91,7 +105,12 @@ export default function NewRegistrationPage() {
     return () => { active = false }
   }, [])
 
-  const event = data?.[0]
+  const event = data?.events?.[0]
+
+  // Set only when the caller actually has a region to spend. Everything downstream reads this one
+  // value, so the wizard is the ordinary wizard whenever it is null.
+  const allocation = data?.allocation ?? null
+  const repMode = Boolean(allocation)
   const rates = useMemo(() => event?.rates ?? [], [event])
   const rateByCode = useMemo(() => new Map(rates.map((r) => [r.code, r])), [rates])
 
@@ -99,6 +118,25 @@ export default function NewRegistrationPage() {
 
   // Delegations and walk-ins both name their LGU; only an organization may have none.
   const needsLgu = form.registrantType === 'LguDelegation' || form.registrantType === 'Individual'
+
+  // A representative's booking is always their own region's LGU delegation, so fill both in rather
+  // than asking — and load that region's provinces, since locking the region skips the change
+  // handler that would normally have fetched them. Guarded on emptiness so it never fights a
+  // resumed draft, which restores its own cascade above.
+  useEffect(() => {
+    if (!repMode || routeDraftId) return
+    let active = true
+    api.get(`/lgus/provinces?region=${allocation.region}`)
+      .then((list) => {
+        if (!active) return
+        setProvinces(list)
+        setForm((f) => (f.registrantType || f.lguRegion
+          ? f
+          : { ...f, registrantType: 'LguDelegation', lguRegion: allocation.region }))
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [repMode, allocation, routeDraftId])
 
   // With one rate on sale there is nothing for anyone to pick, so fill it in once the
   // event has loaded. An effect, not render-time state, so React isn't asked to update
@@ -357,6 +395,15 @@ export default function NewRegistrationPage() {
           mode: delegates[i]?.paymentMode === 'downpayment' ? 'Downpayment' : 'Full',
         }))
 
+      // A representative's seats are granted, not bought: no invoice, no gateway, no redirect.
+      // Deliberately a different endpoint rather than a free mode on checkout — a zero-peso invoice
+      // is a thing nobody wants to discover in the payments ledger later.
+      if (repMode) {
+        await api.post(`/registrations/${id}/claim-allocation`, {}, { auth: true })
+        navigate(`/convention/registrations/${id}`)
+        return
+      }
+
       const origin = globalThis.location?.origin ?? ''
       const back = `${origin}/convention/registrations/${id}`
       try {
@@ -398,16 +445,36 @@ export default function NewRegistrationPage() {
           <span className="dash-eyebrow">{event.name}</span>
           <h1 className="dash-h1">Register delegates</h1>
           <p className="dash-sub">
-            One registration covers your whole delegation — mix in-person and online delegates, and pay once.
+            {repMode
+              ? <>Register your region’s delegates. These seats are confirmed without payment, from your region’s allocation.</>
+              : <>One registration covers your whole delegation — mix in-person and online delegates, and pay once.</>}
           </p>
         </div>
       </div>
+
+      {/* The number that decides how much of a delegation can be entered, kept in view for the
+          whole wizard. Learning at the last step that only two of six fit is the failure this
+          exists to prevent. */}
+      {repMode && (
+        <div className={`dash-banner tone-${delegates.length > allocation.remaining ? 'warn' : 'success'}`} style={{ marginBottom: 16 }}>
+          <i className="fas fa-award" aria-hidden="true" />
+          <span>
+            {allocation.remaining} of {allocation.seatAllowance} seats remaining for{' '}
+            {labelFor(REGIONS, allocation.region)}.
+            {delegates.length > allocation.remaining && (
+              <> This booking has {delegates.length} delegates — remove {delegates.length - allocation.remaining} to confirm it.</>
+            )}
+          </span>
+        </div>
+      )}
 
       <div className="dash-steps nr-steps">
         {STEPS.map((s, i) => (
           <div key={s.key} className={`dash-step${i === step ? ' is-active' : ''}${i < step ? ' is-done' : ''}`}>
             <span className="dash-step-dot">{i < step ? <i className="fas fa-check" aria-hidden="true" /> : i + 1}</span>
-            <span className="nr-step-label">{s.label}</span>
+            <span className="nr-step-label">
+              {repMode && s.key === 'review' ? 'Review & confirm' : s.label}
+            </span>
             {i < STEPS.length - 1 && <span className={`dash-step-line${i < step ? ' is-done' : ''}`} />}
           </div>
         ))}
@@ -444,7 +511,10 @@ export default function NewRegistrationPage() {
               </p>
               <div className="dash-form-row">
                 <Field label="Region" htmlFor="lguRegion" required error={errors.lguRegion}>
-                  <select id="lguRegion" className={ctl('dash-select', errors.lguRegion)} value={form.lguRegion} onChange={onRegionChange}>
+                  {/* A representative spends their own region's seats, so the region is a fact
+                      rather than a question — the backend refuses any other, and offering the
+                      choice would only let them get to the last step and be turned back. */}
+                  <select id="lguRegion" className={ctl('dash-select', errors.lguRegion)} value={form.lguRegion} onChange={onRegionChange} disabled={repMode}>
                     <option value="">Select region…</option>
                     {/* /lgus/regions returns { region, name } — not { value, label }. */}
                     {regions.map((r) => <option key={r.region} value={r.region}>{r.name}</option>)}
@@ -684,8 +754,17 @@ export default function NewRegistrationPage() {
           {inPersonCount === 0 && virtualCount === 0 && <span className="nr-total-empty">No registration types chosen yet</span>}
         </div>
         <div className="nr-total-amount">
-          <span className="nr-total-caption">Total payable</span>
-          <strong>{formatPeso(total)}</strong>
+          {repMode ? (
+            <>
+              <span className="nr-total-caption">Seats remaining</span>
+              <strong>{Math.max(0, allocation.remaining - delegates.length)}</strong>
+            </>
+          ) : (
+            <>
+              <span className="nr-total-caption">Total payable</span>
+              <strong>{formatPeso(total)}</strong>
+            </>
+          )}
         </div>
       </div>
 
@@ -717,8 +796,10 @@ export default function NewRegistrationPage() {
         ) : (
           <button type="button" className="dash-btn is-primary" onClick={submit} disabled={submitting}>
             {submitting
-              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Taking you to payment…</>
-              : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(payableNow)}</>}
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> {repMode ? 'Confirming…' : 'Taking you to payment…'}</>
+              : repMode
+                ? <><i className="fas fa-award" aria-hidden="true" /> Confirm {delegates.length} of your region’s seats</>
+                : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(payableNow)}</>}
           </button>
         )}
       </div>

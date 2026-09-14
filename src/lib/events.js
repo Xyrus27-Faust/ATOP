@@ -54,8 +54,21 @@ export const isRegistrationEditable = (status) => status === 'Draft'
 // Whether there is a payment to make. Not a status question any more: a downpayment confirms the
 // booking, so a Confirmed one may still owe a balance — and paying it is the point. Only a
 // cancelled booking, or one that owes nothing, has nothing to check out.
-export const canCheckout = (status, balance = 0) =>
-  status !== 'Cancelled' && Number(balance) > 0
+//
+// A booking on a region's allocation owes nothing by construction, so its balance already keeps it
+// out. The flag is belt-and-braces against a stale render offering to charge for a free seat.
+export const canCheckout = (status, balance = 0, isRegionalAllocation = false) =>
+  status !== 'Cancelled' && !isRegionalAllocation && Number(balance) > 0
+
+// How a confirmed booking came to be confirmed. Not a status — both of these sit alongside
+// 'Confirmed' — but it is what a delegate needs told, because "confirmed" alone leaves someone on a
+// free seat wondering what they still owe.
+export function confirmedVia(reg) {
+  if (!reg || reg.status !== 'Confirmed') return null
+  if (reg.isComplimentary) return 'complimentary'
+  if (reg.isRegionalAllocation) return 'allocation'
+  return 'paid'
+}
 
 export const DELEGATE_STATUS = {
   Registered: { label: 'Registered', tone: 'info', icon: 'fa-user-check' },

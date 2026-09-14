@@ -146,6 +146,8 @@ export default function RegistrationDetailPage() {
           <span>
             {reg.isComplimentary
               ? <>Issued complimentary by the Secretariat{reg.compReason ? ` — ${reg.compReason}` : ''}.</>
+              : reg.isRegionalAllocation
+              ? <>Registered under your region’s allocation — nothing is owed. Each delegate’s reference code below is their check-in code.</>
               : <>Confirmed on {formatDate(reg.confirmedAt)}. Each delegate’s reference code below is their check-in code.</>}
           </span>
         </div>
@@ -381,7 +383,7 @@ export default function RegistrationDetailPage() {
               </button>
             )}
 
-            {canCheckout(reg.status, reg.balance) && (
+            {canCheckout(reg.status, reg.balance, reg.isRegionalAllocation) && (
               <>
                 {/* Who this payment is for. Each seat settles or reserves on its own terms, so the
                     choice is a list, not a single button — a treasurer paying for two stragglers in

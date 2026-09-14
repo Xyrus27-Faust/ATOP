@@ -7,6 +7,7 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import ApplicantRoute from './auth/ApplicantRoute'
 import AdminRoute from './auth/AdminRoute'
 import RegistrationsAdminRoute from './auth/RegistrationsAdminRoute'
+import RegionalRepRoute from './auth/RegionalRepRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
 import SubmissionLayout, { ConventionLayout } from './dashboard/SubmissionLayout'
 import OverviewPage from './dashboard/pages/OverviewPage'
@@ -34,6 +35,8 @@ import RegistrationDetailPage from './dashboard/pages/RegistrationDetailPage'
 import TourPickerPage from './dashboard/pages/TourPickerPage'
 import AdminRegistrationsPage from './dashboard/pages/AdminRegistrationsPage'
 import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDetailPage'
+import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
+import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -93,6 +96,11 @@ export default function AppRoutes() {
               delegation is a task, not a dashboard page, and half the people doing it are
               not members browsing a dashboard at all. */}
           <Route path="convention" element={<ConventionPage />} />
+          {/* The representative's own allocation page. Role-gated at the route; whether they
+              have actually been given a region is a question for the page, which explains it. */}
+          <Route element={<RegionalRepRoute />}>
+            <Route path="regional" element={<RegionalDelegatesPage />} />
+          </Route>
           <Route element={<RegistrationsAdminRoute />}>
             <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
             <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
@@ -105,6 +113,7 @@ export default function AppRoutes() {
             <Route path="admin/finals" element={<FinalsResultsPage />} />
             <Route path="admin/finalists" element={<FinalistRosterPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
+            <Route path="admin/regional" element={<RegionalAllocationsPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />
         </Route>

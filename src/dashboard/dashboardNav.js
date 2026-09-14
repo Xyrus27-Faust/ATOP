@@ -9,6 +9,7 @@ export const ROLE_LABELS = {
   Twg: 'Technical Working Group',
   '3PIC': 'Third-Party Independent Committee',
   Adjudicator: 'Adjudicator',
+  RegionalRepresentative: 'Regional Representative',
   Admin: 'Administrator',
 }
 
@@ -43,6 +44,15 @@ export const isPureReviewer = (roles = []) => isReviewer(roles) && !roles.includ
 
 export const isAdmin = (roles = []) => roles.includes('Admin')
 
+// Registers their region's delegates against ATOP's per-region seat allocation (M7). Holding the
+// role is only half of it — the backend also needs an appointment saying which region, so the
+// allocation page handles "role but no region yet" rather than assuming one.
+export const isRegionalRep = (roles = []) => roles.includes('RegionalRepresentative')
+// A representative with no other working role belongs on their own page: they have no entries to
+// compose and no queue to work.
+export const isPureRegionalRep = (roles = []) =>
+  isRegionalRep(roles) && !isReviewer(roles) && !isAssessor(roles) && !isAdjudicator(roles)
+
 // Who may work the convention registration list. Mirrors the backend's
 // /admin/events/{id}/registrations policy — Secretariat or Admin. Deliberately
 // narrower than REVIEWER_ROLES: a Validator reviews entries, not bookings.
@@ -51,7 +61,7 @@ export const canManageRegistrations = (roles = []) =>
   roles.some((r) => REGISTRATION_ADMIN_ROLES.includes(r))
 
 // Highest-privilege role wins for the badge shown in the shell.
-const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'Applicant']
+const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'RegionalRepresentative', 'Applicant']
 
 export function primaryRole(roles = []) {
   for (const role of ROLE_PRECEDENCE) if (roles.includes(role)) return role
@@ -64,7 +74,7 @@ export function roleLabel(role) {
 
 // Compact labels for the tight role chip (sidebar + topbar), where the full names are too long.
 // The full name is kept for the chip's hover tooltip and everywhere else via roleLabel().
-const ROLE_SHORT = { Twg: 'TWG', '3PIC': '3PIC' }
+const ROLE_SHORT = { Twg: 'TWG', '3PIC': '3PIC', RegionalRepresentative: 'Regional Rep' }
 export function roleChipLabel(role) {
   return ROLE_SHORT[role] || roleLabel(role)
 }
@@ -90,6 +100,9 @@ const ACCESS = { to: '/dashboard/admin/access', label: 'Manage Validators', icon
 // Convention registration (M6): the delegate's own booking, and the secretariat's list of them.
 const CONVENTION = { to: '/dashboard/convention', label: 'National Convention 2026', icon: 'fa-calendar-days' }
 const REGISTRATIONS = { to: '/dashboard/admin/registrations', label: 'Registrations', icon: 'fa-ticket' }
+// The representative's own page, and the admin's grant/appoint table behind it.
+const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map-location-dot' }
+const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -103,8 +116,9 @@ export function navForRoles(roles = []) {
   const assessor = isAssessor(roles)
   const adjudicator = isAdjudicator(roles)
   const admin = isAdmin(roles)
+  const regionalRep = isRegionalRep(roles)
   // Default to the applicant view only for users with no back-office role.
-  const applicant = roles.includes('Applicant') || (!reviewer && !assessor && !adjudicator)
+  const applicant = roles.includes('Applicant') || (!reviewer && !assessor && !adjudicator && !regionalRep)
 
   const groups = []
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
@@ -116,9 +130,10 @@ export function navForRoles(roles = []) {
   // isAssessor — but the link was 3PIC-only, so an admin's only way in was typing the URL.
   if (assessor) groups.push({ label: 'Scoring', items: [SCORING] })
   if (roles.includes('Adjudicator')) groups.push({ label: 'Finals', items: [FINALS] }) // the adjudicator's own queue
+  if (regionalRep) groups.push({ label: 'Regional', items: [MY_REGION] })
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, ALLOCATIONS] })
   } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list.
     groups.push({ label: 'Administration', items: [REGISTRATIONS] })
@@ -139,6 +154,7 @@ export function roleHome(roles = []) {
   if (isPureReviewer(roles)) return '/dashboard/review'
   if (isPureAssessor(roles)) return '/dashboard/scoring'
   if (isPureAdjudicator(roles)) return '/dashboard/finals'
+  if (isPureRegionalRep(roles)) return '/dashboard/regional'
   return '/dashboard'
 }
 
