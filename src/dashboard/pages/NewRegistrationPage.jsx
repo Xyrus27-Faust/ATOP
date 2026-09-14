@@ -446,7 +446,7 @@ export default function NewRegistrationPage() {
           <h1 className="dash-h1">Register delegates</h1>
           <p className="dash-sub">
             {repMode
-              ? <>Register your region’s delegates. These seats are confirmed without payment, from your region’s allocation.</>
+              ? <>Register your region’s delegates. Their places are confirmed straight away from your region’s allocation; the fee is settled afterwards.</>
               : <>One registration covers your whole delegation — mix in-person and online delegates, and pay once.</>}
           </p>
         </div>
@@ -460,7 +460,8 @@ export default function NewRegistrationPage() {
           <i className="fas fa-award" aria-hidden="true" />
           <span>
             {allocation.remaining} of {allocation.seatAllowance} seats remaining for{' '}
-            {labelFor(REGIONS, allocation.region)}.
+            {labelFor(REGIONS, allocation.region)}. Their places are held on confirmation; the fee is
+            settled afterwards.
             {delegates.length > allocation.remaining && (
               <> This booking has {delegates.length} delegates — remove {delegates.length - allocation.remaining} to confirm it.</>
             )}
@@ -754,17 +755,8 @@ export default function NewRegistrationPage() {
           {inPersonCount === 0 && virtualCount === 0 && <span className="nr-total-empty">No registration types chosen yet</span>}
         </div>
         <div className="nr-total-amount">
-          {repMode ? (
-            <>
-              <span className="nr-total-caption">Seats remaining</span>
-              <strong>{Math.max(0, allocation.remaining - delegates.length)}</strong>
-            </>
-          ) : (
-            <>
-              <span className="nr-total-caption">Total payable</span>
-              <strong>{formatPeso(total)}</strong>
-            </>
-          )}
+          <span className="nr-total-caption">{repMode ? 'Total due' : 'Total payable'}</span>
+          <strong>{formatPeso(total)}</strong>
         </div>
       </div>
 
@@ -798,7 +790,7 @@ export default function NewRegistrationPage() {
             {submitting
               ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> {repMode ? 'Confirming…' : 'Taking you to payment…'}</>
               : repMode
-                ? <><i className="fas fa-award" aria-hidden="true" /> Confirm {delegates.length} of your region’s seats</>
+                ? <><i className="fas fa-award" aria-hidden="true" /> Hold {delegates.length} of your region’s seats</>
                 : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(payableNow)}</>}
           </button>
         )}

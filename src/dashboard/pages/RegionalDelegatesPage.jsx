@@ -104,7 +104,9 @@ export default function RegionalDelegatesPage() {
           </p>
         ) : (
           <p className="rd-note">
-            Delegates you register are confirmed without payment and count against this allocation.
+            Delegates you register are confirmed straight away — their places are held without waiting
+            for payment — and count against this allocation. The ₱7,350 per delegate is still due, and
+            can be settled from each booking.
           </p>
         )}
 
