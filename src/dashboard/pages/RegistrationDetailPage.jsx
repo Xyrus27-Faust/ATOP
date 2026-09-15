@@ -44,6 +44,7 @@ export default function RegistrationDetailPage() {
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState(null)
   const [passFor, setPassFor] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
   // Which seats this payment is for, and whether each is being settled or merely reserved. Paying
   // is per delegate now, so the page has to carry a choice per delegate rather than one for all.
   const [selected, setSelected] = useState(null)   // null = "everyone who still owes", set on first edit
@@ -111,6 +112,19 @@ export default function RegistrationDetailPage() {
 
   const toggleSeat = (id) =>
     setSelected(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id])
+
+  async function cancelBooking() {
+    setCancelling(true)
+    setActionError(null)
+    try {
+      await api.post(`/registrations/${reg.id}/cancel`, {}, { auth: true })
+      await reload()
+    } catch (e) {
+      setActionError(e?.message || 'Could not cancel this booking.')
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   function startPayment() {
     if (chosen.length === 0) return setAmountError('Choose at least one delegate to pay for.')
@@ -389,6 +403,24 @@ export default function RegistrationDetailPage() {
               </button>
             )}
 
+            {/* Giving the booking up. Only while nothing has been received: money makes it a refund,
+                which a person decides. A delegation held on a region's allocation has had nothing
+                paid for it, so a representative whose delegation falls through hands the whole thing
+                back here and the seats return to the pool at once. */}
+            {reg.status !== 'Cancelled' && Number(reg.amountPaid) === 0 && (
+              <button
+                className="dash-btn is-danger rd-cancel-btn"
+                disabled={cancelling}
+                onClick={cancelBooking}
+              >
+                {cancelling
+                  ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Cancelling…</>
+                  : reg.isRegionalAllocation
+                    ? <><i className="fas fa-rotate-left" aria-hidden="true" /> Give these {activeDelegates.length === 1 ? 'seat' : 'seats'} back</>
+                    : <><i className="fas fa-circle-xmark" aria-hidden="true" /> Cancel this booking</>}
+              </button>
+            )}
+
             {canCheckout(reg.status, reg.balance) && (
               <>
                 {/* Who this payment is for. Each seat settles or reserves on its own terms, so the
@@ -605,6 +637,7 @@ export default function RegistrationDetailPage() {
         .rd-invoice dt { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500, #6B7280); font-weight: 700; }
         .rd-invoice dd { margin: 2px 0 0; font-size: 0.82rem; color: var(--navy); }
 
+        .rd-cancel-btn { width: 100%; margin-top: 10px; justify-content: center; }
         .rd-pay-btn { width: 100%; justify-content: center; margin-top: 16px; }
         .rd-cancel { width: 100%; justify-content: center; margin-top: 8px; color: #B91C1C; }
 

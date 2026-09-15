@@ -64,6 +64,12 @@ export default function NewRegistrationPage() {
   )
 
   const [step, setStep] = useState(0)
+
+  // A representative is not always spending a slot. They register their own attendance, an LGU that
+  // is funding its own delegates, a sponsor — and before this the wizard claimed unconditionally, so
+  // the allocation was the only way out of it. Chosen per booking, at the point where the money
+  // becomes real, rather than guessed from whether seats happen to remain.
+  const [useSlot, setUseSlot] = useState(true)
   // The contact defaults to the signed-in user — they're usually the one going.
   // Seeded lazily at first render rather than patched in by an effect.
   const [form, setForm] = useState(() => ({
@@ -111,6 +117,13 @@ export default function NewRegistrationPage() {
   // value, so the wizard is the ordinary wizard whenever it is null.
   const allocation = data?.allocation ?? null
   const repMode = Boolean(allocation)
+
+  // Whether this booking is actually going on the allocation. Derived rather than stored: a
+  // delegation bigger than what is left simply cannot be claimed, and silently flipping the stored
+  // choice would change the answer under the representative between reading it and pressing it.
+  const notEnoughSeats = repMode && delegates.length > allocation.remaining
+  const claiming = repMode && useSlot && !notEnoughSeats
+
   const rates = useMemo(() => event?.rates ?? [], [event])
   const rateByCode = useMemo(() => new Map(rates.map((r) => [r.code, r])), [rates])
 
@@ -398,7 +411,7 @@ export default function NewRegistrationPage() {
       // A representative's seats are granted, not bought: no invoice, no gateway, no redirect.
       // Deliberately a different endpoint rather than a free mode on checkout — a zero-peso invoice
       // is a thing nobody wants to discover in the payments ledger later.
-      if (repMode) {
+      if (claiming) {
         await api.post(`/registrations/${id}/claim-allocation`, {}, { auth: true })
         navigate(`/convention/registrations/${id}`)
         return
@@ -456,15 +469,15 @@ export default function NewRegistrationPage() {
           whole wizard. Learning at the last step that only two of six fit is the failure this
           exists to prevent. */}
       {repMode && (
-        <div className={`dash-banner tone-${delegates.length > allocation.remaining ? 'warn' : 'success'}`} style={{ marginBottom: 16 }}>
+        <div className={`dash-banner tone-${notEnoughSeats ? 'warn' : 'info'}`} style={{ marginBottom: 16 }}>
           <i className="fas fa-award" aria-hidden="true" />
           <span>
             {allocation.remaining} of {allocation.seatAllowance} seats remaining for{' '}
-            {labelFor(REGIONS, allocation.region)}. Their places are held on confirmation; the fee is
-            settled afterwards.
-            {delegates.length > allocation.remaining && (
-              <> This booking has {delegates.length} delegates — remove {delegates.length - allocation.remaining} to confirm it.</>
-            )}
+            {labelFor(REGIONS, allocation.region)}.
+            {notEnoughSeats
+              ? <> This booking has {delegates.length} delegates, so it cannot go on the allocation —
+                  remove {delegates.length - allocation.remaining}, or pay for it at the last step.</>
+              : <> You choose at the last step whether to spend them on this booking.</>}
           </span>
         </div>
       )}
@@ -630,6 +643,48 @@ export default function NewRegistrationPage() {
       {/* ---- Step 3: review & pay ---- */}
       {step === 2 && (
         <>
+          {repMode && (
+            <div className="dash-card dash-card-pad nr-card">
+              <h2 className="dash-card-title">How is this delegation covered?</h2>
+              <div className="nr-cover">
+                <button
+                  type="button"
+                  className={`nr-cover-opt${claiming ? ' is-active' : ''}`}
+                  disabled={notEnoughSeats}
+                  onClick={() => setUseSlot(true)}
+                  aria-pressed={claiming}
+                >
+                  <span className="nr-cover-top">
+                    <i className="fas fa-award" aria-hidden="true" /> Use a regional slot
+                  </span>
+                  <span className="nr-cover-sub">
+                    {notEnoughSeats
+                      ? `Only ${allocation.remaining} of ${allocation.seatAllowance} left — this booking needs ${delegates.length}`
+                      : `${allocation.remaining} of ${allocation.seatAllowance} remaining`}
+                  </span>
+                  <span className="nr-cover-hint">
+                    Confirmed straight away. The ₱{total.toLocaleString()} is settled from the booking afterwards.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`nr-cover-opt${!claiming ? ' is-active' : ''}`}
+                  onClick={() => setUseSlot(false)}
+                  aria-pressed={!claiming}
+                >
+                  <span className="nr-cover-top">
+                    <i className="fas fa-credit-card" aria-hidden="true" /> Pay for this booking
+                  </span>
+                  <span className="nr-cover-sub">{formatPeso(total)} now</span>
+                  <span className="nr-cover-hint">
+                    Spends none of your region’s seats. Each delegate is charged in full; you can
+                    part-pay them individually from the booking afterwards.
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="dash-card dash-card-pad nr-card">
             <h2 className="dash-card-title">Review</h2>
             <p className="dash-help">
@@ -707,20 +762,20 @@ export default function NewRegistrationPage() {
                   <th>Delegate</th>
                   {/* A representative pays nothing at this step — their region's allocation holds
                       the place — so "Now / Later" would read as a bill that is half due today. */}
-                  <th>{repMode ? 'Place' : 'Paying'}</th>
-                  <th className="nr-review-num">{repMode ? 'Seat fee' : 'Now'}</th>
-                  <th className="nr-review-num">{repMode ? 'Due after' : 'Later'}</th>
+                  <th>{claiming ? 'Place' : 'Paying'}</th>
+                  <th className="nr-review-num">{claiming ? 'Seat fee' : 'Now'}</th>
+                  <th className="nr-review-num">{claiming ? 'Due after' : 'Later'}</th>
                 </tr>
               </thead>
               <tbody>
                 {delegates.map((d, i) => {
                   const seat = Number(rateByCode.get(d.rateCode)?.amount ?? 0)
-                  const now = repMode ? 0 : seatCharge(seat, d.paymentMode)
+                  const now = claiming ? 0 : seatCharge(seat, d.paymentMode)
                   return (
                     <tr key={i}>
                       <td>{[d.firstName, d.lastName].filter(Boolean).join(' ') || `Delegate ${i + 1}`}</td>
-                      <td>{repMode ? 'Regional slot' : d.paymentMode === 'downpayment' ? 'Reserved' : 'In full'}</td>
-                      <td className="nr-review-num">{formatPeso(repMode ? seat : now)}</td>
+                      <td>{claiming ? 'Regional slot' : d.paymentMode === 'downpayment' ? 'Reserved' : 'In full'}</td>
+                      <td className="nr-review-num">{formatPeso(claiming ? seat : now)}</td>
                       <td className="nr-review-num">{seat - now > 0 ? formatPeso(seat - now) : '—'}</td>
                     </tr>
                   )
@@ -729,9 +784,9 @@ export default function NewRegistrationPage() {
               <tfoot>
                 <tr>
                   <td colSpan={2}>Total</td>
-                  <td className="nr-review-num"><strong>{formatPeso(repMode ? total : payableNow)}</strong></td>
+                  <td className="nr-review-num"><strong>{formatPeso(claiming ? total : payableNow)}</strong></td>
                   <td className="nr-review-num">
-                    {repMode
+                    {claiming
                       ? formatPeso(total)
                       : total - payableNow > 0 ? formatPeso(total - payableNow) : '—'}
                   </td>
@@ -762,7 +817,7 @@ export default function NewRegistrationPage() {
           {inPersonCount === 0 && virtualCount === 0 && <span className="nr-total-empty">No registration types chosen yet</span>}
         </div>
         <div className="nr-total-amount">
-          <span className="nr-total-caption">{repMode ? 'Total due' : 'Total payable'}</span>
+          <span className="nr-total-caption">{claiming ? 'Total due' : 'Total payable'}</span>
           <strong>{formatPeso(total)}</strong>
         </div>
       </div>
@@ -795,8 +850,8 @@ export default function NewRegistrationPage() {
         ) : (
           <button type="button" className="dash-btn is-primary" onClick={submit} disabled={submitting}>
             {submitting
-              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> {repMode ? 'Confirming…' : 'Taking you to payment…'}</>
-              : repMode
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> {claiming ? 'Confirming…' : 'Taking you to payment…'}</>
+              : claiming
                 ? <><i className="fas fa-award" aria-hidden="true" /> Hold {delegates.length} of your region’s seats</>
                 : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(payableNow)}</>}
           </button>
@@ -851,6 +906,20 @@ export default function NewRegistrationPage() {
         /* The shared stepper sizes to its content (fixed 34px connectors), which leaves it
            hugging the left of a wide card. Let each step share the width and the connector
            absorb the slack instead. Scoped to this page so the entry wizard is unaffected. */
+        /* The coverage choice: two cards side by side, same shape as the per-delegate payment
+           choice so a representative recognises the control. */
+        .nr-cover { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .nr-cover-opt { display: flex; flex-direction: column; gap: 4px; text-align: left;
+                        padding: 14px 16px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+                        background: #fff; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+        .nr-cover-opt:hover:not(:disabled) { border-color: var(--gold); }
+        .nr-cover-opt.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); background: var(--off-white); }
+        .nr-cover-opt:disabled { opacity: 0.5; cursor: not-allowed; }
+        .nr-cover-top { font-weight: 700; color: var(--navy); }
+        .nr-cover-sub { font-size: 0.85rem; color: var(--gray-600); }
+        .nr-cover-hint { font-size: 0.78rem; color: var(--gray-500); line-height: 1.45; }
+        @media (max-width: 640px) { .nr-cover { grid-template-columns: 1fr; } }
+
         .dash-steps.nr-steps { width: 100%; margin-bottom: 20px; }
         .dash-steps.nr-steps .dash-step { flex: 1 1 0; min-width: 0; }
         .dash-steps.nr-steps .dash-step:last-child { flex: 0 0 auto; }
