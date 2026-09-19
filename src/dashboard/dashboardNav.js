@@ -100,6 +100,9 @@ const ACCESS = { to: '/dashboard/admin/access', label: 'Manage Validators', icon
 // Convention registration (M6): the delegate's own booking, and the secretariat's list of them.
 const CONVENTION = { to: '/dashboard/convention', label: 'National Convention 2026', icon: 'fa-calendar-days' }
 const REGISTRATIONS = { to: '/dashboard/admin/registrations', label: 'Registrations', icon: 'fa-ticket' }
+// The counts that get handed to a supplier — shirt sizes and tour fill. Sits with Registrations
+// because it is the same secretariat job, read off the same bookings.
+const TALLIES = { to: '/dashboard/admin/tallies', label: 'Tallies', icon: 'fa-chart-simple' }
 // The representative's own page, and the admin's grant/appoint table behind it.
 const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map-location-dot' }
 const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
@@ -133,10 +136,11 @@ export function navForRoles(roles = []) {
   if (regionalRep) groups.push({ label: 'Regional', items: [MY_REGION] })
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, ALLOCATIONS] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, ALLOCATIONS] })
   } else if (canManageRegistrations(roles)) {
-    // A Secretariat without the Admin role still works the registration list.
-    groups.push({ label: 'Administration', items: [REGISTRATIONS] })
+    // A Secretariat without the Admin role still works the registration list — and the tallies
+    // taken off it, which is the secretariat's job rather than the admin's.
+    groups.push({ label: 'Administration', items: [REGISTRATIONS, TALLIES] })
   }
   groups.push({ label: null, items: [AWARDS, PROFILE] })
   return groups
