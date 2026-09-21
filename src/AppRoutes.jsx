@@ -34,6 +34,7 @@ import NewRegistrationPage from './dashboard/pages/NewRegistrationPage'
 import RegistrationDetailPage from './dashboard/pages/RegistrationDetailPage'
 import TourPickerPage from './dashboard/pages/TourPickerPage'
 import AdminRegistrationsPage from './dashboard/pages/AdminRegistrationsPage'
+import AdminTalliesPage from './dashboard/pages/AdminTalliesPage'
 import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDetailPage'
 import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
@@ -103,6 +104,7 @@ export default function AppRoutes() {
           </Route>
           <Route element={<RegistrationsAdminRoute />}>
             <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
+            <Route path="admin/tallies" element={<AdminTalliesPage />} />
             <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
           </Route>
           <Route element={<AdminRoute />}>
