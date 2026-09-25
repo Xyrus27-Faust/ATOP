@@ -73,6 +73,19 @@ export default function AdminRegistrationsPage() {
   const totals = result.totals ?? {}
   const filtered = Boolean(status || mode || region || query)
 
+  // Why the headcount is allowed to read above the hall. A comp is granted rather than checked
+  // out, so it never meets the capacity gate — six reserved seats on a full hall showed 1006 of
+  // 1000 in September and there was nothing on screen to say the tally was right. Both numbers
+  // are shown: the heads in the room, and the part of them the ceiling never governed.
+  const inPerson = totals.inPersonConfirmed ?? 0
+  const comped = totals.complimentaryInPerson ?? 0
+  const capacity = totals.venueCapacity ?? null
+  const overCeiling = capacity != null && inPerson > capacity
+  // Comps explain the overage only when what remains actually fits. If the paid heads alone are
+  // over, the ceiling was lowered under bookings already taken and blaming the comps would be a
+  // lie told confidently.
+  const compsExplainIt = overCeiling && comped > 0 && inPerson - comped <= capacity
+
   const applySearch = (e) => { e.preventDefault(); setPage(1); setQuery(search.trim()) }
   const changeFilter = (setter) => (value) => { setPage(1); setter(value) }
 
@@ -90,7 +103,12 @@ export default function AdminRegistrationsPage() {
           a downpayment, because that is what confirms a booking. Money is counted as money: what
           has actually arrived, and what is still owed. */}
       <div className="dash-grid ar-stats">
-        <Stat icon="fa-location-dot" label="In person · confirmed" value={totals.inPersonConfirmed ?? 0} />
+        <Stat
+          icon="fa-location-dot"
+          label="In person · confirmed"
+          value={capacity == null ? inPerson : `${inPerson} / ${capacity}`}
+          note={comped > 0 ? `${comped} of them seated on a comp` : null}
+        />
         <Stat icon="fa-video" label="Online · confirmed" value={totals.virtualConfirmed ?? 0} />
         <Stat icon="fa-peso-sign" label="Received" value={formatPeso(totals.collected ?? 0)} />
         <Stat icon="fa-hourglass-half" label="Outstanding" value={formatPeso(totals.outstanding ?? 0)} />
@@ -100,6 +118,27 @@ export default function AdminRegistrationsPage() {
           value={totalCount}
         />
       </div>
+      {overCeiling && (
+        <div className="dash-card dash-card-pad ar-over-ceiling">
+          <strong>The headcount is above the venue's capacity, and that is not an error.</strong>{' '}
+          {compsExplainIt ? (
+            <>
+              {comped} {comped === 1 ? 'seat is' : 'seats are'} complimentary. A comp is granted by
+              the secretariat rather than checked out, so it is never refused for want of room —
+              {' '}{inPerson - comped} of the {inPerson} passed the {capacity}-seat ceiling, and{' '}
+              {comped} {comped === 1 ? 'was' : 'were'} seated on top of it.
+            </>
+          ) : (
+            <>
+              {comped > 0 && <>{comped} of the {inPerson} {comped === 1 ? 'is' : 'are'} complimentary, which
+                the ceiling never governed — but that alone does not account for it. </>}
+              The ceiling was lowered under bookings already taken, and none of them is refusable
+              retrospectively: a confirmed seat stays confirmed.
+            </>
+          )}
+        </div>
+      )}
+
       <p className="ar-scope">
         Figures cover the whole convention{filtered && <> — only the record count follows your filters</>}.
       </p>
@@ -251,6 +290,15 @@ export default function AdminRegistrationsPage() {
         .ar-money-note.is-comp { color: var(--navy); font-weight: 700; }
         .ar-date { font-size: 0.72rem; color: var(--gray-500, #6B7280); }
         .ar-scope { margin: -6px 2px 14px; font-size: 0.78rem; color: var(--gray-500, #6B7280); }
+        /* Sits under the tile's label: a number that reads over the ceiling needs its reason
+           in the same glance, not a page away. */
+        .dash-stat-note { margin-top: 3px; font-size: 0.72rem; color: var(--gray-500, #6B7280); }
+        /* Amber, matching the allocations page's over-capacity notice — the same fact, said
+           where the same person is standing. */
+        .ar-over-ceiling {
+          border-color: #FED7AA; background: #FFF7ED; margin-bottom: 14px;
+          font-size: 0.86rem; line-height: 1.5; color: var(--navy);
+        }
         /* Actions live behind a kebab so the row reads as one thing to click. */
         .ar-menu { position: relative; flex-shrink: 0; }
         .ar-menu-spacer { flex-shrink: 0; width: 32px; }
@@ -383,13 +431,14 @@ function RowMenu({ registration: r, onComp }) {
   )
 }
 
-function Stat({ icon, label, value }) {
+function Stat({ icon, label, value, note }) {
   return (
     <div className="dash-card dash-stat">
       <div className="dash-stat-icon"><i className={`fas ${icon}`} aria-hidden="true" /></div>
       <div>
         <div className="dash-stat-value">{value}</div>
         <div className="dash-stat-label">{label}</div>
+        {note && <div className="dash-stat-note">{note}</div>}
       </div>
     </div>
   )
