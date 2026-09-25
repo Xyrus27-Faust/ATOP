@@ -28,15 +28,18 @@ export default function AdminTalliesPage() {
     const events = await api.get('/events/')
     const event = events[0]
     if (!event) return { event: null, tallies: null }
-    const tallies = await api.get(`/admin/events/${event.id}/tallies`, { auth: true })
-    return { event, tallies }
+    const [tallies, diets] = await Promise.all([
+      api.get(`/admin/events/${event.id}/tallies`, { auth: true }),
+      api.get(`/admin/events/${event.id}/dietary`, { auth: true }),
+    ])
+    return { event, tallies, diets }
   }, [])
 
   if (!canManageRegistrations(user?.roles)) return <Navigate to="/dashboard" replace />
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
-  const { event, tallies } = data
+  const { event, tallies, diets } = data
   if (!event || !tallies) {
     return (
       <div className="dash-card dash-empty">
@@ -47,7 +50,7 @@ export default function AdminTalliesPage() {
     )
   }
 
-  const { shirts, tours } = tallies
+  const { shirts, tours, dietary } = tallies
 
   function exportShirts() {
     downloadCsv(datedFilename('atop-shirt-sizes'), [
@@ -56,6 +59,24 @@ export default function AdminTalliesPage() {
       ['Not yet chosen', shirts.notSet],
       ['Total asked', shirts.eligible],
       ['Not yet asked (seat unsettled)', shirts.notYetEligible],
+    ])
+  }
+
+  // The counts the caterer plans quantities from, then the names they plate separately. Secured
+  // seats only in the counts; the list marks the unsettled ones.
+  function exportMeals() {
+    downloadCsv(datedFilename('atop-dietary'), [
+      ['Restriction', 'Delegates'],
+      ...dietary.restrictions.map((r) => [r.label, r.delegates]),
+      ['No restrictions (said so)', dietary.declaredNone],
+      ['No restrictions (no reply)', dietary.notAnswered],
+      ['Total catered', dietary.eligible],
+      [],
+      ['Delegate', 'LGU / Organization', 'Booking', 'Restrictions', 'Notes', 'Seat secured'],
+      ...diets.map((d) => [
+        d.fullName, d.lguName || d.organizationName || '', d.registrationReference,
+        d.summary, d.notes || '', d.isSecured ? 'Yes' : 'No',
+      ]),
     ])
   }
 
@@ -89,6 +110,7 @@ export default function AdminTalliesPage() {
         <Stat icon="fa-hourglass-half" label="Still to answer" value={shirts.notSet} />
         <Stat icon="fa-van-shuttle" label="Tour seats claimed" value={`${tours.reserved} / ${tours.capacity}`} />
         <Stat icon="fa-chair" label="Tour seats left" value={tours.seatsLeft} />
+        <Stat icon="fa-utensils" label="With dietary needs" value={dietary.withNeeds} />
       </div>
 
       {/* ---------- Shirts ---------- */}
@@ -220,6 +242,100 @@ export default function AdminTalliesPage() {
         )}
       </section>
 
+      {/* ---------- Meals ---------- */}
+      <section className="dash-card dash-card-pad tal-section">
+        <header className="tal-head">
+          <div>
+            <h2 className="tal-h2">Meals &amp; dietary restrictions</h2>
+            <p className="tal-note">
+              Counted across delegates attending in person on a secured seat. Anyone who has not
+              replied is catered as having no restrictions — the request mail says so.
+            </p>
+          </div>
+          <button className="dash-btn is-ghost" onClick={exportMeals} disabled={!dietary.eligible}>
+            <i className="fas fa-download" aria-hidden="true" /> CSV
+          </button>
+        </header>
+
+        {dietary.withNeeds === 0 ? (
+          <p className="tal-empty">Nobody has declared a dietary restriction yet.</p>
+        ) : (
+          <table className="tal-table">
+            <thead>
+              <tr>
+                <th>Restriction</th>
+                <th className="tal-num">Delegates</th>
+                <th className="tal-bar-col">Share of those with needs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dietary.restrictions.filter((r) => r.delegates > 0).map((r) => (
+                <tr key={r.code}>
+                  <td className="tal-size">{r.label}</td>
+                  <td className="tal-num">{r.delegates}</td>
+                  <td><Bar value={r.delegates} of={dietary.withNeeds} /></td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>With needs</td>
+                <td className="tal-num">{dietary.withNeeds}</td>
+                <td className="tal-foot-note">of {dietary.eligible} catered · one delegate can have several</td>
+              </tr>
+            </tfoot>
+          </table>
+        )}
+
+        <div className="tal-gaps">
+          <div className="tal-gap">
+            <span className="tal-gap-value">{dietary.declaredNone}</span>
+            <span className="tal-gap-label">said no restrictions</span>
+            <p>Confirmed on the booking page.</p>
+          </div>
+          <div className="tal-gap">
+            <span className="tal-gap-value">{dietary.notAnswered}</span>
+            <span className="tal-gap-label">no reply</span>
+            <p>Catered as no restrictions. Not a backlog — just how many the request has not reached.</p>
+          </div>
+          <div className="tal-gap">
+            <span className="tal-gap-value">{dietary.notYetEligible}</span>
+            <span className="tal-gap-label">seat not secured</span>
+            <p>Attending in person but unpaid, so not in the counts above until the seat is settled.</p>
+          </div>
+        </div>
+
+        {diets.length > 0 && (
+          <>
+            <h3 className="tal-h3">Who to plate separately</h3>
+            <table className="tal-table">
+              <thead>
+                <tr>
+                  <th>Delegate</th>
+                  <th>Restrictions</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diets.map((d) => (
+                  <tr key={d.delegateId} className={d.isSecured ? '' : 'tal-unsecured'}>
+                    <td>
+                      <span className="tal-person">{d.fullName}</span>
+                      <span className="tal-sub">
+                        {d.lguName || d.organizationName} · {d.registrationReference}
+                        {!d.isSecured && ' · seat not secured'}
+                      </span>
+                    </td>
+                    <td>{d.summary || '—'}</td>
+                    <td className="tal-notes">{d.notes || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </section>
+
       <p className="tal-asof">
         As of {new Date(tallies.generatedAt).toLocaleString()}.
       </p>
@@ -259,6 +375,12 @@ export default function AdminTalliesPage() {
         .tal-gap-value { display: block; font-family: var(--font-heading); font-size: 1.6rem; font-weight: 700; color: var(--navy); line-height: 1.1; }
         .tal-gap-label { display: block; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-500); margin-top: 2px; }
         .tal-gap p { font-size: 0.82rem; color: var(--gray-500); margin: 8px 0 0; line-height: 1.5; }
+
+        .tal-h3 { font-family: var(--font-heading); font-size: 0.9rem; font-weight: 700; color: var(--navy); margin: 1.5rem 0 0.6rem; }
+        .tal-person { display: block; font-weight: 600; color: var(--navy); }
+        .tal-sub { display: block; font-size: 0.76rem; color: var(--gray-500); margin-top: 2px; }
+        .tal-notes { font-size: 0.84rem; color: var(--gray-600); }
+        .tal-unsecured td { opacity: 0.6; }
 
         .tal-asof { font-size: 0.78rem; color: var(--gray-400); margin-top: 1rem; }
       `}</style>
