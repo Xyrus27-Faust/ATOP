@@ -9,6 +9,7 @@ import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } fr
 import SeatQr from '../components/SeatQr'
 import SeatPassModal from '../components/SeatPassModal'
 import ConventionExtras from '../components/ConventionExtras'
+import MealsCard from '../components/MealsCard'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -320,6 +321,14 @@ export default function RegistrationDetailPage() {
               it reads as a continuation of the list it is asking about. Renders nothing until a
               seat on this booking is actually eligible. */}
           <ConventionExtras registrationId={reg.id} />
+
+          {/* ---- Meals ---- */}
+          {/* Its own card rather than a column in the tours checklist: the tours are for secured
+              seats only, while anyone attending in person can tell us what they cannot eat. The
+              request mail links here with #meals. Renders nothing for an all-online booking. */}
+          {reg.status !== 'Draft' && reg.status !== 'Cancelled' && reg.status !== 'Expired' && (
+            <MealsCard registrationId={reg.id} />
+          )}
 
           {/* ---- Contact ---- */}
           <div className="dash-card dash-card-pad rd-card">

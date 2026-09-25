@@ -55,6 +55,7 @@ export default function ConventionPage() {
 
   const window = registrationWindow(event)
   const mine = registrations.filter((r) => r.status !== 'Cancelled')
+  const mealsPending = mine.filter((r) => r.dietaryUnanswered > 0)
 
   return (
     <>
@@ -134,6 +135,23 @@ export default function ConventionPage() {
         {event.refundPolicyText && <p className="cv-policy">{event.refundPolicyText}</p>}
       </div>
 
+      {/* A nudge, not a warning: silence means no restrictions, so this only says where to go if
+          someone has one. Opens the first booking with anyone unanswered; each booking page has
+          its own Meals card. */}
+      {mealsPending.length > 0 && (
+        <Link
+          to={`/convention/registrations/${mealsPending[0].id}#meals`}
+          className="dash-banner cv-banner-meals"
+        >
+          <i className="fas fa-utensils" aria-hidden="true" />
+          <span>
+            <strong>Any dietary restrictions in your delegation?</strong>{' '}
+            Tell us if someone is vegetarian, halal or has a food allergy. No restrictions? Nothing to do.
+          </span>
+          <i className="fas fa-chevron-right cv-chev" aria-hidden="true" />
+        </Link>
+      )}
+
       <h2 className="cv-h2">Your registrations</h2>
 
       {mine.length === 0 ? (
@@ -191,6 +209,14 @@ export default function ConventionPage() {
         }
         .cv-banner-closed { background: #F3F4F6; border: 1px solid var(--gray-200); color: var(--gray-600); }
         .cv-banner-soon { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+        .cv-banner-meals {
+          display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px 16px;
+          border-radius: 10px; font-size: 0.88rem; line-height: 1.45; text-decoration: none;
+          background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534;
+        }
+        .cv-banner-meals strong { color: #14532D; }
+        .cv-banner-meals:hover { border-color: #15803D; }
+        .cv-banner-meals .cv-chev { margin-left: auto; }
 
         .cv-rates { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px; }
         /* Compound selectors on purpose: DashboardLayout injects DASH_CSS *after* the routed

@@ -5,6 +5,7 @@ import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import SeatQr from '../components/SeatQr'
 import SeatPassModal from '../components/SeatPassModal'
+import { DietAnswer, DietEditor, mcStyles } from '../components/MealsCard'
 import { formatDate } from '@/lib/pearlAwards'
 import {
   formatPeso,
@@ -21,10 +22,15 @@ import {
  * Deliberately read-only. The delegate's own page owns editing, and its endpoints are scoped to
  * the owner — an edit control here would be a button that always 403s. What the desk actually
  * needs is to *see*: who is coming, what they paid, and the pass each seat is entitled to.
+ *
+ * The one exception is meals, which has an admin endpoint of its own: dietary answers come in by
+ * phone, and the secretariat has to be able to record them, after the cut-off too.
  */
 export default function AdminRegistrationDetailPage() {
   const { id } = useParams()
   const [showing, setShowing] = useState(null)
+  const [editingDiet, setEditingDiet] = useState(null)
+  const [dietSaved, setDietSaved] = useState({})
 
   const { loading, error, data, reload } = useAsync(async () => {
     // The admin route is nested under its event, and the list page resolves the event the same
@@ -32,14 +38,17 @@ export default function AdminRegistrationDetailPage() {
     const events = await api.get('/events/')
     const event = events[0]
     if (!event) return { event: null, reg: null }
-    const reg = await api.get(`/admin/events/${event.id}/registrations/${id}`, { auth: true })
-    return { event, reg }
+    const [reg, dietOptions] = await Promise.all([
+      api.get(`/admin/events/${event.id}/registrations/${id}`, { auth: true }),
+      api.get('/dietary-options'),
+    ])
+    return { event, reg, dietOptions }
   }, [id])
 
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
-  const { reg } = data
+  const { reg, dietOptions } = data
   if (!reg) {
     return (
       <div className="dash-card dash-empty">
@@ -53,6 +62,14 @@ export default function AdminRegistrationDetailPage() {
   const meta = registrationStatusMeta(reg.status)
   const live = (reg.delegates || []).filter((d) => d.status !== 'Cancelled')
   const cancelledSeats = (reg.delegates || []).filter((d) => d.status === 'Cancelled')
+  const dietLabels = Object.fromEntries((dietOptions || []).map((o) => [o.code, o.label]))
+  const dietOf = (d) => dietSaved[d.id] ?? ({
+    delegateId: d.id,
+    fullName: d.fullName,
+    restrictions: d.dietaryRestrictions || [],
+    notes: d.dietaryNotes,
+    answeredAt: d.dietaryAnsweredAt,
+  })
 
   return (
     <>
@@ -179,6 +196,34 @@ export default function AdminRegistrationDetailPage() {
                   {d.checkedInAt && <Fact label="Checked in" value={formatDate(d.checkedInAt)} />}
                 </dl>
 
+                {/* Meals — the one thing editable here. Answers come in by phone, and the owner's
+                    endpoint is scoped to the owner, so the secretariat saves to its own. */}
+                {d.attendanceMode === 'InPerson' && (
+                  editingDiet === d.id ? (
+                    <DietEditor
+                      saveUrl={`/admin/registrations/${reg.id}/delegates/${d.id}/dietary`}
+                      attendee={dietOf(d)}
+                      options={dietOptions}
+                      onCancel={() => setEditingDiet(null)}
+                      onSaved={(card) => {
+                        // Patched in place rather than reloaded: a reload blanks the page to its
+                        // loading state and drops the desk back at the top of a long booking.
+                        const saved = card.delegates.find((x) => x.delegateId === d.id)
+                        if (saved) setDietSaved((m) => ({ ...m, [d.id]: saved }))
+                        setEditingDiet(null)
+                      }}
+                    />
+                  ) : (
+                    <div className="ard-diet">
+                      <span className="ard-diet-label">Meals</span>
+                      <DietAnswer attendee={dietOf(d)} labels={dietLabels} />
+                      <button type="button" className="dash-btn is-ghost is-sm" onClick={() => setEditingDiet(d.id)}>
+                        <i className="fas fa-pen" aria-hidden="true" /> Edit
+                      </button>
+                    </div>
+                  )
+                )}
+
                 <div className="ard-del-foot">
                   <span className={`dash-badge tone-${dm.tone}`}>
                     <i className={`fas ${dm.icon}`} aria-hidden="true" /> {dm.label}
@@ -236,6 +281,10 @@ export default function AdminRegistrationDetailPage() {
         .ard-notes { margin: 0; font-size: 0.88rem; color: var(--navy); white-space: pre-wrap; }
 
         .ard-delegates { margin-top: 22px; }
+        .ard-diet { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--gray-200); }
+        .ard-diet-label { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-500); font-weight: 700; }
+        .ard-diet .dash-btn { margin-left: auto; }
+        ${mcStyles}
         .ard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
         .ard-del { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
         .ard-del-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
