@@ -264,6 +264,7 @@ export function DietEditor({ saveUrl, attendee, options, onCancel, onSaved }) {
 
 export const mcStyles = `
   .mc-count { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em; text-transform: none; color: var(--navy); background: #eef2f9; padding: 3px 9px; border-radius: 999px; margin-left: 4px; }
+  .mc-card .dash-card-title { margin-bottom: 14px; }
   .mc-intro { margin-bottom: 14px; }
   .mc-callout { display: flex; gap: 11px; align-items: flex-start; background: #F0FDF4; border: 1px solid #BBF7D0; color: #14532D; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: 0.86rem; line-height: 1.5; }
   .mc-callout i { color: #15803D; margin-top: 3px; }

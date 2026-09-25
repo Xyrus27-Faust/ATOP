@@ -30,6 +30,7 @@ export default function AdminRegistrationDetailPage() {
   const { id } = useParams()
   const [showing, setShowing] = useState(null)
   const [editingDiet, setEditingDiet] = useState(null)
+  const [dietSaved, setDietSaved] = useState({})
 
   const { loading, error, data, reload } = useAsync(async () => {
     // The admin route is nested under its event, and the list page resolves the event the same
@@ -62,7 +63,7 @@ export default function AdminRegistrationDetailPage() {
   const live = (reg.delegates || []).filter((d) => d.status !== 'Cancelled')
   const cancelledSeats = (reg.delegates || []).filter((d) => d.status === 'Cancelled')
   const dietLabels = Object.fromEntries((dietOptions || []).map((o) => [o.code, o.label]))
-  const dietOf = (d) => ({
+  const dietOf = (d) => dietSaved[d.id] ?? ({
     delegateId: d.id,
     fullName: d.fullName,
     restrictions: d.dietaryRestrictions || [],
@@ -204,7 +205,13 @@ export default function AdminRegistrationDetailPage() {
                       attendee={dietOf(d)}
                       options={dietOptions}
                       onCancel={() => setEditingDiet(null)}
-                      onSaved={() => { setEditingDiet(null); reload() }}
+                      onSaved={(card) => {
+                        // Patched in place rather than reloaded: a reload blanks the page to its
+                        // loading state and drops the desk back at the top of a long booking.
+                        const saved = card.delegates.find((x) => x.delegateId === d.id)
+                        if (saved) setDietSaved((m) => ({ ...m, [d.id]: saved }))
+                        setEditingDiet(null)
+                      }}
                     />
                   ) : (
                     <div className="ard-diet">

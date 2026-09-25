@@ -97,7 +97,8 @@ export default function AdminTalliesPage() {
           <span className="dash-eyebrow">{event.name}</span>
           <h1 className="dash-h1">Tallies</h1>
           <p className="dash-sub">
-            What the convention owes its suppliers: the shirt order and the tour manifest.
+            What the convention owes its suppliers: the shirt order, the tour manifest, and the
+            meal count.
           </p>
         </div>
         <button className="dash-btn is-ghost" onClick={reload}>
@@ -110,7 +111,6 @@ export default function AdminTalliesPage() {
         <Stat icon="fa-hourglass-half" label="Still to answer" value={shirts.notSet} />
         <Stat icon="fa-van-shuttle" label="Tour seats claimed" value={`${tours.reserved} / ${tours.capacity}`} />
         <Stat icon="fa-chair" label="Tour seats left" value={tours.seatsLeft} />
-        <Stat icon="fa-utensils" label="With dietary needs" value={dietary.withNeeds} />
       </div>
 
       {/* ---------- Shirts ---------- */}
