@@ -162,8 +162,10 @@ export default function RegistrationDetailPage() {
           <span>
             {reg.isComplimentary
               ? <>Issued complimentary by the Secretariat{reg.compReason ? ` — ${reg.compReason}` : ''}.</>
-              : reg.isRegionalAllocation
+              : reg.isRegionalAllocation && Number(reg.balance) > 0
               ? <>Your region’s allocation is holding these places. Each delegate’s check-in QR code appears here once their seat is paid for.</>
+              : reg.isRegionalAllocation
+              ? <>Held on your region’s allocation and paid in full. Each delegate’s reference code below is their check-in code.</>
               : <>Confirmed on {formatDate(reg.confirmedAt)}. Each delegate’s reference code below is their check-in code.</>}
           </span>
         </div>
