@@ -459,7 +459,7 @@ export default function NewRegistrationPage() {
           <h1 className="dash-h1">Register delegates</h1>
           <p className="dash-sub">
             {repMode
-              ? <>Register your region’s delegates. Their places are confirmed straight away from your region’s allocation; the fee is settled afterwards.</>
+              ? <>Register your region’s delegates. Their places are held straight away from your region’s allocation; the fee is settled afterwards, and each delegate’s check-in QR is issued once paid.</>
               : <>One registration covers your whole delegation — mix in-person and online delegates, and pay once.</>}
           </p>
         </div>
@@ -663,7 +663,8 @@ export default function NewRegistrationPage() {
                       : `${allocation.remaining} of ${allocation.seatAllowance} remaining`}
                   </span>
                   <span className="nr-cover-hint">
-                    Confirmed straight away. The ₱{total.toLocaleString()} is settled from the booking afterwards.
+                    Places held straight away. The ₱{total.toLocaleString()} is settled from the booking afterwards —
+                    each delegate’s check-in QR is issued once their seat is paid for.
                   </span>
                 </button>
                 <button
