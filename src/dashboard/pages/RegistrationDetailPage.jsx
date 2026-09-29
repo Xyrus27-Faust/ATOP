@@ -10,6 +10,7 @@ import SeatQr from '../components/SeatQr'
 import SeatPassModal from '../components/SeatPassModal'
 import ConventionExtras from '../components/ConventionExtras'
 import MealsCard from '../components/MealsCard'
+import IdPhotoCard from '../components/IdPhotoCard'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -328,6 +329,16 @@ export default function RegistrationDetailPage() {
               request mail links here with #meals. Renders nothing for an all-online booking. */}
           {reg.status !== 'Draft' && reg.status !== 'Cancelled' && reg.status !== 'Expired' && (
             <MealsCard registrationId={reg.id} />
+          )}
+
+          {/* ---- ID photo ---- */}
+          {/* Below the meals for the same reason the meals sit below the tours: it is the last of
+              the three per-person checklists, and it is the one that can be done earliest. Unlike
+              the tours it is deliberately NOT gated on a secured seat — a photo is not a finite
+              resource, so an LGU whose cheque is still moving can get it out of the way. Draft
+              bookings are excluded only because there is nobody to print an ID for yet. */}
+          {reg.status !== 'Draft' && reg.status !== 'Cancelled' && reg.status !== 'Expired' && (
+            <IdPhotoCard registrationId={reg.id} />
           )}
 
           {/* ---- Contact ---- */}
