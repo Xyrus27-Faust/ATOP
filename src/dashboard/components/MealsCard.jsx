@@ -9,8 +9,7 @@ import { useAsync } from '../useAsync'
  *
  * <p>Built for the people with nothing to declare, because that is nearly everyone. Silence means
  * "no restrictions" (ATOP, 2026-09-25), so an unanswered row is shown as exactly that — not as a
- * warning — and the only call to action is for the few who need one. The optional "confirm the
- * rest" button exists to spare a delegation the reminder mail, not because anything is missing.</p>
+ * warning — and the only call to action is for the few who need one.</p>
  *
  * <p>The options come from the API, so adding one never touches this file. Food allergy and Other
  * ask for a sentence, because "allergy" alone gives a kitchen nothing to act on.</p>
@@ -26,8 +25,6 @@ export default function MealsCard({ registrationId }) {
   const card = fresh ?? data
 
   const [editing, setEditing] = useState(null)
-  const [confirming, setConfirming] = useState(false)
-  const [bulkError, setBulkError] = useState(null)
 
   // The request mail links to `#meals`. The card loads after the page does, so the browser's own
   // jump to the anchor has already missed; do it once the card is actually there.
@@ -58,22 +55,8 @@ export default function MealsCard({ registrationId }) {
   if (!card || card.delegates.length === 0) return null
 
   const labels = Object.fromEntries(card.options.map((o) => [o.code, o.label]))
-  const unanswered = card.delegates.filter((d) => !d.answeredAt)
   const withNeeds = card.delegates.filter((d) => d.restrictions.length > 0 || d.notes)
   const open = card.open
-
-  async function confirmRest() {
-    setBulkError(null)
-    setConfirming(true)
-    try {
-      setFresh(await api.post(`/registrations/${registrationId}/dietary/none`, undefined, { auth: true }))
-      setEditing(null)
-    } catch (err) {
-      setBulkError(err)
-    } finally {
-      setConfirming(false)
-    }
-  }
 
   return (
     <div className="dash-card dash-card-pad rd-card mc-card" id="meals" ref={ref}>
@@ -101,8 +84,6 @@ export default function MealsCard({ registrationId }) {
           Meal preferences have closed and gone to the caterer. Contact the ATOP Secretariat for changes.
         </p>
       )}
-
-      {bulkError && <div className="mc-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {bulkError.message}</div>}
 
       <div className="mc-rows">
         {card.delegates.map((d) =>
@@ -136,18 +117,6 @@ export default function MealsCard({ registrationId }) {
           ),
         )}
       </div>
-
-      {open && unanswered.length > 0 && editing === null && (
-        <div className="mc-bulk">
-          <button type="button" className="dash-btn is-ghost is-sm" disabled={confirming} onClick={confirmRest}>
-            <i className={`fas ${confirming ? 'fa-spinner fa-spin' : 'fa-check-double'}`} aria-hidden="true" />
-            {unanswered.length === card.delegates.length
-              ? ' Confirm no one has restrictions'
-              : ` Confirm no restrictions for the other ${unanswered.length}`}
-          </button>
-          <span className="dash-help">Optional — it just means we won’t send you a reminder.</span>
-        </div>
-      )}
 
       <style>{mcStyles}</style>
     </div>
@@ -270,7 +239,6 @@ export const mcStyles = `
   .mc-callout i { color: #15803D; margin-top: 3px; }
   .mc-callout strong { display: block; }
   .mc-callout span { color: #166534; }
-  .mc-error { display: flex; gap: 8px; align-items: center; background: #fdeaea; color: #8a1c1c; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 12px; }
 
   .mc-rows { display: grid; gap: 8px; }
   .mc-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-lg); }
@@ -291,8 +259,6 @@ export const mcStyles = `
   .mc-chip.is-static { cursor: default; font-size: 0.72rem; padding: 3px 9px; background: #FFF7ED; border-color: #FED7AA; color: #9A3412; }
   .mc-notes { max-width: 520px; }
   .mc-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-
-  .mc-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 12px; }
 
   @media (max-width: 640px) {
     .mc-row { flex-direction: column; align-items: stretch; }
