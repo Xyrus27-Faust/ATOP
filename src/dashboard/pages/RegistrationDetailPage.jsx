@@ -162,8 +162,10 @@ export default function RegistrationDetailPage() {
           <span>
             {reg.isComplimentary
               ? <>Issued complimentary by the Secretariat{reg.compReason ? ` — ${reg.compReason}` : ''}.</>
+              : reg.isRegionalAllocation && Number(reg.balance) > 0
+              ? <>Your region’s allocation is holding these places. Each delegate’s check-in QR code appears here once their seat is paid for.</>
               : reg.isRegionalAllocation
-              ? <>Your region’s allocation is holding these places. Each delegate’s reference code below is their check-in code — the fee is still to be settled.</>
+              ? <>Held on your region’s allocation and paid in full. Each delegate’s reference code below is their check-in code.</>
               : <>Confirmed on {formatDate(reg.confirmedAt)}. Each delegate’s reference code below is their check-in code.</>}
           </span>
         </div>
@@ -239,12 +241,11 @@ export default function RegistrationDetailPage() {
                         )}
                       </div>
 
-                      {/* The pass. A seat that is SECURED has one — which is not the same as paid,
-                          and the server is the one that knows: a comped seat and a seat held on a
-                          region's allocation are both coming, with nothing yet received for them.
-                          Reading amountPaid here showed a blank square to delegates whose QR had
-                          already been emailed to them. */}
-                      {d.isSecured && !cancelled ? (
+                      {/* The pass. The server says who has one: a paid seat or a comped one. A
+                          seat held on a region's allocation is secured but gets its QR only once
+                          it is paid for (ATOP, 2026-09-29) — so neither amountPaid nor isSecured
+                          is the question here. */}
+                      {d.hasCheckInPass && !cancelled ? (
                         <SeatQr code={d.referenceCode} onOpen={() => setPassFor(d)} />
                       ) : (
                         <div className="rd-del-nopass">no code<br />yet</div>
@@ -253,7 +254,7 @@ export default function RegistrationDetailPage() {
 
                     {/* The quiet strip: identifiers and actions, out of the way of the numbers. */}
                     <div className="rd-del-foot">
-                      {d.isSecured && !cancelled && (
+                      {d.hasCheckInPass && !cancelled && (
                         <code className="rd-del-code" title="Check-in code">{d.referenceCode}</code>
                       )}
                       <span className={`dash-badge tone-${dm.tone} rd-del-mode`}>

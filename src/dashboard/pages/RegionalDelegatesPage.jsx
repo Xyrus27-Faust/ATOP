@@ -99,24 +99,23 @@ export default function RegionalDelegatesPage() {
           </p>
         ) : full ? (
           <p className="rd-note">
-            Your region’s allocation is fully used. Remove a delegate from one of your delegations to
-            free a seat, or ask the Secretariat to increase the allocation.
+            Your region’s allocation is fully used. You can still register more delegates and pay for
+            them outright — payment stays open even when the convention is full. To hold places
+            without paying, remove a delegate from one of your delegations or ask the Secretariat to
+            increase the allocation.
           </p>
         ) : (
           <p className="rd-note">
             Delegates you register are confirmed straight away — their places are held without waiting
             for payment — and count against this allocation. The ₱7,350 per delegate is still due, and
-            can be settled from each booking.
+            can be settled from each booking; each delegate’s check-in QR code is issued once their
+            seat is paid for.
           </p>
         )}
 
-        <Link
-          className="dash-btn is-primary"
-          to="/convention/register"
-          aria-disabled={full || undefined}
-          onClick={(e) => { if (full) e.preventDefault() }}
-          style={full ? { pointerEvents: 'none', opacity: 0.55 } : undefined}
-        >
+        {/* Never disabled: a spent allocation only means the next delegation is paid for outright,
+            and payment stays open for a representative even when the hall is full. */}
+        <Link className="dash-btn is-primary" to="/convention/register">
           <i className="fas fa-user-plus" aria-hidden="true" /> Register delegates
         </Link>
       </div>
