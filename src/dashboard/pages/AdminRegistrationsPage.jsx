@@ -5,6 +5,7 @@ import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
 import Modal from '../components/Modal'
+import MasterListButton from '../components/MasterListButton'
 import { formatDate } from '@/lib/pearlAwards'
 import { REGIONS } from '@/lib/pearlAwards'
 import {
@@ -91,6 +92,8 @@ export default function AdminRegistrationsPage() {
           <h1 className="dash-h1">Registrations</h1>
           <p className="dash-sub">Every booking for the convention, and what each has paid.</p>
         </div>
+        {/* The whole list, not the page on screen — the filters and paging here do not apply. */}
+        <MasterListButton eventId={event.id} />
       </div>
 
       {/* Seats are counted per delegate on CONFIRMED bookings — which includes anyone who has paid
