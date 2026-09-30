@@ -55,16 +55,15 @@ export const isRegistrationEditable = (status) => status === 'Draft'
 // booking, so a Confirmed one may still owe a balance — and paying it is the point. Only a
 // cancelled booking, or one that owes nothing, has nothing to check out.
 //
-// A booking on a region's allocation is confirmed but NOT paid — the allocation caps how many a
-// region may register, it does not waive the fee. So it checks out like any other booking that
-// still owes; balance alone decides, as it always did.
+// A booking on a region's allocation is not free — the allocation caps how many a region may pay
+// for into a full hall, it does not waive the fee. So balance alone decides, as it always did.
 export const canCheckout = (status, balance = 0) =>
   status !== 'Cancelled' && Number(balance) > 0
 
 // How a confirmed booking came to be confirmed. Not a status — both of these sit alongside
 // 'Confirmed' — but it is what a delegate needs told, because "confirmed" alone leaves someone
-// wondering whether anything is still owed. 'complimentary' owes nothing; 'allocation' owes in full
-// and is merely holding the places.
+// wondering whether anything is still owed. 'complimentary' owes nothing; 'allocation' was paid for
+// on a region's allocation and may still owe a balance.
 export function confirmedVia(reg) {
   if (!reg || reg.status !== 'Confirmed') return null
   if (reg.isComplimentary) return 'complimentary'
