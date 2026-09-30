@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { canManageRegistrations } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
-import { downloadCsv, datedFilename } from '@/lib/csv'
+import MasterListButton from '../components/MasterListButton'
 
 /**
  * The two counts the secretariat has to hand someone outside the building: how many shirts to cut,
@@ -52,44 +52,6 @@ export default function AdminTalliesPage() {
 
   const { shirts, tours, dietary } = tallies
 
-  function exportShirts() {
-    downloadCsv(datedFilename('atop-shirt-sizes'), [
-      ['Size', 'Delegates'],
-      ...shirts.sizes.map((s) => [s.size, s.delegates]),
-      ['Not yet chosen', shirts.notSet],
-      ['Total asked', shirts.eligible],
-      ['Not yet asked (seat unsettled)', shirts.notYetEligible],
-    ])
-  }
-
-  // The counts the caterer plans quantities from, then the names they plate separately. Secured
-  // seats only in the counts; the list marks the unsettled ones.
-  function exportMeals() {
-    downloadCsv(datedFilename('atop-dietary'), [
-      ['Restriction', 'Delegates'],
-      ...dietary.restrictions.map((r) => [r.label, r.delegates]),
-      ['No restrictions (said so)', dietary.declaredNone],
-      ['No restrictions (no reply)', dietary.notAnswered],
-      ['Total catered', dietary.eligible],
-      [],
-      ['Delegate', 'LGU / Organization', 'Booking', 'Restrictions', 'Notes', 'Seat secured'],
-      ...diets.map((d) => [
-        d.fullName, d.lguName || d.organizationName || '', d.registrationReference,
-        d.summary, d.notes || '', d.isSecured ? 'Yes' : 'No',
-      ]),
-    ])
-  }
-
-  function exportTours() {
-    downloadCsv(datedFilename('atop-tour-fill'), [
-      ['Tour', 'Batch', 'Session', 'Capacity', 'Booked', 'Seats left'],
-      ...tours.packages.flatMap((p) =>
-        p.batches.map((b) => [p.name, b.label, b.session, b.capacity, b.reserved, b.seatsLeft]),
-      ),
-      ['All tours', '', '', tours.capacity, tours.reserved, tours.seatsLeft],
-    ])
-  }
-
   return (
     <>
       <div className="dash-page-head">
@@ -98,12 +60,15 @@ export default function AdminTalliesPage() {
           <h1 className="dash-h1">Tallies</h1>
           <p className="dash-sub">
             What the convention owes its suppliers: the shirt order, the tour manifest, and the
-            meal count.
+            meal count. The master list has every delegate&rsquo;s details on one row.
           </p>
         </div>
-        <button className="dash-btn is-ghost" onClick={reload}>
-          <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
-        </button>
+        <div className="tal-actions">
+          <button className="dash-btn is-ghost" onClick={reload}>
+            <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
+          </button>
+          <MasterListButton eventId={event.id} />
+        </div>
       </div>
 
       <div className="dash-grid tal-stats">
@@ -123,9 +88,6 @@ export default function AdminTalliesPage() {
               app asks for a size.
             </p>
           </div>
-          <button className="dash-btn is-ghost" onClick={exportShirts} disabled={!shirts.chosen}>
-            <i className="fas fa-download" aria-hidden="true" /> CSV
-          </button>
         </header>
 
         {shirts.chosen === 0 ? (
@@ -189,9 +151,6 @@ export default function AdminTalliesPage() {
               closing one moves the cap with it.
             </p>
           </div>
-          <button className="dash-btn is-ghost" onClick={exportTours} disabled={!tours.packages.length}>
-            <i className="fas fa-download" aria-hidden="true" /> CSV
-          </button>
         </header>
 
         {tours.packages.length === 0 ? (
@@ -252,9 +211,6 @@ export default function AdminTalliesPage() {
               replied is catered as having no restrictions — the request mail says so.
             </p>
           </div>
-          <button className="dash-btn is-ghost" onClick={exportMeals} disabled={!dietary.eligible}>
-            <i className="fas fa-download" aria-hidden="true" /> CSV
-          </button>
         </header>
 
         {dietary.withNeeds === 0 ? (
@@ -341,6 +297,7 @@ export default function AdminTalliesPage() {
       </p>
 
       <style>{`
+        .tal-actions { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
         .tal-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
         .tal-section { margin-top: 1.25rem; overflow-x: auto; }
         .tal-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 1rem; }
