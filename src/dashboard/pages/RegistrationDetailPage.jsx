@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
-import { Field, ctl } from '../components/form'
 import Modal from '../components/Modal'
 import DelegateFields, { emptyDelegate, validateDelegate, toDelegatePayload } from '../components/DelegateFields'
 import SeatQr from '../components/SeatQr'
@@ -42,7 +41,6 @@ export default function RegistrationDetailPage() {
 
   const [paying, setPaying] = useState(false)
   const [actionError, setActionError] = useState(null)
-  const [substituting, setSubstituting] = useState(null)
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState(null)
   const [passFor, setPassFor] = useState(null)
@@ -273,15 +271,9 @@ export default function RegistrationDetailPage() {
                         </span>
                       )}
                       <span className="rd-del-foot-spacer" />
-                      {/* Substitution stays available after payment — LGUs swap people
-                          days out, and the seat is already paid for. */}
-                      {!cancelled && d.status !== 'CheckedIn' && (
-                        <button type="button" className="rd-del-swap" onClick={() => setSubstituting(d)}>
-                          <i className="fas fa-right-left" aria-hidden="true" /> Substitute
-                        </button>
-                      )}
-                      {/* Removal only while the booking is unpaid; afterwards the seat is
-                          paid for and substitution is the right move instead. */}
+                      {/* Removal only while the booking is unpaid. Afterwards the seat is paid
+                          for, and a delegate who cannot come is a refund question for the
+                          Secretariat — substitution was removed (ATOP, 2026-09-30). */}
                       {editable && !cancelled && activeDelegates.length > 1 && (
                         <button
                           type="button"
@@ -319,8 +311,8 @@ export default function RegistrationDetailPage() {
             )}
             {!editable && reg.status !== 'Cancelled' && (
               <p className="dash-help rd-editable-note">
-                The delegate list is fixed now that this booking has gone to payment. You can still
-                substitute who fills a seat.
+                The delegate list is fixed now that this booking has gone to payment. Contact the
+                ATOP Secretariat about changes.
               </p>
             )}
           </div>
@@ -534,15 +526,6 @@ export default function RegistrationDetailPage() {
         <SeatPassModal delegate={passFor} reference={reg.referenceCode} onClose={() => setPassFor(null)} />
       )}
 
-      {substituting && (
-        <SubstituteModal
-          delegate={substituting}
-          registrationId={reg.id}
-          onClose={() => setSubstituting(null)}
-          onDone={() => { setSubstituting(null); reload() }}
-        />
-      )}
-
       {adding && (
         <AddDelegateModal
           registrationId={reg.id}
@@ -632,11 +615,6 @@ export default function RegistrationDetailPage() {
           padding: 3px 8px; border-radius: 6px; background: var(--gray-100, #F3F4F6);
           border: 1px solid var(--gray-200); color: var(--navy); letter-spacing: 0.04em;
         }
-        .rd-del-swap {
-          border: none; background: none; cursor: pointer; color: var(--gray-600);
-          font-size: 0.76rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
-        }
-        .rd-del-swap:hover { background: var(--gray-100, #F3F4F6); color: var(--navy); }
         .rd-del-remove {
           border: none; background: none; cursor: pointer; color: #B91C1C;
           font-size: 0.76rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
@@ -766,103 +744,3 @@ function AddDelegateModal({ registrationId, onClose, onDone }) {
  * has no signal. The image is redrawn at print size rather than scaled up from the thumbnail — a
  * QR blown up from 104px is a QR a scanner argues with.
  */
-/**
- * Replace a delegate in place. The reference code, attendance mode, and amount
- * all stay with the seat — only the person changes.
- */
-function SubstituteModal({ delegate, registrationId, onClose, onDone }) {
-  const [form, setForm] = useState({
-    firstName: '', middleName: '', lastName: '', suffix: '',
-    designation: delegate.designation || '',
-    officeDepartment: delegate.officeDepartment || '', email: '', mobile: '',
-  })
-  const [errors, setErrors] = useState({})
-  const [saving, setSaving] = useState(false)
-
-  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((p) => ({ ...p, [k]: undefined })) }
-
-  async function save() {
-    const e = {}
-    if (!form.firstName.trim()) e.firstName = 'First name is required.'
-    if (!form.lastName.trim()) e.lastName = 'Last name is required.'
-    if (!form.designation.trim()) e.designation = 'Designation is required.'
-    const emailErr = validateEmail(form.email)
-    if (emailErr) e.email = emailErr
-    if (!form.mobile.trim()) e.mobile = 'Mobile number is required.'
-    setErrors(e)
-    if (Object.keys(e).length > 0) return
-
-    setSaving(true)
-    try {
-      await api.put(
-        `/registrations/${registrationId}/delegates/${delegate.id}`,
-        {
-          firstName: form.firstName.trim(),
-          middleName: form.middleName.trim() || null,
-          lastName: form.lastName.trim(),
-          suffix: form.suffix.trim() || null,
-          designation: form.designation.trim(),
-          officeDepartment: form.officeDepartment.trim() || null,
-          email: form.email.trim(),
-          mobile: form.mobile.trim(),
-        },
-        { auth: true },
-      )
-      onDone()
-    } catch (err) {
-      if (err instanceof ApiError && err.fieldErrors) {
-        setErrors(Object.fromEntries(
-          Object.entries(err.fieldErrors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)]),
-        ))
-      } else {
-        setErrors({ firstName: err.message })
-      }
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Modal title={`Substitute ${delegate.fullName}`} onClose={onClose}>
-      <div className="rd-sub-form">
-      <p className="dash-help" style={{ marginBottom: 16 }}>
-        The seat, its amount, and the reference code <code>{delegate.referenceCode}</code> stay as they
-        are — only the person attending changes.
-      </p>
-
-      <div className="dash-form-row">
-        <Field label="First name" htmlFor="sFirst" required error={errors.firstName}>
-          <input id="sFirst" className={ctl('dash-input', errors.firstName)} value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
-        </Field>
-        <Field label="Last name" htmlFor="sLast" required error={errors.lastName}>
-          <input id="sLast" className={ctl('dash-input', errors.lastName)} value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
-        </Field>
-      </div>
-      <Field label="Designation" htmlFor="sDesig" required error={errors.designation}>
-        <input id="sDesig" className={ctl('dash-input', errors.designation)} value={form.designation} onChange={(e) => set('designation', e.target.value)} />
-      </Field>
-      <div className="dash-form-row">
-        <Field label="Email" htmlFor="sEmail" required error={errors.email}>
-          <input id="sEmail" type="email" className={ctl('dash-input', errors.email)} value={form.email} onChange={(e) => set('email', e.target.value)} />
-        </Field>
-        <Field label="Mobile" htmlFor="sMobile" required error={errors.mobile}>
-          <input id="sMobile" className={ctl('dash-input', errors.mobile)} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
-        </Field>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-        <button type="button" className="dash-btn" onClick={onClose}>Cancel</button>
-        <button type="button" className="dash-btn is-primary" onClick={save} disabled={saving}>
-          {saving ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</> : 'Substitute'}
-        </button>
-      </div>
-      </div>
-
-      {/* Same vertical rhythm as the booking form — the shared field primitives carry no
-          outer margin, so stacked controls would otherwise sit flush. */}
-      <style>{`
-        .rd-sub-form .dash-field, .rd-sub-form .dash-form-row { margin-bottom: 18px; }
-        .rd-sub-form .dash-form-row .dash-field { margin-bottom: 0; }
-      `}</style>
-    </Modal>
-  )
-}
