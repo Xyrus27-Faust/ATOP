@@ -156,16 +156,26 @@ export default function RegistrationDetailPage() {
         </span>
       </div>
 
+      {/* An unpaid regional booking holds nothing (ATOP, 2026-09-30) — not the region's seats, not
+          the hall. Say so, because "on the allocation" reads like a promise it is not. */}
+      {reg.isRegionalAllocation && reg.status === 'Draft' && (
+        <div className="dash-banner tone-warn" style={{ marginBottom: 16 }}>
+          <i className="fas fa-award" aria-hidden="true" />
+          <span>
+            On your region’s allocation, not yet paid — it holds no seat until you pay. Each
+            delegate’s check-in QR code is issued once their seat is paid for.
+          </span>
+        </div>
+      )}
+
       {reg.status === 'Confirmed' && (
         <div className="dash-banner rd-banner-ok">
           <i className="fas fa-circle-check" aria-hidden="true" />
           <span>
             {reg.isComplimentary
               ? <>Issued complimentary by the Secretariat{reg.compReason ? ` — ${reg.compReason}` : ''}.</>
-              : reg.isRegionalAllocation && Number(reg.balance) > 0
-              ? <>Your region’s allocation is holding these places. Each delegate’s check-in QR code appears here once their seat is paid for.</>
               : reg.isRegionalAllocation
-              ? <>Held on your region’s allocation and paid in full. Each delegate’s reference code below is their check-in code.</>
+              ? <>Paid on your region’s allocation. Each paid delegate’s reference code below is their check-in code.</>
               : <>Confirmed on {formatDate(reg.confirmedAt)}. Each delegate’s reference code below is their check-in code.</>}
           </span>
         </div>
@@ -241,10 +251,7 @@ export default function RegistrationDetailPage() {
                         )}
                       </div>
 
-                      {/* The pass. The server says who has one: a paid seat or a comped one. A
-                          seat held on a region's allocation is secured but gets its QR only once
-                          it is paid for (ATOP, 2026-09-29) — so neither amountPaid nor isSecured
-                          is the question here. */}
+                      {/* The pass. The server says who has one: a paid seat or a comped one. */}
                       {d.hasCheckInPass && !cancelled ? (
                         <SeatQr code={d.referenceCode} onOpen={() => setPassFor(d)} />
                       ) : (
@@ -436,7 +443,7 @@ export default function RegistrationDetailPage() {
               >
                 {cancelling
                   ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Cancelling…</>
-                  : reg.isRegionalAllocation
+                  : reg.isRegionalAllocation && reg.status !== 'Draft'
                     ? <><i className="fas fa-rotate-left" aria-hidden="true" /> Give these {activeDelegates.length === 1 ? 'seat' : 'seats'} back</>
                     : <><i className="fas fa-circle-xmark" aria-hidden="true" /> Cancel this booking</>}
               </button>

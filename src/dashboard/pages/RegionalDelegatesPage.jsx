@@ -8,11 +8,9 @@ import { labelFor, REGIONS, formatDate } from '@/lib/pearlAwards'
  * The regional representative's home: how many of their region's seats are left,
  * and the delegations they have booked with them.
  *
- * The meter is the whole point of the page. A representative composing a
- * delegation needs to know before they start how many they may bring — finding
- * out at the last step that only two of their six fit is the failure this
- * avoids, which is why the count sits above the call to action and the button
- * goes dead (with its reason) at zero.
+ * The meter is the whole point of the page: how many more the region can pay
+ * for on its allocation. A seat counts once its delegation is paid for, or while
+ * its payment is open — an unpaid delegation holds nothing (ATOP, 2026-09-30).
  *
  * They see only bookings they created; the backend scopes /registrations that
  * way, so there is no regional roster here by design.
@@ -100,16 +98,14 @@ export default function RegionalDelegatesPage() {
         ) : full ? (
           <p className="rd-note">
             Your region’s allocation is fully used. You can still register more delegates and pay for
-            them outright — payment stays open even when the convention is full. To hold places
-            without paying, remove a delegate from one of your delegations or ask the Secretariat to
-            increase the allocation.
+            them outright — payment stays open for you even when the convention is full. For more
+            regional seats, ask the Secretariat to increase the allocation.
           </p>
         ) : (
           <p className="rd-note">
-            Delegates you register are confirmed straight away — their places are held without waiting
-            for payment — and count against this allocation. The ₱7,350 per delegate is still due, and
-            can be settled from each booking; each delegate’s check-in QR code is issued once their
-            seat is paid for.
+            Pay for your delegates on this allocation and they get in even when the convention is full.
+            A seat counts against it once paid for — an unpaid delegation holds nothing. Each
+            delegate’s check-in QR code is issued once their seat is paid for.
           </p>
         )}
 
@@ -135,10 +131,10 @@ export default function RegionalDelegatesPage() {
             return (
               <Link key={b.id} className="dash-card rd-row" to={`/convention/registrations/${b.id}`}>
                 <span className="rd-row-main">
-                  {/* Always 'Confirmed' underneath — the badge says *why* it needed no payment,
-                      which is the part a representative is actually asked about. */}
-                  <span className="dash-badge tone-success">
+                  {/* Where it stands on the money, since that is what decides whether it holds a seat. */}
+                  <span className={`dash-badge tone-${b.status === 'Confirmed' ? 'success' : 'warn'}`}>
                     <i className="fas fa-award" aria-hidden="true" /> Regional slot
+                    {b.status === 'Draft' ? ' · unpaid' : b.status === 'PendingPayment' ? ' · payment open' : ''}
                   </span>
                   <span className="rd-ref">{b.referenceCode}</span>
                   <span className="rd-who">{b.lguName || '—'}</span>

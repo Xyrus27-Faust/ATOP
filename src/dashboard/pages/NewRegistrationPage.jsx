@@ -118,11 +118,11 @@ export default function NewRegistrationPage() {
   const allocation = data?.allocation ?? null
   const repMode = Boolean(allocation)
 
-  // Whether this booking is actually going on the allocation. Derived rather than stored: a
-  // delegation bigger than what is left simply cannot be claimed, and silently flipping the stored
-  // choice would change the answer under the representative between reading it and pressing it.
+  // Whether this booking is paid for on the allocation. Derived rather than stored: a delegation
+  // bigger than what is left simply cannot go on it, and silently flipping the stored choice would
+  // change the answer under the representative between reading it and pressing it.
   const notEnoughSeats = repMode && delegates.length > allocation.remaining
-  const claiming = repMode && useSlot && !notEnoughSeats
+  const onSlot = repMode && useSlot && !notEnoughSeats
 
   const rates = useMemo(() => event?.rates ?? [], [event])
   const rateByCode = useMemo(() => new Map(rates.map((r) => [r.code, r])), [rates])
@@ -408,29 +408,34 @@ export default function NewRegistrationPage() {
           mode: delegates[i]?.paymentMode === 'downpayment' ? 'Downpayment' : 'Full',
         }))
 
-      // A representative's seats are granted, not bought: no invoice, no gateway, no redirect.
-      // Deliberately a different endpoint rather than a free mode on checkout — a zero-peso invoice
-      // is a thing nobody wants to discover in the payments ledger later.
-      if (claiming) {
-        await api.post(`/registrations/${id}/claim-allocation`, {}, { auth: true })
-        navigate(`/convention/registrations/${id}`)
-        return
-      }
-
+      // A representative says, at the money, whether this goes on their region's allocation. The
+      // server checks the region's remaining seats there, under a lock, and a seat counts only from
+      // this checkout on — an unpaid regional booking holds nothing (ATOP, 2026-09-30).
       const origin = globalThis.location?.origin ?? ''
       const back = `${origin}/convention/registrations/${id}`
       try {
         const invoice = await api.post(
           `/registrations/${id}/checkout`,
-          { payments, successRedirectUrl: back, failureRedirectUrl: back },
+          {
+            payments,
+            successRedirectUrl: back,
+            failureRedirectUrl: back,
+            ...(repMode ? { useAllocation: onSlot } : {}),
+          },
           { auth: true },
         )
         if (invoice.checkoutUrl) {
           globalThis.location.assign(invoice.checkoutUrl)
           return
         }
-      } catch {
-        // The booking is saved either way — never lose it because the gateway hiccuped.
+      } catch (err) {
+        // The region ran out between loading this page and paying — say so here, where the
+        // choice is, rather than on a booking page that would not explain it.
+        if (err instanceof ApiError && err.fieldErrors?.allocation) {
+          setSubmitError(new Error([].concat(err.fieldErrors.allocation)[0]))
+          return
+        }
+        // Otherwise the booking is saved either way — never lose it because the gateway hiccuped.
         // Its own page explains what happened and offers Pay again.
       }
       navigate(`/convention/registrations/${id}`)
@@ -459,7 +464,7 @@ export default function NewRegistrationPage() {
           <h1 className="dash-h1">Register delegates</h1>
           <p className="dash-sub">
             {repMode
-              ? <>Register your region’s delegates. Their places are held straight away from your region’s allocation; the fee is settled afterwards, and each delegate’s check-in QR is issued once paid.</>
+              ? <>Register your region’s delegates and pay for them on your region’s allocation — it gets them in even when the convention is full. A seat counts against it once you pay, and each delegate’s check-in QR is issued then.</>
               : <>One registration covers your whole delegation — mix in-person and online delegates, and pay once.</>}
           </p>
         </div>
@@ -649,13 +654,13 @@ export default function NewRegistrationPage() {
               <div className="nr-cover">
                 <button
                   type="button"
-                  className={`nr-cover-opt${claiming ? ' is-active' : ''}`}
+                  className={`nr-cover-opt${onSlot ? ' is-active' : ''}`}
                   disabled={notEnoughSeats}
                   onClick={() => setUseSlot(true)}
-                  aria-pressed={claiming}
+                  aria-pressed={onSlot}
                 >
                   <span className="nr-cover-top">
-                    <i className="fas fa-award" aria-hidden="true" /> Use a regional slot
+                    <i className="fas fa-award" aria-hidden="true" /> Pay using regional slots
                   </span>
                   <span className="nr-cover-sub">
                     {notEnoughSeats
@@ -663,23 +668,22 @@ export default function NewRegistrationPage() {
                       : `${allocation.remaining} of ${allocation.seatAllowance} remaining`}
                   </span>
                   <span className="nr-cover-hint">
-                    Places held straight away. The ₱{total.toLocaleString()} is settled from the booking afterwards —
-                    each delegate’s check-in QR is issued once their seat is paid for.
+                    Counts against your region’s seats once paid, and gets past a full convention.
+                    Nothing is held until you pay.
                   </span>
                 </button>
                 <button
                   type="button"
-                  className={`nr-cover-opt${!claiming ? ' is-active' : ''}`}
+                  className={`nr-cover-opt${!onSlot ? ' is-active' : ''}`}
                   onClick={() => setUseSlot(false)}
-                  aria-pressed={!claiming}
+                  aria-pressed={!onSlot}
                 >
                   <span className="nr-cover-top">
-                    <i className="fas fa-credit-card" aria-hidden="true" /> Pay for this booking
+                    <i className="fas fa-credit-card" aria-hidden="true" /> Pay outright
                   </span>
-                  <span className="nr-cover-sub">{formatPeso(total)} now</span>
+                  <span className="nr-cover-sub">{formatPeso(payableNow)} now</span>
                   <span className="nr-cover-hint">
-                    Spends none of your region’s seats. Each delegate is charged in full; you can
-                    part-pay them individually from the booking afterwards.
+                    Spends none of your region’s seats.
                   </span>
                 </button>
               </div>
@@ -761,22 +765,20 @@ export default function NewRegistrationPage() {
               <thead>
                 <tr>
                   <th>Delegate</th>
-                  {/* A representative pays nothing at this step — their region's allocation holds
-                      the place — so "Now / Later" would read as a bill that is half due today. */}
-                  <th>{claiming ? 'Place' : 'Paying'}</th>
-                  <th className="nr-review-num">{claiming ? 'Seat fee' : 'Now'}</th>
-                  <th className="nr-review-num">{claiming ? 'Due after' : 'Later'}</th>
+                  <th>Paying</th>
+                  <th className="nr-review-num">Now</th>
+                  <th className="nr-review-num">Later</th>
                 </tr>
               </thead>
               <tbody>
                 {delegates.map((d, i) => {
                   const seat = Number(rateByCode.get(d.rateCode)?.amount ?? 0)
-                  const now = claiming ? 0 : seatCharge(seat, d.paymentMode)
+                  const now = seatCharge(seat, d.paymentMode)
                   return (
                     <tr key={i}>
                       <td>{[d.firstName, d.lastName].filter(Boolean).join(' ') || `Delegate ${i + 1}`}</td>
-                      <td>{claiming ? 'Regional slot' : d.paymentMode === 'downpayment' ? 'Reserved' : 'In full'}</td>
-                      <td className="nr-review-num">{formatPeso(claiming ? seat : now)}</td>
+                      <td>{d.paymentMode === 'downpayment' ? 'Reserved' : 'In full'}</td>
+                      <td className="nr-review-num">{formatPeso(now)}</td>
                       <td className="nr-review-num">{seat - now > 0 ? formatPeso(seat - now) : '—'}</td>
                     </tr>
                   )
@@ -785,11 +787,9 @@ export default function NewRegistrationPage() {
               <tfoot>
                 <tr>
                   <td colSpan={2}>Total</td>
-                  <td className="nr-review-num"><strong>{formatPeso(claiming ? total : payableNow)}</strong></td>
+                  <td className="nr-review-num"><strong>{formatPeso(payableNow)}</strong></td>
                   <td className="nr-review-num">
-                    {claiming
-                      ? formatPeso(total)
-                      : total - payableNow > 0 ? formatPeso(total - payableNow) : '—'}
+                    {total - payableNow > 0 ? formatPeso(total - payableNow) : '—'}
                   </td>
                 </tr>
               </tfoot>
@@ -818,7 +818,7 @@ export default function NewRegistrationPage() {
           {inPersonCount === 0 && virtualCount === 0 && <span className="nr-total-empty">No registration types chosen yet</span>}
         </div>
         <div className="nr-total-amount">
-          <span className="nr-total-caption">{claiming ? 'Total due' : 'Total payable'}</span>
+          <span className="nr-total-caption">Total payable</span>
           <strong>{formatPeso(total)}</strong>
         </div>
       </div>
@@ -851,9 +851,9 @@ export default function NewRegistrationPage() {
         ) : (
           <button type="button" className="dash-btn is-primary" onClick={submit} disabled={submitting}>
             {submitting
-              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> {claiming ? 'Confirming…' : 'Taking you to payment…'}</>
-              : claiming
-                ? <><i className="fas fa-award" aria-hidden="true" /> Hold {delegates.length} of your region’s seats</>
+              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Taking you to payment…</>
+              : onSlot
+                ? <><i className="fas fa-award" aria-hidden="true" /> Pay {formatPeso(payableNow)} using regional slots</>
                 : <><i className="fas fa-credit-card" aria-hidden="true" /> Register and pay {formatPeso(payableNow)}</>}
           </button>
         )}
