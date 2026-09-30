@@ -28,6 +28,7 @@ export default function AdminRegistrationsPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
   const [mode, setMode] = useState('')
+  const [payment, setPayment] = useState('')
   const [region, setRegion] = useState('')
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
@@ -42,12 +43,13 @@ export default function AdminRegistrationsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
     if (status) params.set('status', status)
     if (mode) params.set('mode', mode)
+    if (payment) params.set('payment', payment)
     if (region) params.set('region', region)
     if (query) params.set('search', query)
 
     const result = await api.get(`/admin/events/${event.id}/registrations?${params}`, { auth: true })
     return { event, result }
-  }, [status, mode, region, query, page])
+  }, [status, mode, payment, region, query, page])
 
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -72,7 +74,7 @@ export default function AdminRegistrationsPage() {
   // filter changes is how many records matched, below. Zeroes keep the cards rendering if the
   // API predates them.
   const totals = result.totals ?? {}
-  const filtered = Boolean(status || mode || region || query)
+  const filtered = Boolean(status || mode || payment || region || query)
 
   // The hall's ceiling, shown beside the headcount rather than left to be remembered. The count
   // can legitimately read over it: a comp and a regional claim are both granted rather than checked
@@ -140,6 +142,12 @@ export default function AdminRegistrationsPage() {
             <option value="">Any attendance</option>
             <option value="InPerson">Includes in person</option>
             <option value="Virtual">Includes online</option>
+          </select>
+          {/* Same lines as the row badges: "Paid in full" and "Balance due". A comp is neither. */}
+          <select className="dash-select" value={payment} onChange={(e) => changeFilter(setPayment)(e.target.value)}>
+            <option value="">Any payment</option>
+            <option value="FullyPaid">Paid in full</option>
+            <option value="PartiallyPaid">Partially paid (balance due)</option>
           </select>
           <select className="dash-select" value={region} onChange={(e) => changeFilter(setRegion)(e.target.value)}>
             <option value="">All regions</option>
