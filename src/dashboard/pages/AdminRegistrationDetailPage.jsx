@@ -30,6 +30,8 @@ export default function AdminRegistrationDetailPage() {
   const { id } = useParams()
   const [showing, setShowing] = useState(null)
   const [editingDiet, setEditingDiet] = useState(null)
+  const [cardFor, setCardFor] = useState(null)
+  const [cardError, setCardError] = useState(null)
   const [dietSaved, setDietSaved] = useState({})
 
   const { loading, error, data, reload } = useAsync(async () => {
@@ -155,6 +157,9 @@ export default function AdminRegistrationDetailPage() {
         <h2 className="ard-h2 ard-h2-loud">
           Delegates <span className="ard-count">{live.length}</span>
         </h2>
+        {cardError && (
+          <p className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {cardError.message || 'The ID card could not be made.'}</p>
+        )}
 
         <div className="ard-grid">
           {live.map((d) => {
@@ -229,6 +234,31 @@ export default function AdminRegistrationDetailPage() {
                     <i className={`fas ${dm.icon}`} aria-hidden="true" /> {dm.label}
                   </span>
                   <span className={`dash-badge tone-${ds.tone}`}>{ds.label}</span>
+                  {/* The printed convention ID — a proof, or a reprint for someone who lost
+                      theirs. In person only: nobody is handed a card through a livestream. */}
+                  {d.attendanceMode === 'InPerson' && (
+                    <button
+                      type="button"
+                      className="dash-btn is-ghost is-sm ard-idcard"
+                      disabled={cardFor === d.id}
+                      onClick={async () => {
+                        setCardError(null)
+                        setCardFor(d.id)
+                        try {
+                          await api.download(
+                            `/admin/registrations/${reg.id}/delegates/${d.id}/id-card`,
+                            `atop-id-${d.referenceCode}.pdf`,
+                          )
+                        } catch (err) {
+                          setCardError(err)
+                        } finally {
+                          setCardFor(null)
+                        }
+                      }}
+                    >
+                      <i className={`fas ${cardFor === d.id ? 'fa-spinner fa-spin' : 'fa-id-card'}`} aria-hidden="true" /> ID card
+                    </button>
+                  )}
                 </div>
               </article>
             )
@@ -303,7 +333,8 @@ export default function AdminRegistrationDetailPage() {
         .ard-del-facts dd.is-mono {
           font-family: var(--font-heading); letter-spacing: 0.05em; font-variant-numeric: tabular-nums;
         }
-        .ard-del-foot { display: flex; flex-wrap: wrap; gap: 6px; }
+        .ard-del-foot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .ard-idcard { margin-left: auto; }
         .ard-cancelled { margin: 14px 0 0; font-size: 0.82rem; color: var(--gray-600); }
       `}</style>
     </>
