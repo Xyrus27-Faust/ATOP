@@ -10,7 +10,7 @@ import { useAuth } from './AuthContext'
  *   </Route>
  */
 export default function ProtectedRoute() {
-  const { status } = useAuth()
+  const { status, reconnecting } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') {
@@ -24,7 +24,14 @@ export default function ProtectedRoute() {
           fontFamily: 'var(--font-heading)',
         }}
       >
-        <i className="fas fa-spinner fa-spin" aria-hidden="true" />
+        <div style={{ textAlign: 'center' }}>
+          <i className="fas fa-spinner fa-spin" aria-hidden="true" />
+          {reconnecting && (
+            <p role="status" style={{ marginTop: 12, fontFamily: 'var(--font-body)', color: 'var(--gray-600)' }}>
+              Can&rsquo;t reach the server. Still signed in &mdash; retrying&hellip;
+            </p>
+          )}
+        </div>
       </div>
     )
   }

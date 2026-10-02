@@ -5,7 +5,10 @@
 //   - JSON encode/decode
 //   - attach the Bearer access token for authed requests
 //   - normalise ASP.NET ProblemDetails errors into a usable ApiError
-//   - on 401, transparently refresh the access token ONCE and retry
+//   - refresh the access token shortly before it expires, and on a 401 refresh ONCE and retry
+//   - end the session only when the server rejects the refresh token — never for a busy server,
+//     a network blip, or an error on the retried request
+//   - refuse paths a route parameter could have bent to another endpoint (assertSafePath)
 //
 // Refresh is single-flight (one in-flight /auth/refresh at a time) because the
 // backend rotates refresh tokens with reuse detection — two concurrent
@@ -14,6 +17,7 @@
 import {
   getAccessToken,
   getRefreshToken,
+  getExpiresAt,
   setTokens,
   clearTokens,
 } from './tokenStorage'
@@ -66,6 +70,10 @@ async function parseBody(res) {
 }
 
 function toApiError(status, body) {
+  // The rate limiter answers with an empty body. Say what it means rather than "something went wrong".
+  if (status === 429)
+    return new ApiError({ status, message: 'The server is busy right now. Please try again in a moment.', raw: body })
+
   // ProblemDetails: { type, title, status, errors?: { field: [msgs] } }
   if (body && typeof body === 'object') {
     const fieldErrors = body.errors && typeof body.errors === 'object' ? body.errors : null
@@ -165,35 +173,83 @@ async function refreshAccessToken() {
   return refreshPromise
 }
 
+/** Refresh responses that mean the server rejected the session itself — the only ones that end it. */
+const SESSION_REJECTED = new Set([400, 401, 403])
+
+const isRejection = (err) => err instanceof ApiError && SESSION_REJECTED.has(err.status)
+
 /**
- * Make a request. With { auth: true } it attaches the Bearer token and, on a
- * 401, refreshes once and retries. A failed refresh clears the session and
- * notifies listeners.
+ * Refresh, ending the session only if the server rejected the refresh token. A refresh that failed for
+ * any other reason — no signal, a 429 from a venue's worth of phones, a 5xx mid-deploy — says nothing
+ * about the session: the tokens are kept and the error goes to the caller, who can simply try again.
+ * Signing people out for those took their rotated refresh token with them for nothing.
  */
-async function request(path, { method = 'GET', body, auth = false } = {}) {
-  if (!auth) return rawRequest(path, { method, body })
-
+async function refreshOrEnd() {
   try {
-    return await rawRequest(path, { method, body, token: getAccessToken() })
+    return await refreshAccessToken()
   } catch (err) {
-    if (!(err instanceof ApiError) || err.status !== 401) throw err
-    // Access token likely expired — refresh once and retry.
-    try {
-      const newAccess = await refreshAccessToken()
-      return await rawRequest(path, { method, body, token: newAccess })
-    } catch (refreshErr) {
-      // A refresh that never reached the server says nothing about the session.
-      // Now that a stalled request fails instead of hanging, treating that as
-      // expiry would sign people out for a tunnel or a dropped bar of signal —
-      // and take their rotated refresh token with it. Only the server rejecting
-      // the token ends a session; a network failure is just a network failure.
-      if (refreshErr instanceof ApiError && refreshErr.status === NO_RESPONSE) throw refreshErr
-
+    if (err instanceof SessionExpiredError || isRejection(err)) {
       clearTokens()
       notifySessionExpired()
       throw new SessionExpiredError()
     }
+    throw err
   }
+}
+
+// How long before expiry a request refreshes first. Waiting for the 401 instead costs a failed round
+// trip on every expiry — and if that 401 never comes back (a 429 instead), the old token is never replaced.
+const EXPIRY_MARGIN_MS = 60_000
+
+async function refreshIfExpiring() {
+  const expiresAt = Date.parse(getExpiresAt() ?? '')
+  if (!getRefreshToken() || Number.isNaN(expiresAt) || expiresAt - Date.now() > EXPIRY_MARGIN_MS) return
+  try {
+    await refreshOrEnd()
+  } catch (err) {
+    if (err instanceof SessionExpiredError) throw err
+    // Couldn't refresh just now: the current token may still have seconds left, so use it.
+  }
+}
+
+/**
+ * Refuse a path whose shape a route parameter could have changed. Pages put ids from the URL
+ * straight into API paths, and the router hands those ids over decoded — so a crafted link such as
+ * /dashboard/admin/checkpoints/..%2F..%2Fadmin%2Fusers%3F would otherwise make this user's browser
+ * send their token to a different endpoint than the page meant. One check here covers every page:
+ * dot segments (plain, percent-encoded, or with backslashes, which browsers treat as slashes), a
+ * fragment, or a query that carries a path. Real ids are GUIDs and real queries are
+ * encodeURIComponent'd, so neither ever trips it.
+ */
+export function assertSafePath(path) {
+  const queryAt = path.indexOf('?')
+  const pathname = queryAt === -1 ? path : path.slice(0, queryAt)
+  const query = queryAt === -1 ? '' : path.slice(queryAt + 1)
+  const dotSegment = pathname.split(/\/|\\/).some((segment) => /^(\.|%2e){1,2}$/i.test(segment))
+  if (dotSegment || path.includes('#') || pathname.includes('\\') || query.includes('?') || query.includes('/'))
+    throw new ApiError({ status: 400, message: 'That link isn’t valid. Go back and open it again.' })
+}
+
+/**
+ * Make a request. With { auth: true } it attaches the Bearer token, refreshes it first if it is
+ * about to expire and, on a 401, refreshes once and retries.
+ */
+async function request(path, { method = 'GET', body, auth = false } = {}) {
+  assertSafePath(path)
+  if (!auth) return rawRequest(path, { method, body })
+
+  await refreshIfExpiring()
+  try {
+    return await rawRequest(path, { method, body, token: getAccessToken() })
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401) throw err
+  }
+
+  // The access token was refused — refresh once, then retry outside the refresh's error handling: if
+  // the retried request fails, that is this request's error (a 403, a 404, a 500), not a sign the
+  // session is over. It used to be caught here and sign the person out.
+  const newAccess = await refreshOrEnd()
+  return rawRequest(path, { method, body, token: newAccess })
 }
 
 export const api = {
