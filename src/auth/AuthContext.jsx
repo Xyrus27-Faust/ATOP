@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, onSessionExpired } from '@/lib/apiClient'
+import { api, onSessionExpired, ApiError, SessionExpiredError } from '@/lib/apiClient'
 import { forgetPost } from '@/lib/checkin'
 import {
   getRefreshToken,
@@ -20,6 +20,8 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [status, setStatus] = useState('loading')
+  // True while restoring the session keeps failing for reasons that aren't the session's (see bootstrap).
+  const [reconnecting, setReconnecting] = useState(false)
   const navigate = useNavigate()
   const bootstrapped = useRef(false)
 
@@ -29,19 +31,35 @@ export function AuthProvider({ children }) {
     if (bootstrapped.current) return // guard StrictMode's double-invoke
     bootstrapped.current = true
 
+    // Worth another try: no signal, a busy server (429), or one mid-deploy (5xx). The session may be
+    // perfectly good — wiping it for those used to sign people out on a bad bar of venue Wi-Fi.
+    const transient = (err) =>
+      err instanceof ApiError && (err.status === 0 || err.status === 429 || err.status >= 500)
+
     async function bootstrap() {
       if (!getRefreshToken()) {
         setStatus('unauthenticated')
         return
       }
-      try {
-        const me = await api.get('/auth/me', { auth: true })
-        setUser(me)
-        setStatus('authenticated')
-      } catch {
-        clearTokens()
-        setUser(null)
-        setStatus('unauthenticated')
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const me = await api.get('/auth/me', { auth: true })
+          setUser(me)
+          setReconnecting(false)
+          setStatus('authenticated')
+          return
+        } catch (err) {
+          if (err instanceof SessionExpiredError || !transient(err) || !getRefreshToken()) {
+            clearTokens()
+            setUser(null)
+            setReconnecting(false)
+            setStatus('unauthenticated')
+            return
+          }
+          // Still 'loading': protected pages keep their spinner, now saying why. 2s, 4s, 8s… to 30s.
+          setReconnecting(true)
+          await new Promise((resolve) => setTimeout(resolve, Math.min(30_000, 2_000 * 2 ** attempt)))
+        }
       }
     }
     bootstrap()
@@ -117,6 +135,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     status,
+    reconnecting,
     login,
     googleSignIn,
     register,
