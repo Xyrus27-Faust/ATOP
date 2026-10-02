@@ -10,6 +10,7 @@ export const ROLE_LABELS = {
   '3PIC': 'Third-Party Independent Committee',
   Adjudicator: 'Adjudicator',
   RegionalRepresentative: 'Regional Representative',
+  Marshal: 'Marshal',
   Admin: 'Administrator',
 }
 
@@ -60,8 +61,24 @@ export const REGISTRATION_ADMIN_ROLES = ['Admin', 'Secretariat']
 export const canManageRegistrations = (roles = []) =>
   roles.some((r) => REGISTRATION_ADMIN_ROLES.includes(r))
 
+// Who may scan badges at a checkpoint (mirrors the backend's /marshal policy). Marshals are the
+// guards; Secretariat and Admin can stand in at a door without being granted a second role.
+export const CHECKIN_ROLES = ['Admin', 'Secretariat', 'Marshal']
+export const canScan = (roles = []) => roles.some((r) => CHECKIN_ROLES.includes(r))
+export const isMarshal = (roles = []) => roles.includes('Marshal')
+// A marshal with no back-office role belongs on the scanner. Applicant is deliberately ignored:
+// every self-registered account carries it, so a guard's account is [Applicant, Marshal] and would
+// otherwise never count as "only" a marshal.
+export const isPureMarshal = (roles = []) =>
+  isMarshal(roles) &&
+  !isReviewer(roles) &&
+  !isAssessor(roles) &&
+  !isAdjudicator(roles) &&
+  !isRegionalRep(roles) &&
+  !canManageRegistrations(roles)
+
 // Highest-privilege role wins for the badge shown in the shell.
-const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'RegionalRepresentative', 'Applicant']
+const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'RegionalRepresentative', 'Marshal', 'Applicant']
 
 export function primaryRole(roles = []) {
   for (const role of ROLE_PRECEDENCE) if (roles.includes(role)) return role
@@ -106,6 +123,11 @@ const TALLIES = { to: '/dashboard/admin/tallies', label: 'Tallies', icon: 'fa-ch
 // The representative's own page, and the admin's grant/appoint table behind it.
 const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map-location-dot' }
 const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
+// Convention check-in: the full-screen scanner (outside the dashboard, like scoring), and the
+// secretariat's one entry for the rest of it. The checkpoints page links on to the scanner and — for
+// admins — to the marshals list, so three jobs cost the sidebar one line.
+const SCAN = { to: '/scan', label: 'Scan Badges', icon: 'fa-qrcode' }
+const CHECK_IN = { to: '/dashboard/admin/checkpoints', label: 'Check-in', icon: 'fa-qrcode' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -120,10 +142,13 @@ export function navForRoles(roles = []) {
   const adjudicator = isAdjudicator(roles)
   const admin = isAdmin(roles)
   const regionalRep = isRegionalRep(roles)
+  const marshal = isMarshal(roles)
   // Default to the applicant view only for users with no back-office role.
-  const applicant = roles.includes('Applicant') || (!reviewer && !assessor && !adjudicator && !regionalRep)
+  const applicant = roles.includes('Applicant') || (!reviewer && !assessor && !adjudicator && !regionalRep && !marshal)
 
   const groups = []
+  // A guard's one job, first thing in the sidebar. The back office reaches the scanner from Check-in.
+  if (marshal) groups.push({ label: 'Check-in', items: [SCAN] })
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
   // Anyone with an account may register for the convention — attending isn't tied to a role,
   // so this sits in its own section rather than under any one of them.
@@ -136,11 +161,11 @@ export function navForRoles(roles = []) {
   if (regionalRep) groups.push({ label: 'Regional', items: [MY_REGION] })
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, ALLOCATIONS] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, CHECK_IN, ALLOCATIONS] })
   } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list — and the tallies
     // taken off it, which is the secretariat's job rather than the admin's.
-    groups.push({ label: 'Administration', items: [REGISTRATIONS, TALLIES] })
+    groups.push({ label: 'Administration', items: [REGISTRATIONS, TALLIES, CHECK_IN] })
   }
   groups.push({ label: null, items: [AWARDS, PROFILE] })
   return groups
@@ -159,6 +184,7 @@ export function roleHome(roles = []) {
   if (isPureAssessor(roles)) return '/dashboard/scoring'
   if (isPureAdjudicator(roles)) return '/dashboard/finals'
   if (isPureRegionalRep(roles)) return '/dashboard/regional'
+  if (isPureMarshal(roles)) return '/scan'
   return '/dashboard'
 }
 

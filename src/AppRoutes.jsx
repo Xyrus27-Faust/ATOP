@@ -20,6 +20,7 @@ import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
 import SummaryPage from './dashboard/pages/SummaryPage'
 import ReviewerAdminPage from './dashboard/pages/ReviewerAdminPage'
 import AdminAccessPage from './dashboard/pages/AdminAccessPage'
+import MarshalAdminPage from './dashboard/pages/MarshalAdminPage'
 import ScoringQueuePage from './dashboard/pages/ScoringQueuePage'
 import ScoringEntryPage from './dashboard/pages/ScoringEntryPage'
 import AssessorAdminPage from './dashboard/pages/AssessorAdminPage'
@@ -38,6 +39,11 @@ import AdminTalliesPage from './dashboard/pages/AdminTalliesPage'
 import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDetailPage'
 import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
+import MarshalRoute from './auth/MarshalRoute'
+import ScanPage from './dashboard/pages/ScanPage'
+import CheckpointsPage from './dashboard/pages/CheckpointsPage'
+import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
+import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -58,6 +64,12 @@ export default function AppRoutes() {
         {/* Ranking a bracket's finalists is likewise a focused, full-screen task — the adjudicator
             orders the whole field in one sitting, so it gets its own shell. Role-gated in-page. */}
         <Route path="/finals/:categoryNumber/:bracket" element={<FinalsBracketPage />} />
+
+        {/* The marshal's badge scanner is a phone-first, full-screen tool — no dashboard chrome
+            between the guard and the camera. Marshals, Secretariat and Admin. */}
+        <Route element={<MarshalRoute />}>
+          <Route path="/scan" element={<ScanPage />} />
+        </Route>
 
         {/* The submission flow lives outside the dashboard in a focused shell —
             composing an entry is an application, not a dashboard page. It's
@@ -106,6 +118,9 @@ export default function AppRoutes() {
             <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
             <Route path="admin/tallies" element={<AdminTalliesPage />} />
             <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
+            <Route path="admin/checkpoints" element={<CheckpointsPage />} />
+            <Route path="admin/checkpoints/new" element={<NewCheckpointPage />} />
+            <Route path="admin/checkpoints/:id" element={<CheckpointDetailPage />} />
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
@@ -115,6 +130,8 @@ export default function AppRoutes() {
             <Route path="admin/finals" element={<FinalsResultsPage />} />
             <Route path="admin/finalists" element={<FinalistRosterPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
+            {/* Under checkpoints so the sidebar's one Check-in link stays lit on it. */}
+            <Route path="admin/checkpoints/marshals" element={<MarshalAdminPage />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />

@@ -10,6 +10,7 @@ import SeatPassModal from '../components/SeatPassModal'
 import ConventionExtras from '../components/ConventionExtras'
 import MealsCard from '../components/MealsCard'
 import IdPhotoCard from '../components/IdPhotoCard'
+import AttendanceCard from '../components/checkin/AttendanceCard'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -316,6 +317,14 @@ export default function RegistrationDetailPage() {
               </p>
             )}
           </div>
+
+          {/* ---- Attendance ---- */}
+          {/* Straight under the delegates: during the convention it is the first thing a booker
+              wants — who is in. Renders nothing until the first day, so it isn't there for weeks
+              saying "not yet". Draft bookings have no passes, so they never ask. A cancelled booking
+              still asks: scans from before the cancellation are the booker's proof of attendance,
+              and with none the card renders nothing. */}
+          {reg.status !== 'Draft' && <AttendanceCard registrationId={reg.id} />}
 
           {/* ---- Tours & kit ---- */}
           {/* Sits under the delegates rather than in the sidebar: it is a per-person checklist, and
