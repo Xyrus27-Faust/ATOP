@@ -31,6 +31,27 @@ export const SEARCH_MIN_CHARS = 3
 const POST_GONE = new Set(['checkpoint_inactive', 'not_today'])
 export const isPostGone = (reasonCode) => POST_GONE.has(reasonCode)
 
+// The guard's phone remembers where they are posted, so a locked screen or a closed tab resumes the
+// shift instead of asking again. Per device, which is right: it's the phone at the lunch line — and
+// forgotten on sign-out, so the next guard handed the phone doesn't start on someone else's post.
+const POST_KEY = 'atop.scan.checkpoint'
+
+export function readPost() {
+  try { return localStorage.getItem(POST_KEY) } catch { return null }
+}
+export function writePost(id) {
+  try {
+    if (id) localStorage.setItem(POST_KEY, id)
+    else localStorage.removeItem(POST_KEY)
+  } catch { /* private mode: the guard just picks again next time */ }
+}
+export const forgetPost = () => writePost(null)
+
+// What a delegate's QR holds: their reference code, e.g. "DLG26-07DB6" (DelegateFactory on the API).
+// Anything else the camera reads — a restaurant menu, a Wi-Fi sticker — is not sent to the server.
+const BADGE_CODE = /^DLG\d{2}-[0-9A-Z]{5}$/
+export const isBadgeCode = (text) => BADGE_CODE.test(text.trim().toUpperCase())
+
 // ---- Booker ----------------------------------------------------------------
 
 // Their own delegates' scans: times only — no marshal names, no voided scans.
@@ -112,6 +133,8 @@ const DENIED_HEADLINE = {
   no_pass: { entry: 'No pass yet', meal: 'No pass yet' },
   checkpoint_inactive: { entry: 'Checkpoint closed', meal: 'Checkpoint closed' },
   not_today: { entry: 'Not today’s checkpoint', meal: 'Not today’s checkpoint' },
+  no_show: { entry: 'Marked no-show', meal: 'Marked no-show' },
+  confirm_required: { entry: 'Check the face first', meal: 'Check the face first' },
 }
 
 export function resultHeadline(response, kind) {

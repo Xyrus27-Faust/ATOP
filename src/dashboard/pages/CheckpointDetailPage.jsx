@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getCheckpointScans, updateCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, REASON_MAX } from '@/lib/checkin'
+import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 
@@ -18,6 +19,7 @@ const fold = (text) => (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g,
  */
 export default function CheckpointDetailPage() {
   const { id } = useParams()
+  const { user } = useAuth()
   const { loading, error, data, reload } = useAsync(() => getCheckpointScans(id), [id])
   const [toggling, setToggling] = useState(false)
   const [toggleError, setToggleError] = useState(null)
@@ -151,7 +153,8 @@ export default function CheckpointDetailPage() {
         </>
       )}
       </div>
-      <PrintSheet checkpoint={c} scans={shown} total={scans.length} query={q.trim()} />
+      <PrintSheet checkpoint={c} scans={shown} total={scans.length} query={q.trim()}
+        printedBy={user?.fullName || user?.email} />
       <style>{CKD_CSS}</style>
     </>
   )
@@ -162,7 +165,7 @@ export default function CheckpointDetailPage() {
  * on paper the question is "who from where", and a secretariat ticking off a delegation reads down
  * one LGU at a time. Voided scans are left off — they don't count, and the screen keeps their trail.
  */
-function PrintSheet({ checkpoint: c, scans, total, query }) {
+function PrintSheet({ checkpoint: c, scans, total, query, printedBy }) {
   const rows = [...scans].sort((a, b) =>
     (a.lgu || '\uffff').localeCompare(b.lgu || '\uffff') || a.fullName.localeCompare(b.fullName))
   const printedAt = new Date().toLocaleString('en-PH', {
@@ -178,7 +181,7 @@ function PrintSheet({ checkpoint: c, scans, total, query }) {
           {c.kind === 'Meal' ? 'claimed' : 'entered'}
         </p>
         {query && <p>Showing {scans.length} of {total} matching &ldquo;{query}&rdquo;</p>}
-        <p className="ckd-print-stamp">Printed {printedAt} (Manila)</p>
+        <p className="ckd-print-stamp">Printed {printedAt} (Manila){printedBy && <> by {printedBy}</>}</p>
       </header>
       <table>
         <thead>
@@ -196,6 +199,11 @@ function PrintSheet({ checkpoint: c, scans, total, query }) {
           ))}
         </tbody>
       </table>
+      {/* The list names people, so the paper says what it is and who made it. */}
+      <footer className="ckd-print-foot">
+        Confidential — ATOP Secretariat. Personal data under the Data Privacy Act; do not share or leave unattended.
+        {printedBy && <> Printed by {printedBy}.</>}
+      </footer>
     </section>
   )
 }
@@ -310,6 +318,7 @@ const CKD_CSS = `
     .ckd-print-head h1 { font-family: var(--font-heading); font-size: 18pt; font-weight: 800; margin: 0 0 4px; }
     .ckd-print-head p { font-size: 10pt; margin: 2px 0; }
     .ckd-print-stamp { color: #555; }
+    .ckd-print-foot { margin-top: 10px; padding-top: 4px; border-top: 1px solid #999; font-size: 8pt; color: #333; }
     .ckd-print table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
     .ckd-print th, .ckd-print td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; vertical-align: top; }
     .ckd-print th { background: #eee; }
