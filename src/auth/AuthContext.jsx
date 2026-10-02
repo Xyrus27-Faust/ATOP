@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, onSessionExpired } from '@/lib/apiClient'
+import { forgetPost } from '@/lib/checkin'
 import {
   getRefreshToken,
   setTokens,
@@ -50,6 +51,7 @@ export function AuthProvider({ children }) {
   useEffect(
     () =>
       onSessionExpired(() => {
+        forgetPost()
         setUser(null)
         setStatus('unauthenticated')
         navigate('/login', { replace: true })
@@ -105,6 +107,7 @@ export function AuthProvider({ children }) {
       // best-effort; clear locally regardless
     } finally {
       clearTokens()
+      forgetPost()
       setUser(null)
       setStatus('unauthenticated')
       navigate('/', { replace: true })
