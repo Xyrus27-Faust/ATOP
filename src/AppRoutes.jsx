@@ -27,6 +27,7 @@ import ScoringResultsPage from './dashboard/pages/ScoringResultsPage'
 import FinalsQueuePage from './dashboard/pages/FinalsQueuePage'
 import FinalsBracketPage from './dashboard/pages/FinalsBracketPage'
 import AdjudicatorAdminPage from './dashboard/pages/AdjudicatorAdminPage'
+import RegistrationAdminsPage from './dashboard/pages/RegistrationAdminsPage'
 import FinalsResultsPage from './dashboard/pages/FinalsResultsPage'
 import FinalistRosterPage from './dashboard/pages/FinalistRosterPage'
 import ConventionPage from './dashboard/pages/ConventionPage'
@@ -116,6 +117,7 @@ export default function AppRoutes() {
             <Route path="admin/finalists" element={<FinalistRosterPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
+            <Route path="admin/registration-admins" element={<RegistrationAdminsPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />
         </Route>
