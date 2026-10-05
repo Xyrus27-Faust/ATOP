@@ -35,7 +35,11 @@ export default function AttendanceCard({ registrationId }) {
   if (days.length === 0) return null
 
   const day = days.includes(picked) ? picked : days[days.length - 1]
-  const checkpoints = data.checkpoints.filter((c) => c.day === day)
+  const today = data.checkpoints.filter((c) => c.day === day)
+  // Every bus is a checkpoint, but each delegate rides one: the buses fold into a single Tour chip,
+  // rather than every delegate showing every other bus as missed.
+  const checkpoints = today.filter((c) => c.kind !== 'Tour')
+  const busIds = new Set(today.filter((c) => c.kind === 'Tour').map((c) => c.id))
   const entryIds = new Set(checkpoints.filter((c) => c.kind === 'Entry').map((c) => c.id))
   const entered = data.delegates.filter((d) => d.marks.some((m) => entryIds.has(m.checkpointId))).length
 
@@ -78,6 +82,7 @@ export default function AttendanceCard({ registrationId }) {
       <ul className="ac-rows">
         {data.delegates.map((d) => {
           const at = Object.fromEntries(d.marks.map((m) => [m.checkpointId, m.scannedAt]))
+          const boarded = d.marks.find((m) => busIds.has(m.checkpointId))?.scannedAt
           return (
             <li key={d.id} className="ac-row">
               <span className="ac-name">{d.fullName}</span>
@@ -94,6 +99,15 @@ export default function AttendanceCard({ registrationId }) {
                     </span>
                   )
                 })}
+                {busIds.size > 0 && (
+                  <span className={`ac-mark${boarded ? ' is-done' : ''}`}>
+                    <i className={`fas ${boarded ? 'fa-check' : kindMeta('Tour').icon}`} aria-hidden="true" />
+                    Tour
+                    {boarded
+                      ? <span className="ac-time">{formatVenueTime(boarded)}</span>
+                      : <span className="sr-only"> — not boarded</span>}
+                  </span>
+                )}
               </span>
             </li>
           )

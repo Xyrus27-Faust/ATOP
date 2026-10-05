@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getCheckpointScans, updateCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, REASON_MAX } from '@/lib/checkin'
+import { getCheckpointScans, updateCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, REASON_MAX } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -64,7 +64,7 @@ export default function CheckpointDetailPage() {
 
       <section className="dash-card dash-card-pad ckd-summary">
         <div className="ckd-count">
-          <span><b>{c.scanCount}</b> / {c.expected} {c.kind === 'Meal' ? 'claimed' : 'entered'}</span>
+          <span><b>{c.scanCount}</b> / {c.expected} {tallyVerb(c.kind)}</span>
           <span className="ckd-pct">{pct}%</span>
         </div>
         <div className="dash-meter" aria-hidden="true">
@@ -178,7 +178,7 @@ function PrintSheet({ checkpoint: c, scans, total, query, printedBy }) {
         <h1>{c.label}</h1>
         <p>
           {kindMeta(c.kind).label} · {formatDay(c.day)} · <b>{c.scanCount}</b> of {c.expected}{' '}
-          {c.kind === 'Meal' ? 'claimed' : 'entered'}
+          {tallyVerb(c.kind)}
         </p>
         {query && <p>Showing {scans.length} of {total} matching &ldquo;{query}&rdquo;</p>}
         <p className="ckd-print-stamp">Printed {printedAt} (Manila){printedBy && <> by {printedBy}</>}</p>

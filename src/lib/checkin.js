@@ -1,8 +1,9 @@
 import { api } from './apiClient'
 
-// Convention check-in: the marshal's scanner and the secretariat's checkpoint set-up. Mirrors the
-// backend's CheckInEndpoints. A checkpoint is one door or one meal on one day — every scan is made
-// against one, which is how the same QR can let someone in, then feed them lunch, then dinner.
+// Convention check-in: the Secretariat desk, the marshal's scanner and the secretariat's checkpoint
+// set-up. Mirrors the backend's DeskEndpoints and CheckInEndpoints. Everyone passes the desk first;
+// after that a checkpoint is one session, one meal or one tour bus on one day — every scan is made
+// against one, which is how the same QR can let someone in, then feed them lunch, then board a bus.
 
 // ---- Marshal ---------------------------------------------------------------
 
@@ -30,6 +31,23 @@ export const SEARCH_MIN_CHARS = 3
 // one sends the guard back to the picker rather than refusing badge after badge.
 const POST_GONE = new Set(['checkpoint_inactive', 'not_today'])
 export const isPostGone = (reasonCode) => POST_GONE.has(reasonCode)
+
+// Why the camera won't open, in words for whoever is holding the phone. Every case falls back to
+// a search by name, which needs no camera.
+export const CAMERA_TROUBLE = {
+  denied: {
+    title: 'Camera blocked',
+    body: 'Allow the camera for this site in your browser settings, then try again. You can keep working by name meanwhile.',
+  },
+  'no-camera': {
+    title: 'No camera found',
+    body: 'This device has no camera the browser can use. Search by name instead.',
+  },
+  insecure: {
+    title: 'Camera unavailable here',
+    body: 'Browsers only open the camera on a secure (https) page. Search by name instead.',
+  },
+}
 
 // The guard's phone remembers where they are posted, so a locked screen or a closed tab resumes the
 // shift instead of asking again. Per device, which is right: it's the phone at the lunch line — and
@@ -71,6 +89,9 @@ export const getCheckpointScans = (id) => api.get(`/admin/checkpoints/${id}/scan
 
 export const voidScan = (scanId, reason) => api.post(`/admin/scans/${scanId}/void`, { reason }, { auth: true })
 
+// The tour batches a bus checkpoint can board. Public on the API (the posters are), so no auth.
+export const listTourPackages = (slug) => api.get(`/events/${slug}/tours`)
+
 // One tap for the usual names. Anything else — merienda, a sponsor's cocktails — is typed as usual.
 export const MEAL_NAMES = ['Breakfast', 'Lunch', 'Dinner']
 
@@ -79,19 +100,68 @@ export const LABEL_MAX = 80
 export const NOTE_MAX = 200
 export const REASON_MAX = 200
 
-// ---- Marshals (admin) ------------------------------------------------------
+// ---- Secretariat desk ------------------------------------------------------
 
-// Admin-only on the API. Guards don't request the role; an admin credits an existing account with it.
-export const listMarshals = () => api.get('/admin/users?role=Marshal', { auth: true })
+// A scan checks the delegate in (once — four desk phones may read the same badge) and returns their
+// card. Like a marshal's scan, a refusal is a 200 with result 'denied', not an error.
+export const deskScan = (code) => api.post('/desk/scan', { code }, { auth: true })
+
+export const deskSearch = (eventId, q) =>
+  api.get(`/desk/events/${eventId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
+
+// Read-only: the card behind a name-search row, before the Confirm tap checks them in. Someone the
+// desk would turn away answers 409 with a reasonCode.
+export const deskCard = (delegateId) => api.get(`/desk/delegates/${delegateId}`, { auth: true })
+
+const DESK_ACTION = { CheckIn: 'check-in', Payment: 'mark-paid', Id: 'release-id', Kit: 'release-kit' }
+
+/** Do the card's next step. Every step answers with the updated card, or 409 with a reasonCode. */
+export const deskStep = (delegateId, step) =>
+  api.post(`/desk/delegates/${delegateId}/${DESK_ACTION[step]}`, {}, { auth: true })
+
+/** Take back the last step. The step is named so a stale card can't undo something newer. */
+export const deskUndo = (delegateId, step, reason) =>
+  api.post(`/desk/delegates/${delegateId}/undo`, { step, reason }, { auth: true })
+
+// In the order they happen. The card's field for each, and what the button and the log call it.
+export const DESK_STEPS = [
+  { step: 'CheckIn', field: 'checkIn', label: 'Checked in', action: 'Check in', undo: 'check-in' },
+  { step: 'Payment', field: 'payment', label: 'Balance paid at the desk', action: 'Mark paid', undo: 'payment' },
+  { step: 'Id', field: 'idRelease', label: 'ID & receipt released', action: 'Release ID & receipt', undo: 'ID & receipt release' },
+  { step: 'Kit', field: 'kit', label: 'Kit released', action: 'Release kit', undo: 'kit release' },
+]
+
+/** The most recent step done on a card — the only one that can be undone — or null. */
+export function lastDeskStep(card) {
+  for (let i = DESK_STEPS.length - 1; i >= 0; i--) if (card[DESK_STEPS[i].field]) return DESK_STEPS[i]
+  return null
+}
+
+// What the desk says when it turns someone away. The API's sentence follows underneath.
+export const DESK_REFUSAL = {
+  unknown_code: 'Code not recognised',
+  cancelled: 'Cancelled',
+  no_show: 'Marked no-show',
+  online: 'Online attendee',
+  no_pass: 'Nothing paid yet',
+}
+
+// ---- Convention staff (admin) ----------------------------------------------
+
+// Admin-only on the API. Nobody requests these roles; an admin credits an existing account with
+// Marshal (the scanner) or Secretariat (the desk and the registration list) from the Check-in page.
+export const listStaff = (role) => api.get(`/admin/users?role=${encodeURIComponent(role)}`, { auth: true })
 export const searchUsers = (q) => api.get(`/admin/users?q=${encodeURIComponent(q)}`, { auth: true })
-export const grantMarshal = (userId) => api.post(`/admin/users/${userId}/roles`, { role: 'Marshal' }, { auth: true })
-export const revokeMarshal = (userId) => api.delete(`/admin/users/${userId}/roles/Marshal`, { auth: true })
+export const grantStaffRole = (userId, role) => api.post(`/admin/users/${userId}/roles`, { role }, { auth: true })
+export const revokeStaffRole = (userId, role) =>
+  api.delete(`/admin/users/${userId}/roles/${encodeURIComponent(role)}`, { auth: true })
 
 // ---- Vocabulary ------------------------------------------------------------
 
 export const CHECKPOINT_KIND = {
-  Entry: { label: 'Entry', icon: 'fa-door-open', blurb: 'The door. Someone coming back in the same day is welcomed back, not refused.' },
+  Entry: { label: 'Session', icon: 'fa-door-open', blurb: 'A door or a session — e.g. “Oct 21 AM” or “Pearl Awards”. Someone coming back in is welcomed back, not refused.' },
   Meal: { label: 'Meal', icon: 'fa-utensils', blurb: 'One plate per delegate. A second scan of the same badge is refused.' },
+  Tour: { label: 'Tour', icon: 'fa-bus', blurb: 'One bus — a tour batch. Only the delegates booked on it board; anyone else is told which bus is theirs.' },
 }
 
 export const kindMeta = (kind) => CHECKPOINT_KIND[kind] || { label: kind, icon: 'fa-location-dot', blurb: '' }
@@ -116,31 +186,41 @@ export function progressPct(scanCount, expected) {
   return expected > 0 ? Math.min(100, Math.round((scanCount / expected) * 100)) : 0
 }
 
+/** What a scan at this kind of checkpoint counts as: "12 of 300 entered / claimed / boarded". */
+export const tallyVerb = (kind) => ({ Meal: 'claimed', Tour: 'boarded' }[kind] || 'entered')
+
 // What the guard sees at the top of the result sheet. Colour carries the verdict; the words say it
 // again for anyone who can't tell green from amber in the sun.
 export const RESULT = {
-  ok: { tone: 'ok', icon: 'fa-circle-check', entry: 'Checked in', meal: 'Meal claimed' },
-  warn: { tone: 'warn', icon: 'fa-triangle-exclamation', entry: 'Let in — balance due', meal: 'Meal claimed — balance due' },
-  denied: { tone: 'bad', icon: 'fa-circle-xmark', entry: 'Not let in', meal: 'Not served' },
+  ok: { tone: 'ok', icon: 'fa-circle-check', entry: 'Let in', meal: 'Meal claimed', tour: 'Boarded' },
+  warn: { tone: 'warn', icon: 'fa-triangle-exclamation', entry: 'Let in — balance due', meal: 'Meal claimed — balance due', tour: 'Boarded — balance due' },
+  denied: { tone: 'bad', icon: 'fa-circle-xmark', entry: 'Not let in', meal: 'Not served', tour: 'Not boarded' },
 }
 
-// A shorter headline for the refusals a guard meets most, so the big line says what happened.
+// A shorter headline for the refusals a guard meets most, so the big line says what happened. A
+// plain string reads the same at every kind of checkpoint.
 const DENIED_HEADLINE = {
-  already_scanned: { entry: 'Already entered', meal: 'Already claimed' },
-  unknown_code: { entry: 'Code not recognised', meal: 'Code not recognised' },
-  cancelled: { entry: 'Cancelled', meal: 'Cancelled' },
-  online: { entry: 'Online attendee', meal: 'Online attendee' },
-  no_pass: { entry: 'No pass yet', meal: 'No pass yet' },
-  checkpoint_inactive: { entry: 'Checkpoint closed', meal: 'Checkpoint closed' },
-  not_today: { entry: 'Not today’s checkpoint', meal: 'Not today’s checkpoint' },
-  no_show: { entry: 'Marked no-show', meal: 'Marked no-show' },
-  confirm_required: { entry: 'Check the face first', meal: 'Check the face first' },
+  already_scanned: { entry: 'Already entered', meal: 'Already claimed', tour: 'Already boarded' },
+  unknown_code: 'Code not recognised',
+  cancelled: 'Cancelled',
+  online: 'Online attendee',
+  no_pass: 'No pass yet',
+  not_checked_in: 'Secretariat desk first',
+  no_tour: 'Not on a tour',
+  wrong_tour: 'Wrong bus',
+  checkpoint_inactive: 'Checkpoint closed',
+  not_today: 'Not today’s checkpoint',
+  no_show: 'Marked no-show',
+  confirm_required: 'Check the face first',
 }
 
 export function resultHeadline(response, kind) {
-  const which = kind === 'Meal' ? 'meal' : 'entry'
+  const which = kind === 'Meal' ? 'meal' : kind === 'Tour' ? 'tour' : 'entry'
   if (response.reasonCode === 'reentry') return 'Welcome back'
-  if (response.result === 'denied') return DENIED_HEADLINE[response.reasonCode]?.[which] || RESULT.denied[which]
+  if (response.result === 'denied') {
+    const line = DENIED_HEADLINE[response.reasonCode]
+    return (typeof line === 'string' ? line : line?.[which]) || RESULT.denied[which]
+  }
   return (RESULT[response.result] || RESULT.denied)[which]
 }
 

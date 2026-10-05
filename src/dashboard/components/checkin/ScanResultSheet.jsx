@@ -57,6 +57,13 @@ export default function ScanResultSheet({ response, kind, onNext }) {
         </div>
       )}
 
+      {/* At a bus: theirs when they board, and the right one when this isn't it. */}
+      {person?.tour && (
+        <p className="srs-tour">
+          <i className="fas fa-bus" aria-hidden="true" /> {person.tour}
+        </p>
+      )}
+
       {diet && <DietStrip diet={diet} />}
 
       {(response.reasonCode === 'already_scanned' || response.reasonCode === 'reentry') && response.scannedAt && (
@@ -136,6 +143,12 @@ const SRS_CSS = `
   .srs-diet.is-allergy .srs-diet-head { color: var(--bad); }
   .srs-diet-tags { margin-top: 6px; font-family: var(--font-heading); font-weight: 700; font-size: 1.05rem; color: var(--navy); }
   .srs-diet-note { margin-top: 4px; font-family: var(--font-body); font-size: 1rem; line-height: 1.4; color: var(--gray-800); overflow-wrap: anywhere; }
+
+  .srs-tour {
+    margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--gray-100);
+    font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem; color: var(--navy); overflow-wrap: anywhere;
+  }
+  .srs-tour i { color: var(--gold-dark); margin-right: 6px; }
 
   .srs-when {
     margin-top: 12px; font-family: var(--font-heading); font-weight: 700; font-size: 1rem; color: var(--navy);

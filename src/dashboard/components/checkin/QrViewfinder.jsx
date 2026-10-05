@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 // The same badge held in front of the camera decodes several times a second. Once a code has been
 // handled, the same code is ignored for this long after the guard is ready again — otherwise
-// dismissing "Checked in" would instantly re-scan the badge still in frame and show "Already entered".
+// dismissing "Let in" would instantly re-scan the badge still in frame and show "Already entered".
 const SAME_CODE_COOLDOWN_MS = 3000
 
 /**

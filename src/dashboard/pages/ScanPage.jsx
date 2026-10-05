@@ -1,38 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/lib/apiClient'
 import {
   listMarshalCheckpoints, scanCode, formatDay, kindMeta, isPostGone, progressPct, readPost, writePost, isBadgeCode,
+  tallyVerb, CAMERA_TROUBLE,
 } from '@/lib/checkin'
 import { useAsync } from '../useAsync'
+import { useIdleSignOut } from '../useIdleSignOut'
 import { Loading, ErrorState } from '../components/states'
 import CheckpointPicker from '../components/checkin/CheckpointPicker'
 import QrViewfinder from '../components/checkin/QrViewfinder'
 import ScanResultSheet from '../components/checkin/ScanResultSheet'
 import ManualSearch from '../components/checkin/ManualSearch'
 import { DASH_CSS } from '../DashboardLayout'
-
-// A phone left on a table signs itself out. 30 minutes idle is the NIST 800-63B / OWASP ASVS L2
-// figure for a session that can see personal data; signing out also revokes the session on the
-// server, so a token copied off the phone dies with it. A scan, a tap or a keypress is activity.
-const IDLE_SIGN_OUT_MS = 30 * 60 * 1000
-const ACTIVITY = ['pointerdown', 'keydown']
-
-const CAMERA_TROUBLE = {
-  denied: {
-    title: 'Camera blocked',
-    body: 'Allow the camera for this site in your browser settings, then try again. You can keep working by name meanwhile.',
-  },
-  'no-camera': {
-    title: 'No camera found',
-    body: 'This device has no camera the browser can use. Search by name instead.',
-  },
-  insecure: {
-    title: 'Camera unavailable here',
-    body: 'Browsers only open the camera on a secure (https) page. Search by name instead.',
-  },
-}
 
 /**
  * The marshal's scanner: a full-screen page (no dashboard chrome) built for one hand and bright sun.
@@ -44,7 +24,7 @@ const CAMERA_TROUBLE = {
  */
 export default function ScanPage() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { signOut, touch } = useIdleSignOut()
   const { loading, error, data: checkpoints, reload } = useAsync(listMarshalCheckpoints, [])
 
   const [postId, setPostId] = useState(readPost)
@@ -90,12 +70,10 @@ export default function ScanPage() {
 
   const offered = gone && gone.list === checkpoints ? checkpoints.filter((c) => c.id !== gone.id) : checkpoints
 
-  // When the guard last did anything — a tap, a key, or a badge read by the camera (which touches nothing).
-  const lastActivity = useRef(0)
-
   const handleCode = useCallback(async (code) => {
     if (!checkpoint) return
-    lastActivity.current = Date.now()
+    // A badge read by the camera is activity too, though nothing was touched.
+    touch()
     if (!isBadgeCode(code)) {
       // Never sent: the camera read some other QR. The sheet pauses the camera until Next scan.
       setResult({ result: 'error', reason: 'That isn’t an ATOP badge. Scan the QR on their pass, or search by name.' })
@@ -113,7 +91,7 @@ export default function ScanPage() {
       setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkpoint, show])
+  }, [checkpoint, show, touch])
 
   // A checkpoint the secretariat closed mid-shift, or a phone left on yesterday's overnight: the
   // server refuses it, and the next tap goes straight back to the picker, which lists neither.
@@ -124,30 +102,6 @@ export default function ScanPage() {
     setBusy(false)
     setMode('scan')
   }, [])
-
-  const signOut = useCallback(async () => {
-    await logout()
-    navigate('/login', { replace: true })
-  }, [logout, navigate])
-
-  // Idle sign-out. Time is checked against the last activity rather than with a single timer: a
-  // phone in a pocket throttles timers, and coming back to the screen must not count as activity.
-  useEffect(() => {
-    const touch = () => { lastActivity.current = Date.now() }
-    touch()
-    const check = () => {
-      if (Date.now() - lastActivity.current >= IDLE_SIGN_OUT_MS) signOut()
-    }
-    const onVisibility = () => { if (document.visibilityState === 'visible') check() }
-    ACTIVITY.forEach((e) => window.addEventListener(e, touch, { passive: true }))
-    document.addEventListener('visibilitychange', onVisibility)
-    const timer = setInterval(check, 30_000)
-    return () => {
-      ACTIVITY.forEach((e) => window.removeEventListener(e, touch))
-      document.removeEventListener('visibilitychange', onVisibility)
-      clearInterval(timer)
-    }
-  }, [signOut])
 
   let body
   if (loading && !checkpoints) body = <Loading />
@@ -185,7 +139,7 @@ export default function ScanPage() {
         </p>
         <div className="scn-tally">
           <p className="scn-count">
-            <strong>{count}</strong> of {checkpoint.expected} {checkpoint.kind === 'Meal' ? 'claimed' : 'entered'} here
+            <strong>{count}</strong> of {checkpoint.expected} {tallyVerb(checkpoint.kind)} here
           </p>
           <div className="dash-meter scn-meter" aria-hidden="true">
             <div className={`dash-meter-fill${pct >= 100 ? ' is-complete' : ''}`} style={{ width: `${pct}%` }} />

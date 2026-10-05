@@ -1,20 +1,87 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAuth } from '@/auth/AuthContext'
 import { isAdmin } from '../dashboardNav'
 import { listCheckpoints, groupByDay, formatDayHeader, kindMeta, stateMeta, progressPct } from '@/lib/checkin'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
+import StaffRoster from '../components/checkin/StaffRoster'
+
+// The page's tabs. Staff tabs are an admin's: the secretariat runs the doors but doesn't hand out roles.
+const TABS = [
+  { key: 'checkpoints', label: 'Checkpoints', icon: 'fa-door-open' },
+  { key: 'marshals', label: 'Marshals', icon: 'fa-qrcode', role: 'Marshal', adminOnly: true },
+  { key: 'secretariat', label: 'Secretariat', icon: 'fa-id-card', role: 'Secretariat', adminOnly: true },
+]
 
 /**
- * The doors and meal lines the marshals scan against, and how far each has got.
+ * Convention check-in in one place: the checkpoints the marshals scan against and how far each has
+ * got, and — for admins — who may scan (Marshals) and who works the desk (Secretariat).
+ *
+ * <p>The tab lives in the URL (?tab=marshals), so a refresh or a shared link opens the same one.</p>
+ */
+export default function CheckpointsPage() {
+  const { user } = useAuth()
+  const admin = isAdmin(user?.roles)
+  const [params, setParams] = useSearchParams()
+  const tabs = TABS.filter((t) => admin || !t.adminOnly)
+  const tab = tabs.find((t) => t.key === params.get('tab')) || tabs[0]
+  const pick = (key) => setParams(key === 'checkpoints' ? {} : { tab: key }, { replace: true })
+
+  return (
+    <>
+      <div className="dash-page-head">
+        <div>
+          <span className="dash-eyebrow">Convention</span>
+          <h1 className="dash-h1">Check-in</h1>
+          <p className="dash-sub">
+            One checkpoint per session, meal and tour bus, per day. Marshals pick one on their phone and
+            scan badges against it — the same QR lets a delegate in, claims each meal once and boards their
+            own bus. Nobody gets through any of them before the Secretariat desk has checked them in.
+          </p>
+        </div>
+        <div className="ckp-actions">
+          <Link className="dash-btn" to="/desk">
+            <i className="fas fa-id-card" aria-hidden="true" /> Open desk
+          </Link>
+          <Link className="dash-btn" to="/scan">
+            <i className="fas fa-qrcode" aria-hidden="true" /> Open scanner
+          </Link>
+        </div>
+      </div>
+
+      {tabs.length > 1 && (
+        <nav className="dash-tabs ckp-tabs" role="tablist" aria-label="Check-in">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={t.key === tab.key}
+              className={`dash-tab${t.key === tab.key ? ' active' : ''}`}
+              onClick={() => pick(t.key)}
+            >
+              <i className={`fas ${t.icon}`} aria-hidden="true" /> {t.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {/* Keyed by tab so switching between the two staff lists starts each one fresh. */}
+      {tab.role ? <StaffRoster key={tab.key} role={tab.role} /> : <CheckpointList />}
+      <style>{CKP_CSS}</style>
+    </>
+  )
+}
+
+/**
+ * The doors, meal lines and buses, and how far each has got.
  *
  * <p>The count reads against "expected": in-person delegates on a confirmed booking whose seat has a
  * pass. That is the number who <em>could</em> walk up — a delegate still in a draft booking can't,
  * so counting them would make every meal look half-empty.</p>
  */
-export default function CheckpointsPage() {
-  const { user } = useAuth()
+function CheckpointList() {
   const { loading, error, data, reload } = useAsync(async () => {
     const events = await api.get('/events/')
     const event = events[0]
@@ -38,39 +105,21 @@ export default function CheckpointsPage() {
 
   return (
     <>
-      <div className="dash-page-head">
-        <div>
-          <span className="dash-eyebrow">{event.name}</span>
-          <h1 className="dash-h1">Checkpoints</h1>
-          <p className="dash-sub">
-            One per door and per meal, per day. Marshals pick one on their phone and scan badges
-            against it — the same QR lets a delegate in and claims each meal once.
-          </p>
-        </div>
-        <div className="ckp-actions">
-          <button className="dash-btn is-ghost" onClick={reload}>
-            <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
-          </button>
-          <Link className="dash-btn" to="/scan">
-            <i className="fas fa-qrcode" aria-hidden="true" /> Open scanner
-          </Link>
-          {/* Granting a role is an admin's call; the secretariat runs the doors but doesn't hand out roles. */}
-          {isAdmin(user?.roles) && (
-            <Link className="dash-btn" to="/dashboard/admin/checkpoints/marshals">
-              <i className="fas fa-user-lock" aria-hidden="true" /> Marshals
-            </Link>
-          )}
-          <Link className="dash-btn is-primary" to="/dashboard/admin/checkpoints/new">
-            <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
-          </Link>
-        </div>
+      <div className="ckp-bar">
+        <span className="ckp-event">{event.name}</span>
+        <button className="dash-btn is-ghost is-sm" onClick={reload}>
+          <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
+        </button>
+        <Link className="dash-btn is-primary is-sm" to="/dashboard/admin/checkpoints/new">
+          <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
+        </Link>
       </div>
 
       {checkpoints.length === 0 ? (
         <div className="dash-card dash-empty">
           <div className="dash-empty-icon"><i className="fas fa-door-open" aria-hidden="true" /></div>
           <h3>No checkpoints yet</h3>
-          <p>Add each day&rsquo;s entry and meals. Marshals see only the open ones.</p>
+          <p>Add each day&rsquo;s sessions, meals and tour buses. Marshals see only the open ones.</p>
           <Link className="dash-btn is-primary" to="/dashboard/admin/checkpoints/new">
             <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
           </Link>
@@ -85,7 +134,6 @@ export default function CheckpointsPage() {
           </section>
         ))
       )}
-      <style>{CKP_CSS}</style>
     </>
   )
 }
@@ -118,6 +166,11 @@ function CheckpointCard({ checkpoint: c }) {
 const CKP_CSS = `
   .ckp-actions { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
   .ckp-actions .dash-btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+  .ckp-tabs { margin-bottom: 4px; }
+  .ckp-tabs .dash-tab { min-height: 44px; }
+  .ckp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 18px; }
+  .ckp-bar .dash-btn { min-height: 40px; }
+  .ckp-event { flex: 1 1 100%; font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
   .ckp-day { margin-bottom: 26px; }
   .ckp-day-head {
     font-family: var(--font-heading); font-weight: 800; font-size: 0.74rem; letter-spacing: 0.12em;
@@ -142,6 +195,7 @@ const CKP_CSS = `
   .ckp-pct { font-family: var(--font-heading); font-weight: 700; color: var(--gold-dark); }
 
   @media (min-width: 640px) {
+    .ckp-event { flex: 1 1 auto; }
     .ckp-actions { width: auto; }
     .ckp-actions .dash-btn { flex: 0 0 auto; }
     .ckp-grid { grid-template-columns: repeat(2, 1fr); }

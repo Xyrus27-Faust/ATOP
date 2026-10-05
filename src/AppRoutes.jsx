@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import App from './App'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
@@ -20,7 +20,6 @@ import ReviewEntryPage from './dashboard/pages/ReviewEntryPage'
 import SummaryPage from './dashboard/pages/SummaryPage'
 import ReviewerAdminPage from './dashboard/pages/ReviewerAdminPage'
 import AdminAccessPage from './dashboard/pages/AdminAccessPage'
-import MarshalAdminPage from './dashboard/pages/MarshalAdminPage'
 import ScoringQueuePage from './dashboard/pages/ScoringQueuePage'
 import ScoringEntryPage from './dashboard/pages/ScoringEntryPage'
 import AssessorAdminPage from './dashboard/pages/AssessorAdminPage'
@@ -41,6 +40,7 @@ import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
 import MarshalRoute from './auth/MarshalRoute'
 import ScanPage from './dashboard/pages/ScanPage'
+import DeskPage from './dashboard/pages/DeskPage'
 import CheckpointsPage from './dashboard/pages/CheckpointsPage'
 import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
 import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
@@ -69,6 +69,11 @@ export default function AppRoutes() {
             between the guard and the camera. Marshals, Secretariat and Admin. */}
         <Route element={<MarshalRoute />}>
           <Route path="/scan" element={<ScanPage />} />
+        </Route>
+        {/* The Secretariat desk: the same full-screen shell, for the staff who check delegates in,
+            take balances and hand out IDs and kits. Secretariat and Admin, as on the API. */}
+        <Route element={<RegistrationsAdminRoute />}>
+          <Route path="/desk" element={<DeskPage />} />
         </Route>
 
         {/* The submission flow lives outside the dashboard in a focused shell —
@@ -130,8 +135,8 @@ export default function AppRoutes() {
             <Route path="admin/finals" element={<FinalsResultsPage />} />
             <Route path="admin/finalists" element={<FinalistRosterPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
-            {/* Under checkpoints so the sidebar's one Check-in link stays lit on it. */}
-            <Route path="admin/checkpoints/marshals" element={<MarshalAdminPage />} />
+            {/* The marshals list is now a tab on Check-in; an old bookmark lands on it. */}
+            <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkpoints?tab=marshals" replace />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />

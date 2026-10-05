@@ -1,25 +1,38 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
-import { createCheckpoint, eventDays, formatDay, CHECKPOINT_KIND, LABEL_MAX, MEAL_NAMES } from '@/lib/checkin'
+import {
+  createCheckpoint, listTourPackages, eventDays, formatDay, CHECKPOINT_KIND, LABEL_MAX, MEAL_NAMES,
+} from '@/lib/checkin'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form.jsx'
 
 const KINDS = Object.keys(CHECKPOINT_KIND)
 
-// A starting name per kind, so the common case is two taps; a meal's name comes from the chips below.
-const SUGGESTED_LABEL = { Entry: 'Entry', Meal: '' }
+// A starting name per kind, so the common case is two taps; a meal's name comes from the chips below,
+// and a bus is named after the batch it boards.
+const SUGGESTED_LABEL = { Entry: 'Entry', Meal: '', Tour: '' }
+
+// "Heritage Tour — Bus A", cut to fit the label column.
+const batchLabel = (pkg, batch) => `${pkg.name} — ${batch.label}`.slice(0, LABEL_MAX)
 
 /**
- * Add one door or one meal on one day. A page, not a modal: the secretariat sets these up on a phone
- * at the venue as often as at a desk, and a full page keeps the keyboard from covering the form.
+ * Add one session, one meal or one tour bus on one day. A page, not a modal: the secretariat sets
+ * these up on a phone at the venue as often as at a desk, and a full page keeps the keyboard from
+ * covering the form.
  */
 export default function NewCheckpointPage() {
   const navigate = useNavigate()
-  const { loading, error, data: event, reload } = useAsync(async () => (await api.get('/events/'))[0] || null, [])
+  const { loading, error, data, reload } = useAsync(async () => {
+    const event = (await api.get('/events/'))[0] || null
+    // The batches come with the page rather than on picking Tour, so the picker never spins mid-form.
+    return { event, packages: event ? await listTourPackages(event.slug) : [] }
+  }, [])
+  const event = data?.event
+  const packages = data?.packages || []
 
-  const [form, setForm] = useState({ day: '', kind: 'Entry', label: 'Entry', sortOrder: '' })
+  const [form, setForm] = useState({ day: '', kind: 'Entry', label: 'Entry', sortOrder: '', tourBatchId: '' })
   const [errors, setErrors] = useState({})
   const [banner, setBanner] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -48,19 +61,42 @@ export default function NewCheckpointPage() {
     setErrors((x) => ({ ...x, label: undefined }))
   }
 
+  // Every name this form filled in itself, so a name the secretariat typed is never overwritten.
+  const suggested = (label) =>
+    Object.values(SUGGESTED_LABEL).includes(label)
+    || packages.some((p) => p.batches.some((b) => batchLabel(p, b) === label))
+
   const pickKind = (kind) => {
     setForm((f) => ({
       ...f,
       kind,
-      // Only swap the name if they haven't typed their own.
-      label: Object.values(SUGGESTED_LABEL).includes(f.label) ? SUGGESTED_LABEL[kind] : f.label,
+      label: suggested(f.label) ? SUGGESTED_LABEL[kind] : f.label,
+      tourBatchId: kind === 'Tour' ? f.tourBatchId : '',
     }))
-    setErrors((x) => ({ ...x, kind: undefined }))
+    setErrors((x) => ({ ...x, kind: undefined, tourBatchId: undefined }))
+  }
+
+  // A batch carries its own name and, once ATOP has dated it, its day.
+  const pickBatch = (e) => {
+    const id = e.target.value
+    const pkg = packages.find((p) => p.batches.some((b) => b.id === id))
+    const batch = pkg?.batches.find((b) => b.id === id)
+    setForm((f) => ({
+      ...f,
+      tourBatchId: id,
+      label: batch && suggested(f.label) ? batchLabel(pkg, batch) : f.label,
+      day: batch?.tourDate && days.includes(batch.tourDate) ? batch.tourDate : f.day,
+    }))
+    setErrors((x) => ({ ...x, tourBatchId: undefined, label: undefined, day: undefined }))
   }
 
   async function submit(e) {
     e.preventDefault()
     const label = form.label.trim()
+    if (form.kind === 'Tour' && !form.tourBatchId) {
+      setErrors({ tourBatchId: 'Pick the tour batch this bus is for.' })
+      return
+    }
     if (!label) {
       setErrors({ label: 'Give it a name, e.g. “Lunch” or “Dinner”.' })
       return
@@ -73,6 +109,7 @@ export default function NewCheckpointPage() {
         kind: form.kind,
         label,
         sortOrder: form.sortOrder === '' ? null : Number(form.sortOrder),
+        tourBatchId: form.kind === 'Tour' ? form.tourBatchId : null,
       })
       navigate('/dashboard/admin/checkpoints')
     } catch (err) {
@@ -81,6 +118,8 @@ export default function NewCheckpointPage() {
         for (const [k, msgs] of Object.entries(err.fieldErrors)) mapped[k] = msgs[0]
         setErrors(mapped)
       } else if (err instanceof ApiError && err.status === 409) {
+        // The label index, or — on a bus — two tabs adding the same batch at once. Either way the
+        // name is what to change.
         setErrors({ label: err.message })
       } else {
         setBanner(err.message || 'We couldn’t add the checkpoint. Please try again.')
@@ -97,7 +136,7 @@ export default function NewCheckpointPage() {
             <i className="fas fa-arrow-left" aria-hidden="true" /> Checkpoints
           </Link>
           <h1 className="dash-h1">New checkpoint</h1>
-          <p className="dash-sub">One door or one meal, on one day. Marshals will see it in their list as soon as it&rsquo;s saved.</p>
+          <p className="dash-sub">One session, meal or tour bus, on one day. Marshals will see it in their list as soon as it&rsquo;s saved.</p>
         </div>
       </div>
 
@@ -137,6 +176,38 @@ export default function NewCheckpointPage() {
           </div>
         </Field>
 
+        {form.kind === 'Tour' && (
+          <Field
+            label="Tour batch"
+            htmlFor="tourBatchId"
+            required
+            error={errors.tourBatchId}
+            hint="One checkpoint per batch. Delegates booked on another batch are told which bus is theirs."
+          >
+            {packages.length === 0 ? (
+              <p className="dash-help">This convention has no tours set up.</p>
+            ) : (
+              <select
+                id="tourBatchId"
+                className={ctl('dash-select', errors.tourBatchId)}
+                value={form.tourBatchId}
+                onChange={pickBatch}
+              >
+                <option value="">Choose a batch…</option>
+                {packages.map((p) => (
+                  <optgroup key={p.id} label={p.name}>
+                    {p.batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {[b.label, b.session, b.tourDate && formatDay(b.tourDate)].filter(Boolean).join(' · ')}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
+
         <Field
           label="Name"
           htmlFor="label"
@@ -153,7 +224,7 @@ export default function NewCheckpointPage() {
             maxLength={LABEL_MAX}
             value={form.label}
             onChange={set('label')}
-            placeholder={form.kind === 'Meal' ? 'e.g. Lunch' : 'e.g. Entry'}
+            placeholder={{ Meal: 'e.g. Lunch', Tour: 'e.g. Heritage Tour — Bus A' }[form.kind] || 'e.g. Oct 21 AM'}
           />
           {form.kind === 'Meal' && (
             <div className="ckn-names" role="group" aria-label="Common meal names">
@@ -227,7 +298,7 @@ const CKN_CSS = `
   .ckn-foot .dash-btn { justify-content: center; min-height: 48px; }
 
   @media (min-width: 640px) {
-    .ckn-kinds { grid-template-columns: 1fr 1fr; }
+    .ckn-kinds { grid-template-columns: 1fr 1fr 1fr; }
     .ckn-foot { flex-direction: row; justify-content: flex-end; }
   }
 `
