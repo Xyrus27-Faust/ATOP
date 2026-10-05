@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '@/lib/apiClient'
 import Modal from './Modal'
+import IdCardPreview from './IdCardPreview'
+import { CARD, WELL } from './idCard'
 
 /**
  * Crop a photo to the square the convention ID wants, and upload it.
@@ -14,9 +16,9 @@ import Modal from './Modal'
  *
  * <p>The card is drawn alongside with the crop live inside its photo well, which is the cheapest
  * quality control there is: people fix their own bad photos when they see their face in the frame,
- * and they do not when they see a file picker. The well is a true square (measured off
- * ATOP-ID-FINAL.pdf: 300×300 at 32.5%/40.89% of the card), which is why the crop cannot be
- * optional — every phone on earth produces a 3:4 portrait, and something has to reconcile them.</p>
+ * and they do not when they see a file picker. {@link IdCardPreview} owns that drawing and takes
+ * its geometry from the printed card. The crop cannot be optional either way — every phone on earth
+ * produces a 3:4 portrait, and something has to reconcile them with a well that is all but square.</p>
  */
 
 /** What we upload. 1600px covers 300dpi up to a 5.3" photo — every plausible print size for this card. */
@@ -25,14 +27,15 @@ const OUT = 1600
 /** Side of the on-screen crop square. Big enough to aim with, small enough for a phone. */
 const VIEW = 264
 
-/** Where the photo well sits on the card front, as fractions of the artwork. */
-const WELL = { left: 0.3250, top: 0.4089, size: 0.4688 }
-
 /** Refused before we even decode it. The re-encode bounds what we upload; this bounds what we read. */
 const MAX_INPUT_BYTES = 25 * 1024 * 1024
 
-/** Width the card preview is rendered at, in CSS pixels. Shared with the well maths below. */
-const IP_CARD_WIDTH = 168
+/**
+ * Width the card preview is drawn at, in CSS pixels. Matched to {@link VIEW} rather than chosen for
+ * its own sake: the crop square is what decides how narrow a phone the dialog survives, and a card
+ * wider than it would quietly move that floor.
+ */
+const IP_CARD_WIDTH = VIEW
 
 export default function IdPhotoCropper({ registrationId, delegate, onClose, onSaved }) {
   const [image, setImage] = useState(null)
@@ -182,9 +185,11 @@ export default function IdPhotoCropper({ registrationId, delegate, onClose, onSa
     }
   }
 
-  // The same crop, scaled into the well on the card. `r` is the only thing that differs.
-  const wellPreview = (cardWidth) => {
-    const r = (cardWidth * WELL.size) / VIEW
+  // The same crop, scaled into the well on the card. The well is a hair taller than it is wide and
+  // the renderer cover-fits into it, so the square is sized to the well's height — `r` is the only
+  // thing that differs from the crop pane.
+  const wellPreview = () => {
+    const r = ((IP_CARD_WIDTH * WELL.h) / CARD.w) / VIEW
     return {
       width: drawn.w * r,
       height: drawn.h * r,
@@ -252,19 +257,14 @@ export default function IdPhotoCropper({ registrationId, delegate, onClose, onSa
             </div>
 
             <div className="ip-preview">
-              <div className="ip-card">
-                <img className="ip-card-art" src="/atop-id-front.jpg" alt="" />
-                <div
-                  className="ip-well"
-                  style={{
-                    left: `${WELL.left * 100}%`,
-                    top: `${WELL.top * 100}%`,
-                    width: `${WELL.size * 100}%`,
-                  }}
-                >
-                  <img src={image.src} alt="" draggable={false} style={wellPreview(IP_CARD_WIDTH)} />
-                </div>
-              </div>
+              <IdCardPreview
+                width={IP_CARD_WIDTH}
+                name={delegate.cardName || delegate.fullName}
+                classification={delegate.cardClassification}
+                idNo={delegate.referenceCode}
+              >
+                <img src={image.src} alt="" draggable={false} style={wellPreview()} />
+              </IdCardPreview>
               <span className="ip-hint">How it will print</span>
             </div>
           </div>
@@ -320,11 +320,7 @@ const ipStyles = `
   .ip-zoom input { flex: 1; accent-color: var(--navy); }
   .ip-drag-hint { text-align: center; }
 
-  .ip-preview { display: grid; gap: 8px; justify-items: center; }
-  .ip-card { position: relative; width: ${IP_CARD_WIDTH}px; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(15,25,46,0.18); }
-  .ip-card-art { display: block; width: 100%; height: auto; }
-  .ip-well { position: absolute; aspect-ratio: 1; overflow: hidden; border-radius: 6px; background: #fff; }
-  .ip-well img { position: absolute; top: 0; left: 0; max-width: none; transform-origin: top left; }
+  .ip-preview { display: grid; gap: 8px; justify-items: center; align-content: start; }
 
   .ip-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .ip-spacer { flex: 1; }
