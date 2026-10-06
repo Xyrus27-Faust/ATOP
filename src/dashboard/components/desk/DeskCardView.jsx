@@ -12,7 +12,8 @@ import DelegateFace from '../checkin/DelegateFace'
  * Taking cash is two taps — the amount is read back before it is recorded — and undoing a step
  * always asks why, because the API keeps the reason on record. If the balance moved while the card
  * was open (an online payment came in), the API records nothing and the card reloads itself onto
- * the new figure, so the cashier just counts again.</p>
+ * the new figure, so the cashier just counts again. Cash that cancels the group's online link names
+ * the others on it who still owe, so the cashier can tell them to pay here.</p>
  *
  * <p>{@code note} is the line above the card: "Checked in just now", or "Already checked in".</p>
  */
@@ -38,7 +39,12 @@ export default function DeskCardView({ card: initial, note, onDone }) {
     setError(null)
     setNotice(null)
     try {
-      setCard(await call())
+      const updated = await call()
+      setCard(updated)
+      // A link can't drop one person, so cash here cancels the whole link the group was sent.
+      const others = updated.cancelledLinkAlsoBilled ?? []
+      if (others.length > 0)
+        setNotice(`Their group's online payment link was cancelled. ${others.join(', ')} still owe${others.length === 1 ? 's' : ''}. Ask them to pay here.`)
       setConfirmCash(false)
       setUndoing(false)
       setReason('')
@@ -53,7 +59,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
   // Nothing was recorded: put the new balance on the same confirm, or say there's nothing left to take.
   async function catchUp(err) {
     try {
-      const fresh = await deskCard(card.id)
+      const fresh = await deskCard(card.eventId, card.id)
       setCard(fresh)
       const owesNow = fresh.balance > 0 && fresh.nextStep === 'Payment'
       setConfirmCash(owesNow)
@@ -76,7 +82,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
   const undo = (e) => {
     e.preventDefault()
     if (!reason.trim()) return
-    run(() => deskUndo(card.id, last.step, reason.trim()))
+    run(() => deskUndo(card, last.step, reason.trim()))
   }
 
   // Another phone moved this delegate on since the card loaded: the fix is the fresh card.
@@ -142,7 +148,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
         <div className="dash-banner tone-error dsk-error">
           <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{error.message}</span>
           {stale && (
-            <button type="button" className="dash-btn is-ghost is-sm" disabled={busy} onClick={() => run(() => deskCard(card.id))}>
+            <button type="button" className="dash-btn is-ghost is-sm" disabled={busy} onClick={() => run(() => deskCard(card.eventId, card.id))}>
               Reload card
             </button>
           )}

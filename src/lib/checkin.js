@@ -130,8 +130,10 @@ export const deskSearch = (eventId, q) =>
   api.get(`/desk/events/${eventId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
 
 // Read-only: the card behind a name-search row, before the Confirm tap checks them in. Someone the
-// desk would turn away answers 409 with a reasonCode.
-export const deskCard = (delegateId) => api.get(`/desk/delegates/${delegateId}`, { auth: true })
+// desk would turn away answers 409 with a reasonCode. Like every call on one delegate, it names the
+// event: an id from another event's card answers 404.
+export const deskCard = (eventId, delegateId) =>
+  api.get(`/desk/events/${eventId}/delegates/${delegateId}`, { auth: true })
 // Every pass holder and how far each has got at the desk.
 export const deskRoster = (eventId) => api.get(`/desk/events/${eventId}/roster`, { auth: true })
 
@@ -151,11 +153,12 @@ const DESK_ACTION = { CheckIn: 'check-in', Payment: 'mark-paid', Id: 'release-id
  * payment landed meanwhile) the API records nothing and answers 'balance_changed'.
  */
 export const deskStep = (card, step) =>
-  api.post(`/desk/delegates/${card.id}/${DESK_ACTION[step]}`, step === 'Payment' ? { amount: card.balance } : {}, { auth: true })
+  api.post(`/desk/events/${card.eventId}/delegates/${card.id}/${DESK_ACTION[step]}`,
+    step === 'Payment' ? { amount: card.balance } : {}, { auth: true })
 
 /** Take back the last step. The step is named so a stale card can't undo something newer. */
-export const deskUndo = (delegateId, step, reason) =>
-  api.post(`/desk/delegates/${delegateId}/undo`, { step, reason }, { auth: true })
+export const deskUndo = (card, step, reason) =>
+  api.post(`/desk/events/${card.eventId}/delegates/${card.id}/undo`, { step, reason }, { auth: true })
 
 // In the order they happen. The card's field for each, and what the button and the log call it.
 export const DESK_STEPS = [

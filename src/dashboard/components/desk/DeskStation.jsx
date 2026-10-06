@@ -57,7 +57,7 @@ export default function DeskStation({ post, touch }) {
   const pick = async (row) => {
     setBusy(true)
     try {
-      show({ card: await deskCard(row.id), note: null })
+      show({ card: await deskCard(event.id, row.id), note: null })
     } catch (err) {
       // 409: someone the desk turns away. Shown like a refused scan, with the name read back.
       const code = err.raw?.reasonCode

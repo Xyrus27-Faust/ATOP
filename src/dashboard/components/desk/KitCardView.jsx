@@ -89,7 +89,7 @@ export default function KitCardView({ card: initial, onDone }) {
         <div className="dash-banner tone-error dsk-error">
           <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{error.message}</span>
           {stale && (
-            <button type="button" className="dash-btn is-ghost is-sm" disabled={busy} onClick={() => run(() => deskCard(card.id), false)}>
+            <button type="button" className="dash-btn is-ghost is-sm" disabled={busy} onClick={() => run(() => deskCard(card.eventId, card.id), false)}>
               Reload card
             </button>
           )}
