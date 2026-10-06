@@ -6,6 +6,7 @@ import { canManageRegistrations } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import MasterListButton from '../components/MasterListButton'
+import Stat from '../components/Stat'
 
 /**
  * The two counts the secretariat has to hand someone outside the building: how many shirts to cut,
@@ -358,14 +359,3 @@ function Bar({ value, of, full = false }) {
   )
 }
 
-function Stat({ icon, label, value }) {
-  return (
-    <div className="dash-card dash-stat">
-      <div className="dash-stat-icon"><i className={`fas ${icon}`} aria-hidden="true" /></div>
-      <div>
-        <div className="dash-stat-value">{value}</div>
-        <div className="dash-stat-label">{label}</div>
-      </div>
-    </div>
-  )
-}

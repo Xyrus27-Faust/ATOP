@@ -6,6 +6,7 @@ import { isAdmin } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { REGIONS, labelFor } from '@/lib/pearlAwards'
+import Stat from '../components/Stat'
 
 /**
  * The admin's control of M7: how many free seats each region gets, and who may spend them.
@@ -297,14 +298,3 @@ function AppointForm({ eventId, onDone, onError }) {
   )
 }
 
-function Stat({ icon, label, value }) {
-  return (
-    <div className="dash-card dash-stat">
-      <div className="dash-stat-icon"><i className={`fas ${icon}`} aria-hidden="true" /></div>
-      <div>
-        <div className="dash-stat-value">{value}</div>
-        <div className="dash-stat-label">{label}</div>
-      </div>
-    </div>
-  )
-}
