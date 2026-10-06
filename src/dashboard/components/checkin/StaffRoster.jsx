@@ -24,7 +24,7 @@ const ROLES = {
     icon: 'fa-id-card',
     can: 'Run the Secretariat desk — check-in, cash for balances, ID and kit — and work the registration list, '
       + 'with every delegate’s contact details. Give it to the desk staff only.',
-    added: 'They sign out and back in, then find Secretariat Desk in their sidebar.',
+    added: 'They sign out and back in, then open the scanner from Check-in and pick Secretariat desk.',
     // The same role reviews Pearl Awards entries in its assigned categories: taking it away for the
     // desk takes that away too, and the admin should know before the tap, not after.
     removeWarning: 'They lose the desk and the registration list — and Pearl Awards review, if they review entries.',

@@ -41,9 +41,6 @@ export default function CheckpointsPage() {
           </p>
         </div>
         <div className="ckp-actions">
-          <Link className="dash-btn" to="/desk">
-            <i className="fas fa-id-card" aria-hidden="true" /> Open desk
-          </Link>
           <Link className="dash-btn" to="/scan">
             <i className="fas fa-qrcode" aria-hidden="true" /> Open scanner
           </Link>

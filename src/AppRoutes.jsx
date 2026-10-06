@@ -40,7 +40,6 @@ import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
 import MarshalRoute from './auth/MarshalRoute'
 import ScanPage from './dashboard/pages/ScanPage'
-import DeskPage from './dashboard/pages/DeskPage'
 import CheckpointsPage from './dashboard/pages/CheckpointsPage'
 import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
 import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
@@ -65,16 +64,14 @@ export default function AppRoutes() {
             orders the whole field in one sitting, so it gets its own shell. Role-gated in-page. */}
         <Route path="/finals/:categoryNumber/:bracket" element={<FinalsBracketPage />} />
 
-        {/* The marshal's badge scanner is a phone-first, full-screen tool — no dashboard chrome
-            between the guard and the camera. Marshals, Secretariat and Admin. */}
+        {/* The one badge scanner, a phone-first, full-screen tool — no dashboard chrome between
+            the staff and the camera. Marshals, Secretariat and Admin; the Secretariat desk is one of
+            its posts, offered to Secretariat and Admin only. */}
         <Route element={<MarshalRoute />}>
           <Route path="/scan" element={<ScanPage />} />
         </Route>
-        {/* The Secretariat desk: the same full-screen shell, for the staff who check delegates in,
-            take balances and hand out IDs and kits. Secretariat and Admin, as on the API. */}
-        <Route element={<RegistrationsAdminRoute />}>
-          <Route path="/desk" element={<DeskPage />} />
-        </Route>
+        {/* The desk had its own page before it became a post on the scanner. Old links still land. */}
+        <Route path="/desk" element={<Navigate to="/scan" replace />} />
 
         {/* The submission flow lives outside the dashboard in a focused shell —
             composing an entry is an application, not a dashboard page. It's

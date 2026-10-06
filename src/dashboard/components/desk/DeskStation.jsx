@@ -1,30 +1,25 @@
 import { useCallback, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { deskScan, deskCard, isBadgeCode, formatVenueTime, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
-import { useAsync } from '../useAsync'
-import { useIdleSignOut } from '../useIdleSignOut'
-import { Loading, ErrorState } from '../components/states'
-import QrViewfinder from '../components/checkin/QrViewfinder'
-import DelegateFace from '../components/checkin/DelegateFace'
-import DeskCardView from '../components/desk/DeskCardView'
-import DeskSearch from '../components/desk/DeskSearch'
-import { DASH_CSS } from '../DashboardLayout'
+import { useAsync } from '../../useAsync'
+import { Loading, ErrorState } from '../states'
+import QrViewfinder from '../checkin/QrViewfinder'
+import DelegateFace from '../checkin/DelegateFace'
+import DeskCardView from './DeskCardView'
+import DeskSearch from './DeskSearch'
 
 /**
- * The Secretariat desk: the first stop for every delegate, on any of the four desk phones.
+ * The Secretariat desk, as one post on the scanner: the first stop for every delegate.
  *
  * <p>A badge scanned here checks the delegate in straight away — a second phone scanning the same
  * badge changes nothing — and opens their card, which says Desk A (fully paid) or Desk B (balance
  * to pay in cash), then walks them through payment, ID & receipt, and kit. A name search only opens
  * the card; the Confirm tap on it is the check-in, after a look at the photo.</p>
  *
- * <p>Full screen like the marshal's scanner, and signed out after 30 idle minutes for the same
- * reason: it's a shared phone on a table, and this one shows money.</p>
+ * <p>The scanner around it owns the bar, the idle sign-out and the way back to the post list;
+ * {@code touch} is how a badge read counts as activity.</p>
  */
-export default function DeskPage() {
-  const navigate = useNavigate()
-  const { signOut, touch } = useIdleSignOut()
+export default function DeskStation({ touch }) {
   const { loading, error, data: event, reload } = useAsync(async () => (await api.get('/events/'))[0] || null, [])
 
   const [mode, setMode] = useState('scan')
@@ -114,18 +109,8 @@ export default function DeskPage() {
   const scanning = event && !view && mode === 'scan'
 
   return (
-    <div className={`dsk-shell${scanning ? ' is-scanning' : ''}`}>
-      <header className="dsk-bar">
-        <img src="/Untitled.png" alt="ATOP" className="dsk-logo" />
-        <span className="dsk-brand">Secretariat desk</span>
-        <div className="dsk-spacer" />
-        <button type="button" className="dsk-bar-btn" onClick={() => navigate('/dashboard')}>Dashboard</button>
-        <button type="button" className="dsk-bar-btn is-icon" onClick={signOut} aria-label="Sign out">
-          <i className="fas fa-arrow-right-from-bracket" aria-hidden="true" />
-        </button>
-      </header>
-
-      <main className="dsk-main">{body}</main>
+    <div className={`dsk-station${scanning ? ' is-scanning' : ''}`}>
+      {body}
 
       {scanning && (
         <div className="dsk-dock">
@@ -135,7 +120,6 @@ export default function DeskPage() {
         </div>
       )}
 
-      <style>{DASH_CSS}</style>
       <style>{DSK_CSS}</style>
     </div>
   )
@@ -176,25 +160,10 @@ function Refused({ view, onDone }) {
 }
 
 const DSK_CSS = `
-  .dsk-shell { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--off-white); font-family: var(--font-body); }
-  .dsk-shell.is-scanning { background: var(--navy); }
-  .dsk-bar {
-    position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px;
-    min-height: 60px; padding: max(8px, env(safe-area-inset-top)) 12px 8px 16px;
-    background: var(--navy); border-bottom: 2px solid var(--gold); color: var(--white);
-  }
-  .dsk-logo { height: 32px; width: auto; }
-  .dsk-brand { font-family: var(--font-heading); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; }
-  .dsk-spacer { flex: 1; }
-  .dsk-bar-btn {
-    min-height: 44px; padding: 0 14px; flex-shrink: 0; cursor: pointer; background: transparent; color: var(--white);
-    border: 1.5px solid rgba(255,255,255,0.35); border-radius: var(--radius-sm);
-    font-family: var(--font-heading); font-weight: 700; font-size: 0.8rem;
-  }
-  .dsk-bar-btn:hover { border-color: var(--gold); color: var(--gold-light); }
-  .dsk-bar-btn.is-icon { width: 44px; padding: 0; }
+  /* Fills the scanner's main area; navy behind the camera, light behind a card. */
+  .dsk-station { flex: 1; display: flex; flex-direction: column; background: var(--off-white); }
+  .dsk-station.is-scanning { background: var(--navy); }
 
-  .dsk-main { flex: 1; display: flex; flex-direction: column; }
   .dsk-pad { padding: 20px 16px; }
   .dsk-stage { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 120px; }
   .dsk-aim { text-align: center; color: var(--white); font-family: var(--font-heading); font-weight: 700; font-size: 1.05rem; }

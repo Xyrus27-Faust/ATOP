@@ -201,7 +201,9 @@ const DSK_CARD_CSS = `
   .dsk-who span { font-family: var(--font-body); font-size: 0.9rem; color: var(--gray-600); }
   .dsk-ref { font-family: var(--font-heading) !important; font-weight: 700; letter-spacing: 0.06em; }
 
-  .dsk-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+  /* Two across on a phone, so a peso amount never breaks mid-number; three once there's room. */
+  .dsk-facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0; }
+  @media (min-width: 420px) { .dsk-facts { grid-template-columns: repeat(3, 1fr); } }
   .dsk-facts > div { padding: 10px 12px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); min-width: 0; }
   .dsk-facts > div.is-wide { grid-column: 1 / -1; }
   .dsk-facts > div.is-owed { border-color: var(--warn); background: var(--warn-bg); }

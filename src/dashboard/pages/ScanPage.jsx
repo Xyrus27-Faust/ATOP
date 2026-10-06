@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/lib/apiClient'
 import {
   listMarshalCheckpoints, scanCode, formatDay, kindMeta, isPostGone, progressPct, readPost, writePost, isBadgeCode,
-  tallyVerb, CAMERA_TROUBLE,
+  tallyVerb, CAMERA_TROUBLE, DESK_POST,
 } from '@/lib/checkin'
+import { useAuth } from '@/auth/AuthContext'
+import { canManageRegistrations } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { useIdleSignOut } from '../useIdleSignOut'
 import { Loading, ErrorState } from '../components/states'
@@ -12,22 +14,32 @@ import CheckpointPicker from '../components/checkin/CheckpointPicker'
 import QrViewfinder from '../components/checkin/QrViewfinder'
 import ScanResultSheet from '../components/checkin/ScanResultSheet'
 import ManualSearch from '../components/checkin/ManualSearch'
+import DeskStation from '../components/desk/DeskStation'
 import { DASH_CSS } from '../DashboardLayout'
 
 /**
- * The marshal's scanner: a full-screen page (no dashboard chrome) built for one hand and bright sun.
+ * The one scanner: a full-screen page (no dashboard chrome) built for one hand and bright sun.
  *
- * <p>Pick a checkpoint, then point the camera at badges. Each code goes to the API, which returns a
+ * <p>Pick a post — the Secretariat desk, or one of today's checkpoints — then point the camera at
+ * badges. The desk checks delegates in and walks them through payment, ID and kit (see
+ * {@link DeskStation}); everything below is the checkpoint side.</p>
+ *
+ * <p>At a checkpoint, Each code goes to the API, which returns a
  * verdict — green, amber or red with a reason — and the result sheet shows it over the camera.
  * When a badge won't read, the bar at the bottom opens a search by name. There is no offline mode:
  * a verdict needs the server, and a guard without signal sends people to the Secretariat desk.</p>
  */
 export default function ScanPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { signOut, touch } = useIdleSignOut()
+  // The desk is Secretariat and Admin's, as on the API. A phone remembered on the desk and then
+  // signed in as a marshal just lands on the post list.
+  const canDesk = canManageRegistrations(user?.roles)
   const { loading, error, data: checkpoints, reload } = useAsync(listMarshalCheckpoints, [])
 
   const [postId, setPostId] = useState(readPost)
+  const atDesk = canDesk && postId === DESK_POST
   const [mode, setMode] = useState('scan')
   const [camera, setCamera] = useState('ok')
   const [cameraKey, setCameraKey] = useState(0)
@@ -49,6 +61,11 @@ export default function ScanPage() {
     writePost(c.id)
     setPostId(c.id)
     setMode('scan')
+  }
+
+  const pickDesk = () => {
+    writePost(DESK_POST)
+    setPostId(DESK_POST)
   }
 
   const change = () => {
@@ -104,9 +121,21 @@ export default function ScanPage() {
   }, [])
 
   let body
-  if (loading && !checkpoints) body = <Loading />
+  // Before the checkpoint list: the desk doesn't need it, and shouldn't wait on it or fail with it.
+  if (atDesk) body = <DeskStation touch={touch} />
+  else if (loading && !checkpoints) body = <Loading />
   else if (error) body = <div className="scn-pad"><ErrorState error={error} onRetry={reload} /></div>
-  else if (!checkpoint) body = <CheckpointPicker checkpoints={offered} onPick={pick} onRefresh={reload} refreshing={loading} />
+  else if (!checkpoint) {
+    body = (
+      <CheckpointPicker
+        checkpoints={offered}
+        onPick={pick}
+        onPickDesk={canDesk ? pickDesk : null}
+        onRefresh={reload}
+        refreshing={loading}
+      />
+    )
+  }
   else if (mode === 'search') {
     body = (
       <ManualSearch
@@ -152,7 +181,17 @@ export default function ScanPage() {
   return (
     <div className={`scn-shell${checkpoint && mode === 'scan' ? ' is-scanning' : ''}`}>
       <header className="scn-bar">
-        {checkpoint ? (
+        {atDesk ? (
+          <>
+            <div className="scn-post">
+              <span className="scn-post-day">
+                <i className="fas fa-id-card" aria-hidden="true" /> Check-in · ID · Kit
+              </span>
+              <span className="scn-post-label">Secretariat desk</span>
+            </div>
+            <button type="button" className="scn-bar-btn" onClick={change}>Change</button>
+          </>
+        ) : checkpoint ? (
           <>
             <div className="scn-post">
               <span className="scn-post-day">

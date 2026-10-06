@@ -5,8 +5,11 @@ import { groupByDay, formatDayHeader, kindMeta, progressPct } from '@/lib/checki
  * tiles are a handful. Big tiles grouped by day, because the
  * one mistake that matters here is scanning lunch at the dinner line: every badge would come back
  * "already claimed". The chosen checkpoint's name then sits in the bar above the camera all shift.
+ *
+ * <p>{@code onPickDesk} adds the Secretariat desk on top, for those who may work it. It's there
+ * whatever the day holds: the desk checks people in before any door or meal is set up.</p>
  */
-export default function CheckpointPicker({ checkpoints, onPick, onRefresh, refreshing }) {
+export default function CheckpointPicker({ checkpoints, onPick, onPickDesk, onRefresh, refreshing }) {
   // A button rather than "pull to refresh": a scanner saved to the home screen has no browser reload.
   const refresh = (
     <button type="button" className="dash-btn is-ghost ckpk-refresh" onClick={onRefresh} disabled={refreshing}>
@@ -15,7 +18,21 @@ export default function CheckpointPicker({ checkpoints, onPick, onRefresh, refre
     </button>
   )
 
-  if (checkpoints.length === 0) {
+  const desk = onPickDesk && (
+    <ul className="ckpk-list">
+      <li>
+        <button type="button" className="ckpk-tile kind-desk" onClick={onPickDesk}>
+          <i className="fas fa-id-card" aria-hidden="true" />
+          <span className="ckpk-tile-body">
+            <span className="ckpk-tile-label">Secretariat desk</span>
+            <span className="ckpk-tile-sub">Check-in, Desk A / B, ID &amp; receipt, kit</span>
+          </span>
+        </button>
+      </li>
+    </ul>
+  )
+
+  if (checkpoints.length === 0 && !desk) {
     return (
       <div className="dash-card dash-empty ckpk-empty">
         <div className="dash-empty-icon"><i className="fas fa-clipboard-list" aria-hidden="true" /></div>
@@ -30,6 +47,10 @@ export default function CheckpointPicker({ checkpoints, onPick, onRefresh, refre
   return (
     <div className="ckpk">
       <h1 className="ckpk-title">Where are you posted?</h1>
+      {desk}
+      {checkpoints.length === 0 && (
+        <p className="ckpk-none">No doors, meals or buses open today. Refresh once the Secretariat opens one.</p>
+      )}
       {groupByDay(checkpoints).map((g) => (
         <section key={g.day} className="ckpk-day" aria-label={formatDayHeader(g.day)}>
           <h2 className="ckpk-day-head">{formatDayHeader(g.day)}</h2>
@@ -79,6 +100,9 @@ const CKPK_CSS = `
     transition: var(--transition-fast);
   }
   .ckpk-tile.kind-meal { border-left-color: var(--gold); }
+  .ckpk-tile.kind-desk { border-left-color: var(--gold-dark); }
+  .ckpk-tile-sub { font-size: 0.84rem; color: var(--gray-600); }
+  .ckpk-none { color: var(--gray-600); font-size: 0.9rem; line-height: 1.5; }
   .ckpk-tile:hover, .ckpk-tile:focus-visible { border-color: var(--gold); box-shadow: var(--shadow-md); }
   .ckpk-tile i { width: 22px; text-align: center; font-size: 1.15rem; color: var(--navy-mid); }
   .ckpk-tile-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }

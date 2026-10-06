@@ -124,13 +124,11 @@ const TALLIES = { to: '/dashboard/admin/tallies', label: 'Tallies', icon: 'fa-ch
 const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map-location-dot' }
 const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
 // Convention check-in: the full-screen scanner (outside the dashboard, like scoring), and the
-// secretariat's one entry for the rest of it. The checkpoints page links on to the scanner and — for
-// admins — to the marshals list, so three jobs cost the sidebar one line.
+// secretariat's one entry for the rest of it. The Check-in page opens the scanner (the desk is one of
+// its posts) and — for admins — holds the marshal and secretariat lists as tabs, so all of it costs
+// the sidebar one line.
 const SCAN = { to: '/scan', label: 'Scan Badges', icon: 'fa-qrcode' }
 const CHECK_IN = { to: '/dashboard/admin/checkpoints', label: 'Check-in', icon: 'fa-qrcode' }
-// The Secretariat desk every delegate passes first — check-in, balance, ID & receipt, kit. Its own
-// line: on the convention days it is the secretariat's main job, not a corner of Check-in.
-const DESK = { to: '/desk', label: 'Secretariat Desk', icon: 'fa-id-card' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -164,11 +162,11 @@ export function navForRoles(roles = []) {
   if (regionalRep) groups.push({ label: 'Regional', items: [MY_REGION] })
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, DESK, CHECK_IN, ALLOCATIONS] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, CHECK_IN, ALLOCATIONS] })
   } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list — and the tallies
     // taken off it, which is the secretariat's job rather than the admin's.
-    groups.push({ label: 'Administration', items: [REGISTRATIONS, TALLIES, DESK, CHECK_IN] })
+    groups.push({ label: 'Administration', items: [REGISTRATIONS, TALLIES, CHECK_IN] })
   }
   groups.push({ label: null, items: [AWARDS, PROFILE] })
   return groups
