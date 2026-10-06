@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getCheckpointScans, updateCheckpoint, deleteCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, REASON_MAX } from '@/lib/checkin'
+import { getCheckpointScans, getCheckpointNotYet, updateCheckpoint, deleteCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, REASON_MAX } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -9,19 +9,24 @@ import { Loading, ErrorState } from '../components/states'
 const fold = (text) => (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
 /**
- * One checkpoint's log: who was scanned, when, by which marshal — newest first — and the escape hatch
- * for a wrong scan. Voiding keeps a copy with the reason and frees the slot, so the right person can
- * then be scanned; the voids list below the log is the paper trail.
+ * One checkpoint's two lists: who was scanned, when, by which marshal — newest first — and who it is
+ * still waiting for, against everyone it expects. The escape hatch for a wrong scan lives on the
+ * first: voiding keeps a copy with the reason and frees the slot, so the right person can then be
+ * scanned; the voids list below the log is the paper trail.
  *
- * <p>The search narrows the log by name or LGU ("did anyone from Tacloban eat?") in the browser: the
- * page already holds every scan for this checkpoint. Print turns whatever is showing into a paper
- * list — the browser's print dialog saves it as a PDF.</p>
+ * <p>The search narrows whichever list is showing by name or LGU ("did anyone from Tacloban eat?") in
+ * the browser: the page already holds both. Print turns whatever is showing into a paper list — the
+ * browser's print dialog saves it as a PDF.</p>
  */
 export default function CheckpointDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { loading, error, data, reload } = useAsync(() => getCheckpointScans(id), [id])
+  const { loading, error, data, reload } = useAsync(async () => {
+    const [log, notYet] = await Promise.all([getCheckpointScans(id), getCheckpointNotYet(id)])
+    return { ...log, notYet }
+  }, [id])
+  const [list, setList] = useState('scanned')
   const [toggling, setToggling] = useState(false)
   const [toggleError, setToggleError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -30,12 +35,14 @@ export default function CheckpointDetailPage() {
   if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
-  const { checkpoint: c, scans, voids } = data
+  const { checkpoint: c, scans, voids, notYet } = data
   const kind = kindMeta(c.kind)
   const state = stateMeta(c.state)
   const pct = progressPct(c.scanCount, c.expected)
   const term = fold(q.trim())
-  const shown = term ? scans.filter((s) => fold(s.fullName).includes(term) || fold(s.lgu).includes(term)) : scans
+  const waiting = list === 'notyet'
+  const rows = waiting ? notYet : scans
+  const shown = term ? rows.filter((s) => fold(s.fullName).includes(term) || fold(s.lgu).includes(term)) : rows
 
   async function toggle() {
     setToggling(true)
@@ -125,7 +132,14 @@ export default function CheckpointDetailPage() {
       </section>
 
       <div className="ckd-head">
-        <h2>Scan log</h2>
+        <nav className="dash-tabs ckd-tabs" role="tablist" aria-label="Lists">
+          <button type="button" role="tab" aria-selected={!waiting} className={`dash-tab${waiting ? '' : ' active'}`} onClick={() => setList('scanned')}>
+            Scanned <span className="ckd-tab-n">{scans.length}</span>
+          </button>
+          <button type="button" role="tab" aria-selected={waiting} className={`dash-tab${waiting ? ' active' : ''}`} onClick={() => setList('notyet')}>
+            Not yet <span className="ckd-tab-n">{notYet.length}</span>
+          </button>
+        </nav>
         <div className="ckd-head-actions">
           <button type="button" className="dash-btn is-ghost is-sm" onClick={reload} disabled={loading}>
             <i className={`fas fa-rotate-right${loading ? ' fa-spin' : ''}`} aria-hidden="true" /> Refresh
@@ -136,7 +150,7 @@ export default function CheckpointDetailPage() {
         </div>
       </div>
 
-      {scans.length > 0 && (
+      {rows.length > 0 && (
         <div className="ckd-search">
           <i className="fas fa-magnifying-glass" aria-hidden="true" />
           <input
@@ -144,33 +158,37 @@ export default function CheckpointDetailPage() {
             type="search"
             autoComplete="off"
             placeholder="Search name or LGU"
-            aria-label="Search the scan log by name or LGU"
+            aria-label={`Search the ${waiting ? 'not-yet list' : 'scan log'} by name or LGU`}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
       )}
-      {term && scans.length > 0 && (
+      {term && rows.length > 0 && (
         <p className="ckd-filtered" aria-live="polite">
-          {shown.length} of {scans.length} match &ldquo;{q.trim()}&rdquo;
+          {shown.length} of {rows.length} match &ldquo;{q.trim()}&rdquo;
         </p>
       )}
 
-      {scans.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="dash-card dash-empty">
-          <p>No one scanned here yet.</p>
+          <p>{waiting ? `Everyone expected here has been ${tallyVerb(c.kind)}.` : 'No one scanned here yet.'}</p>
         </div>
       ) : shown.length === 0 ? (
         <div className="dash-card dash-empty">
-          <p>No one scanned here matches &ldquo;{q.trim()}&rdquo;.</p>
+          <p>No one {waiting ? 'still to come' : 'scanned here'} matches &ldquo;{q.trim()}&rdquo;.</p>
         </div>
+      ) : waiting ? (
+        <ul className="dash-card ckd-list">
+          {shown.map((d) => <NotYetRow key={d.delegateId} person={d} />)}
+        </ul>
       ) : (
         <ul className="dash-card ckd-list">
           {shown.map((s) => <ScanRow key={s.id} scan={s} onVoided={reload} />)}
         </ul>
       )}
 
-      {voids.length > 0 && (
+      {!waiting && voids.length > 0 && (
         <>
           <div className="ckd-head"><h2>Voided scans</h2></div>
           <ul className="dash-card ckd-list is-voids">
@@ -189,7 +207,7 @@ export default function CheckpointDetailPage() {
         </>
       )}
       </div>
-      <PrintSheet checkpoint={c} scans={shown} total={scans.length} query={q.trim()}
+      <PrintSheet checkpoint={c} waiting={waiting} rows={shown} total={rows.length} query={q.trim()}
         printedBy={user?.fullName || user?.email} />
       <style>{CKD_CSS}</style>
     </>
@@ -201,8 +219,8 @@ export default function CheckpointDetailPage() {
  * on paper the question is "who from where", and a secretariat ticking off a delegation reads down
  * one LGU at a time. Voided scans are left off — they don't count, and the screen keeps their trail.
  */
-function PrintSheet({ checkpoint: c, scans, total, query, printedBy }) {
-  const rows = [...scans].sort((a, b) =>
+function PrintSheet({ checkpoint: c, waiting, rows: listed, total, query, printedBy }) {
+  const rows = [...listed].sort((a, b) =>
     (a.lgu || '\uffff').localeCompare(b.lgu || '\uffff') || a.fullName.localeCompare(b.fullName))
   const printedAt = new Date().toLocaleString('en-PH', {
     timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short',
@@ -211,20 +229,31 @@ function PrintSheet({ checkpoint: c, scans, total, query, printedBy }) {
   return (
     <section className="ckd-print" aria-hidden="true">
       <header className="ckd-print-head">
-        <h1>{c.label}</h1>
+        <h1>{c.label}{waiting && ' — not yet ' + tallyVerb(c.kind)}</h1>
         <p>
           {kindMeta(c.kind).label} · {formatDay(c.day)} · <b>{c.scanCount}</b> of {c.expected}{' '}
           {tallyVerb(c.kind)}
         </p>
-        {query && <p>Showing {scans.length} of {total} matching &ldquo;{query}&rdquo;</p>}
+        {query && <p>Showing {listed.length} of {total} matching &ldquo;{query}&rdquo;</p>}
         <p className="ckd-print-stamp">Printed {printedAt} (Manila){printedBy && <> by {printedBy}</>}</p>
       </header>
       <table>
         <thead>
-          <tr><th>#</th><th>Name</th><th>LGU / Organisation</th><th>Time</th><th>Scanned by</th></tr>
+          {waiting
+            ? <tr><th>#</th><th>Name</th><th>LGU / Organisation</th><th>Designation</th><th>At the desk</th></tr>
+            : <tr><th>#</th><th>Name</th><th>LGU / Organisation</th><th>Time</th><th>Scanned by</th></tr>}
         </thead>
         <tbody>
-          {rows.map((s, i) => (
+          {waiting && rows.map((d, i) => (
+            <tr key={d.delegateId}>
+              <td>{i + 1}</td>
+              <td>{d.fullName}</td>
+              <td>{d.lgu || '—'}</td>
+              <td>{d.designation}</td>
+              <td>{d.checkedIn ? 'Checked in' : 'Not yet'}</td>
+            </tr>
+          ))}
+          {!waiting && rows.map((s, i) => (
             <tr key={s.id}>
               <td>{i + 1}</td>
               <td>{s.fullName}{s.method === 'Manual' ? ' (manual)' : ''}</td>
@@ -241,6 +270,24 @@ function PrintSheet({ checkpoint: c, scans, total, query, printedBy }) {
         {printedBy && <> Printed by {printedBy}.</>}
       </footer>
     </section>
+  )
+}
+
+/**
+ * Someone this checkpoint is still waiting for. "Not at the desk yet" sets apart the delegate who
+ * hasn't reached the convention from the one who is here but hasn't come through this door.
+ */
+function NotYetRow({ person: d }) {
+  return (
+    <li className="ckd-row">
+      <div className="ckd-row-main">
+        <strong>
+          {d.fullName}
+          {!d.checkedIn && <span className="dash-badge tone-neutral ckd-chip">Not at the desk yet</span>}
+        </strong>
+        <span>{[d.designation, d.lgu].filter(Boolean).join(' · ')}</span>
+      </div>
+    </li>
   )
 }
 
@@ -319,9 +366,13 @@ const CKD_CSS = `
   .ckd-state { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 
   .ckd-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 6px 0 10px; }
+  .ckd-tabs { margin: 0; flex: 1 1 100%; }
+  .ckd-tabs .dash-tab { min-height: 44px; }
+  .ckd-tab-n { margin-left: 4px; padding: 0 7px; border-radius: 999px; background: var(--gray-100); color: var(--gray-600); font-size: 0.78rem; }
   .ckd-head h2 { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--navy); white-space: nowrap; }
   .ckd-head-actions { display: flex; gap: 8px; }
   .ckd-head-actions .dash-btn { white-space: nowrap; }
+  @media (min-width: 640px) { .ckd-tabs { flex: 0 1 auto; } }
 
   .ckd-search { position: relative; margin-bottom: 10px; }
   .ckd-search i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }

@@ -57,6 +57,8 @@ const POST_KEY = 'atop.scan.checkpoint'
 // The Secretariat desk is a post on the scanner like any checkpoint, but has no checkpoint id: this
 // stands in for one in the remembered post. Never a Guid, so it can't collide with a real one.
 export const DESK_POST = 'desk'
+// The kit table: a second Secretariat post that only hands out kits, so the desk line keeps moving.
+export const KIT_POST = 'kit'
 
 export function readPost() {
   try { return localStorage.getItem(POST_KEY) } catch { return null }
@@ -92,6 +94,8 @@ export const updateCheckpoint = (id, body) => api.put(`/admin/checkpoints/${id}`
 export const deleteCheckpoint = (id) => api.delete(`/admin/checkpoints/${id}`, { auth: true })
 
 export const getCheckpointScans = (id) => api.get(`/admin/checkpoints/${id}/scans`, { auth: true })
+// Who this checkpoint is still waiting for: everyone it expects, less those scanned here.
+export const getCheckpointNotYet = (id) => api.get(`/admin/checkpoints/${id}/not-yet`, { auth: true })
 
 export const voidScan = (scanId, reason) => api.post(`/admin/scans/${scanId}/void`, { reason }, { auth: true })
 
@@ -112,12 +116,26 @@ export const REASON_MAX = 200
 // card. Like a marshal's scan, a refusal is a 200 with result 'denied', not an error.
 export const deskScan = (code) => api.post('/desk/scan', { code }, { auth: true })
 
+// The kit table's scan: the same card and the same refusals, but it changes nothing — a delegate who
+// skipped the desk must not be checked in at the kit table.
+export const deskLookup = (code) => api.post('/desk/lookup', { code }, { auth: true })
+
 export const deskSearch = (eventId, q) =>
   api.get(`/desk/events/${eventId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
 
 // Read-only: the card behind a name-search row, before the Confirm tap checks them in. Someone the
 // desk would turn away answers 409 with a reasonCode.
 export const deskCard = (delegateId) => api.get(`/desk/delegates/${delegateId}`, { auth: true })
+// Every pass holder and how far each has got at the desk.
+export const deskRoster = (eventId) => api.get(`/desk/events/${eventId}/roster`, { auth: true })
+
+// A checkpoint on a delegate's trail (the desk card), as the API names its standing there.
+export const TRAIL_STATUS = {
+  Scanned: { label: 'Scanned', icon: 'fa-circle-check', tone: 'is-scanned' },
+  Missed: { label: 'Missed', icon: 'fa-circle-xmark', tone: 'is-missed' },
+  NotYet: { label: 'Not yet', icon: 'fa-circle-dot', tone: 'is-notyet' },
+  Upcoming: { label: 'Upcoming', icon: 'fa-circle', tone: 'is-upcoming' },
+}
 
 const DESK_ACTION = { CheckIn: 'check-in', Payment: 'mark-paid', Id: 'release-id', Kit: 'release-kit' }
 

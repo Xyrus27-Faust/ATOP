@@ -1,4 +1,4 @@
-import { groupByDay, formatDayHeader, kindMeta, progressPct } from '@/lib/checkin'
+import { groupByDay, formatDayHeader, kindMeta, progressPct, DESK_POST, KIT_POST } from '@/lib/checkin'
 
 /**
  * "Where are you posted?" — the guard's first tap of a shift. The API sends today's only, so the
@@ -6,8 +6,9 @@ import { groupByDay, formatDayHeader, kindMeta, progressPct } from '@/lib/checki
  * one mistake that matters here is scanning lunch at the dinner line: every badge would come back
  * "already claimed". The chosen checkpoint's name then sits in the bar above the camera all shift.
  *
- * <p>{@code onPickDesk} adds the Secretariat desk on top, for those who may work it. It's there
- * whatever the day holds: the desk checks people in before any door or meal is set up.</p>
+ * <p>{@code onPickDesk} adds the Secretariat's two posts on top — the desk and the kit table — for
+ * those who may work them, and is called with the one picked. They're there whatever the day holds:
+ * the desk checks people in before any door or meal is set up.</p>
  */
 export default function CheckpointPicker({ checkpoints, onPick, onPickDesk, onRefresh, refreshing }) {
   // A button rather than "pull to refresh": a scanner saved to the home screen has no browser reload.
@@ -21,11 +22,20 @@ export default function CheckpointPicker({ checkpoints, onPick, onPickDesk, onRe
   const desk = onPickDesk && (
     <ul className="ckpk-list">
       <li>
-        <button type="button" className="ckpk-tile kind-desk" onClick={onPickDesk}>
+        <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickDesk(DESK_POST)}>
           <i className="fas fa-id-card" aria-hidden="true" />
           <span className="ckpk-tile-body">
             <span className="ckpk-tile-label">Secretariat desk</span>
             <span className="ckpk-tile-sub">Check-in, Desk A / B, ID &amp; receipt, kit</span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickDesk(KIT_POST)}>
+          <i className="fas fa-box-open" aria-hidden="true" />
+          <span className="ckpk-tile-body">
+            <span className="ckpk-tile-label">Kit table</span>
+            <span className="ckpk-tile-sub">Kits only, once the ID &amp; receipt are out</span>
           </span>
         </button>
       </li>

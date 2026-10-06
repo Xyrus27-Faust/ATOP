@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react'
 import { api } from '@/lib/apiClient'
-import { deskScan, deskCard, isBadgeCode, formatVenueTime, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
+import { deskScan, deskLookup, deskCard, isBadgeCode, formatVenueTime, CAMERA_TROUBLE, DESK_REFUSAL, KIT_POST } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
 import QrViewfinder from '../checkin/QrViewfinder'
 import DelegateFace from '../checkin/DelegateFace'
 import DeskCardView from './DeskCardView'
+import KitCardView from './KitCardView'
 import DeskSearch from './DeskSearch'
 
 /**
@@ -16,10 +17,15 @@ import DeskSearch from './DeskSearch'
  * to pay in cash), then walks them through payment, ID & receipt, and kit. A name search only opens
  * the card; the Confirm tap on it is the check-in, after a look at the photo.</p>
  *
+ * <p>The kit table ({@code post} of {@link KIT_POST}) is the same station with the steps taken out:
+ * its scan only opens the card — never checks anyone in — and the card asks one thing, whether to
+ * release the kit.</p>
+ *
  * <p>The scanner around it owns the bar, the idle sign-out and the way back to the post list;
  * {@code touch} is how a badge read counts as activity.</p>
  */
-export default function DeskStation({ touch }) {
+export default function DeskStation({ post, touch }) {
+  const atKit = post === KIT_POST
   const { loading, error, data: event, reload } = useAsync(async () => (await api.get('/events/'))[0] || null, [])
 
   const [mode, setMode] = useState('scan')
@@ -39,14 +45,14 @@ export default function DeskStation({ touch }) {
     }
     setBusy(true)
     try {
-      const r = await deskScan(code.trim().toUpperCase())
-      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r) })
+      const r = await (atKit ? deskLookup : deskScan)(code.trim().toUpperCase())
+      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: atKit ? null : arrivalNote(r) })
     } catch (err) {
       show({ failed: `${err.message} Scan again, or search by name.` })
     } finally {
       setBusy(false)
     }
-  }, [show, touch])
+  }, [atKit, show, touch])
 
   const pick = async (row) => {
     setBusy(true)
@@ -78,9 +84,11 @@ export default function DeskStation({ touch }) {
       </div>
     )
   } else if (view?.card) {
-    body = <DeskCardView key={view.key} card={view.card} note={view.note} onDone={nextDelegate} />
+    body = atKit
+      ? <KitCardView key={view.key} card={view.card} onDone={nextDelegate} />
+      : <DeskCardView key={view.key} card={view.card} note={view.note} onDone={nextDelegate} />
   } else if (view) {
-    body = <Refused view={view} onDone={nextDelegate} />
+    body = <Refused view={view} fallback={atKit ? 'No kit' : 'Not checked in'} onDone={nextDelegate} />
   } else if (mode === 'search') {
     body = <DeskSearch eventId={event.id} onPick={pick} onClose={() => setMode('scan')} />
   } else {
@@ -101,7 +109,7 @@ export default function DeskStation({ touch }) {
         ) : (
           <QrViewfinder key={cameraKey} ready={!busy} onCode={handleCode} onUnavailable={setCamera} />
         )}
-        <p className="dsk-aim">{trouble ? ' ' : busy ? 'Checking…' : 'Scan to check in'}</p>
+        <p className="dsk-aim">{trouble ? ' ' : busy ? 'Checking…' : atKit ? 'Scan to release a kit' : 'Scan to check in'}</p>
       </div>
     )
   }
@@ -133,14 +141,14 @@ function arrivalNote(r) {
 }
 
 /** Someone the desk turns away, or a scan that never reached a verdict. */
-function Refused({ view, onDone }) {
+function Refused({ view, fallback, onDone }) {
   const denied = view.denied
   const person = denied?.named
   return (
     <div className="dsk-refused">
       <div className="dsk-refused-head">
         <i className="fas fa-circle-xmark" aria-hidden="true" />
-        <span>{denied ? DESK_REFUSAL[denied.reasonCode] || 'Not checked in' : 'Scan failed'}</span>
+        <span>{denied ? DESK_REFUSAL[denied.reasonCode] || fallback : 'Scan failed'}</span>
       </div>
       {person && (
         <div className="dsk-refused-who">

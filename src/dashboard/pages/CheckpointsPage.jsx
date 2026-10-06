@@ -1,39 +1,29 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
-import { useAuth } from '@/auth/AuthContext'
-import { isAdmin } from '../dashboardNav'
 import { listCheckpoints, groupByDay, formatDayHeader, kindMeta, stateMeta, progressPct } from '@/lib/checkin'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
-import StaffRoster from '../components/checkin/StaffRoster'
 
-// The page's tabs. Staff tabs are an admin's: the secretariat runs the doors but doesn't hand out roles.
-const TABS = [
-  { key: 'checkpoints', label: 'Checkpoints', icon: 'fa-door-open' },
-  { key: 'marshals', label: 'Marshals', icon: 'fa-qrcode', role: 'Marshal', adminOnly: true },
-  { key: 'secretariat', label: 'Secretariat', icon: 'fa-id-card', role: 'Secretariat', adminOnly: true },
-]
+// The staff lists were tabs here before they got their own page; an old ?tab= link lands there.
+const MOVED_TABS = ['marshals', 'secretariat']
 
 /**
- * Convention check-in in one place: the checkpoints the marshals scan against and how far each has
- * got, and — for admins — who may scan (Marshals) and who works the desk (Secretariat).
- *
- * <p>The tab lives in the URL (?tab=marshals), so a refresh or a shared link opens the same one.</p>
+ * The checkpoints the marshals scan against, and how far each has got. Each opens on who was scanned
+ * and who is still to come.
  */
 export default function CheckpointsPage() {
-  const { user } = useAuth()
-  const admin = isAdmin(user?.roles)
-  const [params, setParams] = useSearchParams()
-  const tabs = TABS.filter((t) => admin || !t.adminOnly)
-  const tab = tabs.find((t) => t.key === params.get('tab')) || tabs[0]
-  const pick = (key) => setParams(key === 'checkpoints' ? {} : { tab: key }, { replace: true })
+  const [params] = useSearchParams()
+  const moved = params.get('tab')
+  if (MOVED_TABS.includes(moved)) {
+    return <Navigate to={`/dashboard/admin/checkin/staff${moved === 'marshals' ? '' : `?tab=${moved}`}`} replace />
+  }
 
   return (
     <>
       <div className="dash-page-head">
         <div>
-          <span className="dash-eyebrow">Convention</span>
-          <h1 className="dash-h1">Check-in</h1>
+          <span className="dash-eyebrow">Check-in</span>
+          <h1 className="dash-h1">Checkpoints</h1>
           <p className="dash-sub">
             One checkpoint per session, meal and tour bus, per day. Marshals pick one on their phone and
             scan badges against it — the same QR lets a delegate in, claims each meal once and boards their
@@ -47,25 +37,7 @@ export default function CheckpointsPage() {
         </div>
       </div>
 
-      {tabs.length > 1 && (
-        <nav className="dash-tabs ckp-tabs" role="tablist" aria-label="Check-in">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={t.key === tab.key}
-              className={`dash-tab${t.key === tab.key ? ' active' : ''}`}
-              onClick={() => pick(t.key)}
-            >
-              <i className={`fas ${t.icon}`} aria-hidden="true" /> {t.label}
-            </button>
-          ))}
-        </nav>
-      )}
-
-      {/* Keyed by tab so switching between the two staff lists starts each one fresh. */}
-      {tab.role ? <StaffRoster key={tab.key} role={tab.role} /> : <CheckpointList />}
+      <CheckpointList />
       <style>{CKP_CSS}</style>
     </>
   )
@@ -163,8 +135,6 @@ function CheckpointCard({ checkpoint: c }) {
 const CKP_CSS = `
   .ckp-actions { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
   .ckp-actions .dash-btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
-  .ckp-tabs { margin-bottom: 4px; }
-  .ckp-tabs .dash-tab { min-height: 44px; }
   .ckp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 18px; }
   .ckp-bar .dash-btn { min-height: 40px; }
   .ckp-event { flex: 1 1 100%; font-family: var(--font-heading); font-weight: 700; color: var(--navy); }

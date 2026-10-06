@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/apiClient'
 import { formatPeso } from '@/lib/events'
-import { deskCard, deskStep, deskUndo, DESK_STEPS, lastDeskStep, formatVenueTime, REASON_MAX } from '@/lib/checkin'
+import { deskCard, deskStep, deskUndo, DESK_STEPS, lastDeskStep, formatVenueTime, formatDay, kindMeta, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
 import DelegateFace from '../checkin/DelegateFace'
 
 /**
@@ -174,6 +174,8 @@ export default function DeskCardView({ card: initial, note, onDone }) {
         </form>
       )}
 
+      <Trail stops={card.trail} />
+
       <button ref={done} type="button" className="dash-btn dsk-next" onClick={onDone}>
         <i className="fas fa-qrcode" aria-hidden="true" /> Next delegate
       </button>
@@ -182,7 +184,42 @@ export default function DeskCardView({ card: initial, note, onDone }) {
   )
 }
 
-const DSK_CARD_CSS = `
+/**
+ * Every checkpoint that applies to this delegate and how they stand at each — the answer to "did
+ * they eat yesterday?" or "were they on their bus?" without opening each checkpoint's log. A bus is
+ * only listed for those booked on it, so a missed one here is one they really missed.
+ */
+function Trail({ stops = [] }) {
+  if (stops.length === 0) return null
+  const missed = stops.filter((s) => s.status === 'Missed').length
+  return (
+    <section className="dsk-trail" aria-label="Checkpoints">
+      <h3>
+        Checkpoints
+        {missed > 0 && <span className="dsk-trail-missed">{missed} missed</span>}
+      </h3>
+      <ol>
+        {stops.map((s) => {
+          const meta = TRAIL_STATUS[s.status] || TRAIL_STATUS.Upcoming
+          return (
+            <li key={s.checkpointId} className={meta.tone}>
+              <i className={`fas ${meta.icon}`} aria-hidden="true" />
+              <span className="dsk-trail-label">
+                <i className={`fas ${kindMeta(s.kind).icon}`} aria-hidden="true" /> {s.label}
+              </span>
+              <span className="dsk-trail-when">
+                {formatDay(s.day)} · {s.status === 'Scanned' ? formatVenueTime(s.at) : meta.label}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+    </section>
+  )
+}
+
+// Shared with the kit table's card, which shows the same person, facts and steps.
+export const DSK_CARD_CSS = `
   .dsk-card { display: flex; flex-direction: column; gap: 14px; padding: 16px; max-width: 560px; width: 100%; margin: 0 auto; }
   .dsk-desk {
     display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -233,4 +270,21 @@ const DSK_CARD_CSS = `
   }
   .dsk-undo { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
   .dsk-undo .dash-input { font-size: 16px; min-height: 48px; }
+
+  .dsk-trail { padding: 14px 16px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+  .dsk-trail h3 {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;
+    font-family: var(--font-heading); font-weight: 800; font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-600);
+  }
+  .dsk-trail-missed { padding: 2px 8px; border-radius: 999px; background: var(--bad-bg); color: var(--bad); letter-spacing: 0.04em; }
+  .dsk-trail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .dsk-trail li { display: grid; grid-template-columns: 22px 1fr; column-gap: 10px; align-items: center; }
+  .dsk-trail li > i { font-size: 1.05rem; }
+  .dsk-trail-label { font-family: var(--font-heading); font-weight: 700; color: var(--navy); overflow-wrap: anywhere; }
+  .dsk-trail-label i { color: var(--gray-400); font-size: 0.8rem; margin-right: 2px; }
+  .dsk-trail-when { grid-column: 2; font-family: var(--font-body); font-size: 0.82rem; color: var(--gray-600); }
+  .dsk-trail li.is-scanned > i { color: var(--ok); }
+  .dsk-trail li.is-missed > i, .dsk-trail li.is-missed .dsk-trail-when { color: var(--bad); }
+  .dsk-trail li.is-notyet > i { color: var(--gold-dark); }
+  .dsk-trail li.is-upcoming > i, .dsk-trail li.is-upcoming .dsk-trail-label { color: var(--gray-400); }
 `

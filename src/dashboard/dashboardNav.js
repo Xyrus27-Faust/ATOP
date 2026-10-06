@@ -123,12 +123,13 @@ const TALLIES = { to: '/dashboard/admin/tallies', label: 'Tallies', icon: 'fa-ch
 // The representative's own page, and the admin's grant/appoint table behind it.
 const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map-location-dot' }
 const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
-// Convention check-in: the full-screen scanner (outside the dashboard, like scoring), and the
-// secretariat's one entry for the rest of it. The Check-in page opens the scanner (the desk is one of
-// its posts) and — for admins — holds the marshal and secretariat lists as tabs, so all of it costs
-// the sidebar one line.
-const SCAN = { to: '/scan', label: 'Scan Badges', icon: 'fa-qrcode' }
-const CHECK_IN = { to: '/dashboard/admin/checkpoints', label: 'Check-in', icon: 'fa-qrcode' }
+// Convention check-in, its own sidebar section. One scanner for everyone (full-screen, outside the
+// dashboard — the desk is one of its posts); the checkpoints and the desk list are the secretariat's
+// "who's been, who hasn't"; handing out the marshal and secretariat roles is the admin's.
+const SCAN = { to: '/scan', label: 'Scanner', icon: 'fa-qrcode' }
+const CHECKPOINTS = { to: '/dashboard/admin/checkpoints', label: 'Checkpoints', icon: 'fa-door-open' }
+const DESK_LIST = { to: '/dashboard/admin/checkin/desk', label: 'Desk list', icon: 'fa-clipboard-list' }
+const CHECKIN_STAFF = { to: '/dashboard/admin/checkin/staff', label: 'Staff', icon: 'fa-user-shield' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -148,8 +149,13 @@ export function navForRoles(roles = []) {
   const applicant = roles.includes('Applicant') || (!reviewer && !assessor && !adjudicator && !regionalRep && !marshal)
 
   const groups = []
-  // A guard's one job, first thing in the sidebar. The back office reaches the scanner from Check-in.
-  if (marshal) groups.push({ label: 'Check-in', items: [SCAN] })
+  // Marshals see the scanner only; the lists of who's been where are the secretariat's.
+  const checkIn = canScan(roles) && {
+    label: 'Check-in',
+    items: [SCAN, ...(canManageRegistrations(roles) ? [CHECKPOINTS, DESK_LIST] : []), ...(admin ? [CHECKIN_STAFF] : [])],
+  }
+  // A guard's one job, first thing in their sidebar.
+  if (checkIn && isPureMarshal(roles)) groups.push(checkIn)
   if (applicant) groups.push({ label: 'Applicant', items: [OVERVIEW, MY_ENTRIES] })
   // Anyone with an account may register for the convention — attending isn't tied to a role,
   // so this sits in its own section rather than under any one of them.
@@ -160,13 +166,14 @@ export function navForRoles(roles = []) {
   if (assessor) groups.push({ label: 'Scoring', items: [SCORING] })
   if (roles.includes('Adjudicator')) groups.push({ label: 'Finals', items: [FINALS] }) // the adjudicator's own queue
   if (regionalRep) groups.push({ label: 'Regional', items: [MY_REGION] })
+  if (checkIn && !isPureMarshal(roles)) groups.push(checkIn)
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, CHECK_IN, ALLOCATIONS] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, ALLOCATIONS] })
   } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list — and the tallies
     // taken off it, which is the secretariat's job rather than the admin's.
-    groups.push({ label: 'Administration', items: [REGISTRATIONS, TALLIES, CHECK_IN] })
+    groups.push({ label: 'Administration', items: [REGISTRATIONS, TALLIES] })
   }
   groups.push({ label: null, items: [AWARDS, PROFILE] })
   return groups

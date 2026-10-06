@@ -43,6 +43,8 @@ import ScanPage from './dashboard/pages/ScanPage'
 import CheckpointsPage from './dashboard/pages/CheckpointsPage'
 import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
 import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
+import DeskListPage from './dashboard/pages/DeskListPage'
+import CheckInStaffPage from './dashboard/pages/CheckInStaffPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -123,6 +125,7 @@ export default function AppRoutes() {
             <Route path="admin/checkpoints" element={<CheckpointsPage />} />
             <Route path="admin/checkpoints/new" element={<NewCheckpointPage />} />
             <Route path="admin/checkpoints/:id" element={<CheckpointDetailPage />} />
+            <Route path="admin/checkin/desk" element={<DeskListPage />} />
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
@@ -132,8 +135,9 @@ export default function AppRoutes() {
             <Route path="admin/finals" element={<FinalsResultsPage />} />
             <Route path="admin/finalists" element={<FinalistRosterPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
-            {/* The marshals list is now a tab on Check-in; an old bookmark lands on it. */}
-            <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkpoints?tab=marshals" replace />} />
+            <Route path="admin/checkin/staff" element={<CheckInStaffPage />} />
+            {/* The marshals list has moved twice; an old bookmark still lands on it. */}
+            <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkin/staff" replace />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />
