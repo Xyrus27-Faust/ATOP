@@ -40,11 +40,10 @@ import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
 import MarshalRoute from './auth/MarshalRoute'
 import ScanPage from './dashboard/pages/ScanPage'
-import CheckpointsPage from './dashboard/pages/CheckpointsPage'
+import CheckInPage from './dashboard/pages/CheckInPage'
+import { OldCheckpoints, OldCheckpoint, OldStaff } from './dashboard/pages/CheckInRedirects'
 import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
 import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
-import DeskListPage from './dashboard/pages/DeskListPage'
-import CheckInStaffPage from './dashboard/pages/CheckInStaffPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -122,10 +121,15 @@ export default function AppRoutes() {
             <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
             <Route path="admin/tallies" element={<AdminTalliesPage />} />
             <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
-            <Route path="admin/checkpoints" element={<CheckpointsPage />} />
-            <Route path="admin/checkpoints/new" element={<NewCheckpointPage />} />
-            <Route path="admin/checkpoints/:id" element={<CheckpointDetailPage />} />
-            <Route path="admin/checkin/desk" element={<DeskListPage />} />
+            {/* Checkpoints, the desk list and (for admins) staff: one page, one tab each. */}
+            <Route path="admin/checkin" element={<CheckInPage />} />
+            <Route path="admin/checkin/checkpoints/new" element={<NewCheckpointPage />} />
+            <Route path="admin/checkin/checkpoints/:id" element={<CheckpointDetailPage />} />
+            {/* Where they lived before the merge. */}
+            <Route path="admin/checkpoints" element={<OldCheckpoints />} />
+            <Route path="admin/checkpoints/new" element={<Navigate to="/dashboard/admin/checkin/checkpoints/new" replace />} />
+            <Route path="admin/checkpoints/:id" element={<OldCheckpoint />} />
+            <Route path="admin/checkin/desk" element={<Navigate to="/dashboard/admin/checkin?tab=desk" replace />} />
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
@@ -135,9 +139,9 @@ export default function AppRoutes() {
             <Route path="admin/finals" element={<FinalsResultsPage />} />
             <Route path="admin/finalists" element={<FinalistRosterPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
-            <Route path="admin/checkin/staff" element={<CheckInStaffPage />} />
-            {/* The marshals list has moved twice; an old bookmark still lands on it. */}
-            <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkin/staff" replace />} />
+            {/* The staff lists have moved three times; an old bookmark still lands on them. */}
+            <Route path="admin/checkin/staff" element={<OldStaff />} />
+            <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkin?tab=staff" replace />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />

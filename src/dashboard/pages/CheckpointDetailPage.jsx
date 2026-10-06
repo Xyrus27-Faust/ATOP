@@ -68,7 +68,7 @@ export default function CheckpointDetailPage() {
     setToggleError(null)
     try {
       await deleteCheckpoint(c.id)
-      navigate('/dashboard/admin/checkpoints', { replace: true })
+      navigate('/dashboard/admin/checkin', { replace: true })
     } catch (err) {
       setToggleError(err.message)
       setConfirmDelete(false)
@@ -82,7 +82,7 @@ export default function CheckpointDetailPage() {
       <div className="ckd-screen">
       <div className="dash-page-head">
         <div>
-          <Link to="/dashboard/admin/checkpoints" className="dash-btn is-ghost is-sm ckd-back">
+          <Link to="/dashboard/admin/checkin" className="dash-btn is-ghost is-sm ckd-back">
             <i className="fas fa-arrow-left" aria-hidden="true" /> Checkpoints
           </Link>
           <span className="dash-eyebrow">

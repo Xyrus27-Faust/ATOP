@@ -123,13 +123,11 @@ const TALLIES = { to: '/dashboard/admin/tallies', label: 'Tallies', icon: 'fa-ch
 // The representative's own page, and the admin's grant/appoint table behind it.
 const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map-location-dot' }
 const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
-// Convention check-in, its own sidebar section. One scanner for everyone (full-screen, outside the
-// dashboard — the desk is one of its posts); the checkpoints and the desk list are the secretariat's
-// "who's been, who hasn't"; handing out the marshal and secretariat roles is the admin's.
+// Convention check-in, its own sidebar section, two links. One scanner for everyone (full-screen,
+// outside the dashboard — the desk and the kit table are posts on it), and the secretariat's one page
+// of who's been where: checkpoints, the desk list and, for admins, staff, each a tab.
 const SCAN = { to: '/scan', label: 'Scanner', icon: 'fa-qrcode' }
-const CHECKPOINTS = { to: '/dashboard/admin/checkpoints', label: 'Checkpoints', icon: 'fa-door-open' }
-const DESK_LIST = { to: '/dashboard/admin/checkin/desk', label: 'Desk list', icon: 'fa-clipboard-list' }
-const CHECKIN_STAFF = { to: '/dashboard/admin/checkin/staff', label: 'Staff', icon: 'fa-user-shield' }
+const CHECKIN = { to: '/dashboard/admin/checkin', label: 'Checkpoints & desk', icon: 'fa-clipboard-list' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -152,7 +150,7 @@ export function navForRoles(roles = []) {
   // Marshals see the scanner only; the lists of who's been where are the secretariat's.
   const checkIn = canScan(roles) && {
     label: 'Check-in',
-    items: [SCAN, ...(canManageRegistrations(roles) ? [CHECKPOINTS, DESK_LIST] : []), ...(admin ? [CHECKIN_STAFF] : [])],
+    items: [SCAN, ...(canManageRegistrations(roles) ? [CHECKIN] : [])],
   }
   // A guard's one job, first thing in their sidebar.
   if (checkIn && isPureMarshal(roles)) groups.push(checkIn)

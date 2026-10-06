@@ -1,47 +1,8 @@
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { listCheckpoints, groupByDay, formatDayHeader, kindMeta, stateMeta, progressPct } from '@/lib/checkin'
-import { useAsync } from '../useAsync'
-import { Loading, ErrorState } from '../components/states'
-
-// The staff lists were tabs here before they got their own page; an old ?tab= link lands there.
-const MOVED_TABS = ['marshals', 'secretariat']
-
-/**
- * The checkpoints the marshals scan against, and how far each has got. Each opens on who was scanned
- * and who is still to come.
- */
-export default function CheckpointsPage() {
-  const [params] = useSearchParams()
-  const moved = params.get('tab')
-  if (MOVED_TABS.includes(moved)) {
-    return <Navigate to={`/dashboard/admin/checkin/staff${moved === 'marshals' ? '' : `?tab=${moved}`}`} replace />
-  }
-
-  return (
-    <>
-      <div className="dash-page-head">
-        <div>
-          <span className="dash-eyebrow">Check-in</span>
-          <h1 className="dash-h1">Checkpoints</h1>
-          <p className="dash-sub">
-            One checkpoint per session, meal and tour bus, per day. Marshals pick one on their phone and
-            scan badges against it — the same QR lets a delegate in, claims each meal once and boards their
-            own bus. Nobody gets through any of them before the Secretariat desk has checked them in.
-          </p>
-        </div>
-        <div className="ckp-actions">
-          <Link className="dash-btn" to="/scan">
-            <i className="fas fa-qrcode" aria-hidden="true" /> Open scanner
-          </Link>
-        </div>
-      </div>
-
-      <CheckpointList />
-      <style>{CKP_CSS}</style>
-    </>
-  )
-}
+import { useAsync } from '../../useAsync'
+import { Loading, ErrorState } from '../states'
 
 /**
  * The doors, meal lines and buses, and how far each has got.
@@ -50,7 +11,7 @@ export default function CheckpointsPage() {
  * pass. That is the number who <em>could</em> walk up — a delegate still in a draft booking can't,
  * so counting them would make every meal look half-empty.</p>
  */
-function CheckpointList() {
+export default function CheckpointsTab() {
   const { loading, error, data, reload } = useAsync(async () => {
     const events = await api.get('/events/')
     const event = events[0]
@@ -74,12 +35,13 @@ function CheckpointList() {
 
   return (
     <>
+      <style>{CKP_CSS}</style>
       <div className="ckp-bar">
         <span className="ckp-event">{event.name}</span>
         <button className="dash-btn is-ghost is-sm" onClick={reload}>
           <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
         </button>
-        <Link className="dash-btn is-primary is-sm" to="/dashboard/admin/checkpoints/new">
+        <Link className="dash-btn is-primary is-sm" to="/dashboard/admin/checkin/checkpoints/new">
           <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
         </Link>
       </div>
@@ -89,7 +51,7 @@ function CheckpointList() {
           <div className="dash-empty-icon"><i className="fas fa-door-open" aria-hidden="true" /></div>
           <h3>No checkpoints yet</h3>
           <p>Add each day&rsquo;s sessions, meals and tour buses. Marshals see only the open ones.</p>
-          <Link className="dash-btn is-primary" to="/dashboard/admin/checkpoints/new">
+          <Link className="dash-btn is-primary" to="/dashboard/admin/checkin/checkpoints/new">
             <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
           </Link>
         </div>
@@ -115,7 +77,7 @@ function CheckpointCard({ checkpoint: c }) {
   const dimmed = c.state === 'Closed' || c.state === 'Ended'
 
   return (
-    <Link to={`/dashboard/admin/checkpoints/${c.id}`} className={`dash-card ckp-card${dimmed ? ' is-closed' : ''}`}>
+    <Link to={`/dashboard/admin/checkin/checkpoints/${c.id}`} className={`dash-card ckp-card${dimmed ? ' is-closed' : ''}`}>
       <div className="ckp-card-top">
         <span className="ckp-kind"><i className={`fas ${kind.icon}`} aria-hidden="true" /> {kind.label}</span>
         {c.state !== 'Open' && <span className={`dash-badge ${state.tone}`}>{state.label}</span>}
@@ -133,8 +95,6 @@ function CheckpointCard({ checkpoint: c }) {
 }
 
 const CKP_CSS = `
-  .ckp-actions { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
-  .ckp-actions .dash-btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
   .ckp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 18px; }
   .ckp-bar .dash-btn { min-height: 40px; }
   .ckp-event { flex: 1 1 100%; font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
@@ -163,8 +123,6 @@ const CKP_CSS = `
 
   @media (min-width: 640px) {
     .ckp-event { flex: 1 1 auto; }
-    .ckp-actions { width: auto; }
-    .ckp-actions .dash-btn { flex: 0 0 auto; }
     .ckp-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 1024px) {

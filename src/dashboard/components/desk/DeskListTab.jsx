@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { formatPeso } from '@/lib/events'
 import { deskRoster, formatVenueTime } from '@/lib/checkin'
 import { downloadCsv, datedFilename } from '@/lib/csv'
-import { useAsync } from '../useAsync'
-import { Loading, ErrorState } from '../components/states'
+import { useAsync } from '../../useAsync'
+import { Loading, ErrorState } from '../states'
 
 // Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
 const fold = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -26,9 +25,9 @@ const FILTERS = [
  * out: one tap each, and the list as a CSV for the end of the day.
  *
  * <p>The same pool the desk scans from, so nobody is listed whom the desk would turn away. Cards on a
- * phone, a table once there's room.</p>
+ * phone, a table once there's room. A tab on the Check-in page.</p>
  */
-export default function DeskListPage() {
+export default function DeskListTab() {
   const { loading, error, data, reload } = useAsync(async () => {
     const event = (await api.get('/events/'))[0]
     if (!event) return { event: null, rows: [] }
@@ -66,22 +65,6 @@ export default function DeskListPage() {
 
   return (
     <>
-      <div className="dash-page-head">
-        <div>
-          <span className="dash-eyebrow">Check-in</span>
-          <h1 className="dash-h1">Desk list</h1>
-          <p className="dash-sub">
-            Every delegate with a pass and how far each has got at the Secretariat desk. Tap a filter to see
-            who hasn&rsquo;t arrived, who still owes, or whose ID or kit is still waiting.
-          </p>
-        </div>
-        <div className="dkl-actions">
-          <Link className="dash-btn" to="/scan">
-            <i className="fas fa-qrcode" aria-hidden="true" /> Open scanner
-          </Link>
-        </div>
-      </div>
-
       <div className="dkl-filters" role="tablist" aria-label="Filter">
         {FILTERS.map((f) => (
           <button
@@ -188,9 +171,6 @@ function Step({ label, at }) {
 }
 
 const DKL_CSS = `
-  .dkl-actions { display: flex; width: 100%; }
-  .dkl-actions .dash-btn { flex: 1; justify-content: center; min-height: 44px; }
-
   /* Scrolls sideways on a phone rather than wrapping into a wall of chips. */
   .dkl-filters { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; margin: 4px 0 10px; }
   .dkl-chip {
@@ -227,8 +207,6 @@ const DKL_CSS = `
   .dkl-ref, .dkl-by { display: block; font-size: 0.78rem; color: var(--gray-600); }
 
   @media (min-width: 640px) {
-    .dkl-actions { width: auto; }
-    .dkl-actions .dash-btn { flex: 0 0 auto; }
     .dkl-search { flex: 1 1 auto; }
   }
   @media (min-width: 900px) {

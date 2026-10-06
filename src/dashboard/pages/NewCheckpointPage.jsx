@@ -119,7 +119,7 @@ export default function NewCheckpointPage() {
         sortOrder: form.sortOrder === '' ? null : Number(form.sortOrder),
         tourBatchId: form.kind === 'Tour' ? form.tourBatchId : null,
       })
-      navigate('/dashboard/admin/checkpoints')
+      navigate('/dashboard/admin/checkin')
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
         const mapped = {}
@@ -140,7 +140,7 @@ export default function NewCheckpointPage() {
     <>
       <div className="dash-page-head">
         <div>
-          <Link to="/dashboard/admin/checkpoints" className="dash-btn is-ghost is-sm ckn-back">
+          <Link to="/dashboard/admin/checkin" className="dash-btn is-ghost is-sm ckn-back">
             <i className="fas fa-arrow-left" aria-hidden="true" /> Checkpoints
           </Link>
           <h1 className="dash-h1">New checkpoint</h1>
@@ -290,7 +290,7 @@ export default function NewCheckpointPage() {
         </Field>
 
         <div className="ckn-foot">
-          <Link to="/dashboard/admin/checkpoints" className="dash-btn is-ghost">Cancel</Link>
+          <Link to="/dashboard/admin/checkin" className="dash-btn is-ghost">Cancel</Link>
           <button type="submit" className="dash-btn is-primary" disabled={saving}>
             {saving
               ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</>
