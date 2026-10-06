@@ -7,6 +7,7 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import ApplicantRoute from './auth/ApplicantRoute'
 import AdminRoute from './auth/AdminRoute'
 import RegistrationsAdminRoute from './auth/RegistrationsAdminRoute'
+import CheckInAdminRoute from './auth/CheckInAdminRoute'
 import RegionalRepRoute from './auth/RegionalRepRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
 import SubmissionLayout, { ConventionLayout } from './dashboard/SubmissionLayout'
@@ -27,6 +28,7 @@ import ScoringResultsPage from './dashboard/pages/ScoringResultsPage'
 import FinalsQueuePage from './dashboard/pages/FinalsQueuePage'
 import FinalsBracketPage from './dashboard/pages/FinalsBracketPage'
 import AdjudicatorAdminPage from './dashboard/pages/AdjudicatorAdminPage'
+import RegistrationAdminsPage from './dashboard/pages/RegistrationAdminsPage'
 import FinalsResultsPage from './dashboard/pages/FinalsResultsPage'
 import FinalistRosterPage from './dashboard/pages/FinalistRosterPage'
 import ConventionPage from './dashboard/pages/ConventionPage'
@@ -121,6 +123,8 @@ export default function AppRoutes() {
             <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
             <Route path="admin/tallies" element={<AdminTalliesPage />} />
             <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
+          </Route>
+          <Route element={<CheckInAdminRoute />}>
             {/* Checkpoints, the desk list and (for admins) staff: one page, one tab each. */}
             <Route path="admin/checkin" element={<CheckInPage />} />
             <Route path="admin/checkin/checkpoints/new" element={<NewCheckpointPage />} />
@@ -143,6 +147,7 @@ export default function AppRoutes() {
             <Route path="admin/checkin/staff" element={<OldStaff />} />
             <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkin?tab=staff" replace />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
+            <Route path="admin/registration-admins" element={<RegistrationAdminsPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />
         </Route>

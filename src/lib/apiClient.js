@@ -112,8 +112,8 @@ const REQUEST_TIMEOUT_MS = 20_000
 /** status 0 — the request never reached the server, so there is no HTTP status to report. */
 const NO_RESPONSE = 0
 
-async function rawRequest(path, { method = 'GET', body, token } = {}) {
-  const headers = { Accept: 'application/json' }
+async function rawRequest(path, { method = 'GET', body, token, blob = false, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
+  const headers = { Accept: blob ? '*/*' : 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
 
@@ -123,7 +123,7 @@ async function rawRequest(path, { method = 'GET', body, token } = {}) {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (cause) {
     // Reaching the server and being refused is an ApiError with a status; never
@@ -138,6 +138,9 @@ async function rawRequest(path, { method = 'GET', body, token } = {}) {
       raw: cause,
     })
   }
+
+  // A file comes back as a Blob; an error from the same endpoint is still ProblemDetails JSON.
+  if (blob && res.ok) return res.blob()
 
   const parsed = await parseBody(res)
   if (!res.ok) throw toApiError(res.status, parsed)
@@ -170,17 +173,17 @@ async function refreshAccessToken() {
  * 401, refreshes once and retries. A failed refresh clears the session and
  * notifies listeners.
  */
-async function request(path, { method = 'GET', body, auth = false } = {}) {
-  if (!auth) return rawRequest(path, { method, body })
+async function request(path, { method = 'GET', body, auth = false, blob, timeoutMs } = {}) {
+  if (!auth) return rawRequest(path, { method, body, blob, timeoutMs })
 
   try {
-    return await rawRequest(path, { method, body, token: getAccessToken() })
+    return await rawRequest(path, { method, body, blob, timeoutMs, token: getAccessToken() })
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 401) throw err
     // Access token likely expired — refresh once and retry.
     try {
       const newAccess = await refreshAccessToken()
-      return await rawRequest(path, { method, body, token: newAccess })
+      return await rawRequest(path, { method, body, blob, timeoutMs, token: newAccess })
     } catch (refreshErr) {
       // A refresh that never reached the server says nothing about the session.
       // Now that a stalled request fails instead of hanging, treating that as
@@ -201,4 +204,21 @@ export const api = {
   post: (path, body, opts) => request(path, { ...opts, method: 'POST', body }),
   put: (path, body, opts) => request(path, { ...opts, method: 'PUT', body }),
   delete: (path, opts) => request(path, { ...opts, method: 'DELETE' }),
+
+  /**
+   * GET a file and hand it to the browser as a download. Same auth and refresh as everything else —
+   * which is why it is not a plain link: the API wants a Bearer token, not a cookie.
+   */
+  download: async (path, filename, { timeoutMs } = {}) => {
+    const file = await request(path, { method: 'GET', auth: true, blob: true, timeoutMs })
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    // Revoking immediately races the download in Safari; a tick is enough.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  },
 }

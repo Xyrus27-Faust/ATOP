@@ -11,6 +11,7 @@ export const ROLE_LABELS = {
   Adjudicator: 'Adjudicator',
   RegionalRepresentative: 'Regional Representative',
   Marshal: 'Marshal',
+  RegistrationAdmin: 'Registration Admin',
   Admin: 'Administrator',
 }
 
@@ -54,10 +55,10 @@ export const isRegionalRep = (roles = []) => roles.includes('RegionalRepresentat
 export const isPureRegionalRep = (roles = []) =>
   isRegionalRep(roles) && !isReviewer(roles) && !isAssessor(roles) && !isAdjudicator(roles)
 
-// Who may work the convention registration list. Mirrors the backend's
-// /admin/events/{id}/registrations policy — Secretariat or Admin. Deliberately
-// narrower than REVIEWER_ROLES: a Validator reviews entries, not bookings.
-export const REGISTRATION_ADMIN_ROLES = ['Admin', 'Secretariat']
+// Who may work the convention registration list. Mirrors the backend's RegistrationStaff policy —
+// Secretariat, Registration Admin or Admin. Deliberately narrower than REVIEWER_ROLES: a Validator
+// reviews entries, not bookings.
+export const REGISTRATION_ADMIN_ROLES = ['Admin', 'Secretariat', 'RegistrationAdmin']
 export const canManageRegistrations = (roles = []) =>
   roles.some((r) => REGISTRATION_ADMIN_ROLES.includes(r))
 
@@ -65,6 +66,11 @@ export const canManageRegistrations = (roles = []) =>
 // guards; Secretariat and Admin can stand in at a door without being granted a second role.
 export const CHECKIN_ROLES = ['Admin', 'Secretariat', 'Marshal']
 export const canScan = (roles = []) => roles.some((r) => CHECKIN_ROLES.includes(r))
+// Who runs check-in rather than standing at a door: checkpoints, the desk list, the Secretariat desk
+// and the kit table (mirrors the backend's /admin/checkpoints and /desk policies). Narrower than
+// canManageRegistrations — a Registration Admin works the bookings, not the venue.
+export const CHECKIN_ADMIN_ROLES = ['Admin', 'Secretariat']
+export const canManageCheckIn = (roles = []) => roles.some((r) => CHECKIN_ADMIN_ROLES.includes(r))
 export const isMarshal = (roles = []) => roles.includes('Marshal')
 // A marshal with no back-office role belongs on the scanner. Applicant is deliberately ignored:
 // every self-registered account carries it, so a guard's account is [Applicant, Marshal] and would
@@ -77,8 +83,20 @@ export const isPureMarshal = (roles = []) =>
   !isRegionalRep(roles) &&
   !canManageRegistrations(roles)
 
+// The registration desk and nothing else (ATOP, 2026-10-05): a Registration Admin with no other
+// working role sees Registrations and Tallies, plus their profile. Every account also holds
+// Applicant, so that one doesn't count against them — the desk is staff, not an entrant. Marshal
+// does: a Registration Admin who also guards a door needs the scanner, which lives outside these paths.
+const WORKING_ROLES = ['Admin', 'Secretariat', 'Validator', 'TWG', '3PIC', 'Adjudicator', 'RegionalRepresentative', 'Marshal']
+export const isRegistrationDeskOnly = (roles = []) =>
+  roles.includes('RegistrationAdmin') && !roles.some((r) => WORKING_ROLES.includes(r))
+
+// The pages a desk-only account may open; anything else sends them back to the registration list.
+const DESK_PATHS = ['/dashboard/admin/registrations', '/dashboard/admin/tallies', '/dashboard/profile']
+const isDeskPath = (path = '') => DESK_PATHS.some((p) => path === p || path.startsWith(`${p}/`))
+
 // Highest-privilege role wins for the badge shown in the shell.
-const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'RegionalRepresentative', 'Marshal', 'Applicant']
+const ROLE_PRECEDENCE = ['Admin', 'Secretariat', 'Validator', 'Twg', '3PIC', 'Adjudicator', 'RegionalRepresentative', 'RegistrationAdmin', 'Marshal', 'Applicant']
 
 export function primaryRole(roles = []) {
   for (const role of ROLE_PRECEDENCE) if (roles.includes(role)) return role
@@ -91,7 +109,7 @@ export function roleLabel(role) {
 
 // Compact labels for the tight role chip (sidebar + topbar), where the full names are too long.
 // The full name is kept for the chip's hover tooltip and everywhere else via roleLabel().
-const ROLE_SHORT = { Twg: 'TWG', '3PIC': '3PIC', RegionalRepresentative: 'Regional Rep' }
+const ROLE_SHORT = { Twg: 'TWG', '3PIC': '3PIC', RegionalRepresentative: 'Regional Rep', RegistrationAdmin: 'Reg. Admin' }
 export function roleChipLabel(role) {
   return ROLE_SHORT[role] || roleLabel(role)
 }
@@ -128,6 +146,8 @@ const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocati
 // of who's been where: checkpoints, the desk list and, for admins, staff, each a tab.
 const SCAN = { to: '/scan', label: 'Scanner', icon: 'fa-qrcode' }
 const CHECKIN = { to: '/dashboard/admin/checkin', label: 'Checkpoints & desk', icon: 'fa-clipboard-list' }
+// Who holds the Registration Admin role — granted and revoked here.
+const DESK_STAFF = { to: '/dashboard/admin/registration-admins', label: 'Registration Admins', icon: 'fa-id-card-clip' }
 // Award categories now live on the public marketing page (ungated). The dashboard
 // nav links out to it rather than hosting its own copy.
 const AWARDS = { to: '/awards', label: 'Award Categories', icon: 'fa-award' }
@@ -137,6 +157,13 @@ const PROFILE = { to: '/dashboard/profile', label: 'Profile', icon: 'fa-id-badge
 // several sections; the trailing section (label null) is the always-present general links. The shell
 // only renders section headers when there's more than one role section, so single-role users stay flat.
 export function navForRoles(roles = []) {
+  if (isRegistrationDeskOnly(roles)) {
+    return [
+      { label: 'Registration', items: [REGISTRATIONS, TALLIES] },
+      { label: null, items: [PROFILE] },
+    ]
+  }
+
   const reviewer = isReviewer(roles)
   const assessor = isAssessor(roles)
   const adjudicator = isAdjudicator(roles)
@@ -150,7 +177,7 @@ export function navForRoles(roles = []) {
   // Marshals see the scanner only; the lists of who's been where are the secretariat's.
   const checkIn = canScan(roles) && {
     label: 'Check-in',
-    items: [SCAN, ...(canManageRegistrations(roles) ? [CHECKIN] : [])],
+    items: [SCAN, ...(canManageCheckIn(roles) ? [CHECKIN] : [])],
   }
   // A guard's one job, first thing in their sidebar.
   if (checkIn && isPureMarshal(roles)) groups.push(checkIn)
@@ -167,7 +194,7 @@ export function navForRoles(roles = []) {
   if (checkIn && !isPureMarshal(roles)) groups.push(checkIn)
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, ALLOCATIONS] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, ALLOCATIONS, DESK_STAFF] })
   } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list — and the tallies
     // taken off it, which is the secretariat's job rather than the admin's.
@@ -186,6 +213,7 @@ export function isApplicantOnlyPath(path = '') {
 // Where a freshly signed-in user belongs. Pure reviewers land in the review
 // queue; everyone else gets the applicant overview.
 export function roleHome(roles = []) {
+  if (isRegistrationDeskOnly(roles)) return '/dashboard/admin/registrations'
   if (isPureReviewer(roles)) return '/dashboard/review'
   if (isPureAssessor(roles)) return '/dashboard/scoring'
   if (isPureAdjudicator(roles)) return '/dashboard/finals'
@@ -197,5 +225,6 @@ export function roleHome(roles = []) {
 // Whether a role set may view a path. Used to vet a remembered post-login `from`
 // target so a stale deep link can't drop a reviewer on an applicant-only page.
 export function canAccessPath(path, roles = []) {
+  if (isRegistrationDeskOnly(roles)) return isDeskPath(path)
   return !(isPureReviewer(roles) && isApplicantOnlyPath(path))
 }

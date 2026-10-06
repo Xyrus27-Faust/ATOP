@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import { canAccessPath, isRegistrationDeskOnly, roleHome } from '@/dashboard/dashboardNav'
 
 /**
  * Route guard for authenticated-only pages. No pages use it yet, but it's
@@ -10,7 +11,7 @@ import { useAuth } from './AuthContext'
  *   </Route>
  */
 export default function ProtectedRoute() {
-  const { status } = useAuth()
+  const { status, user } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') {
@@ -31,6 +32,13 @@ export default function ProtectedRoute() {
 
   if (status !== 'authenticated') {
     return <Navigate to="/login" replace state={{ from: location }} />
+  }
+
+  // A Registration Admin works the registration desk and nothing else. Checked once here, for
+  // every signed-in page, rather than on each of the pages they must not see.
+  const roles = user?.roles
+  if (isRegistrationDeskOnly(roles) && !canAccessPath(location.pathname, roles)) {
+    return <Navigate to={roleHome(roles)} replace />
   }
 
   return <Outlet />

@@ -4,7 +4,7 @@ import { canManageRegistrations, roleHome } from '@/dashboard/dashboardNav'
 
 /**
  * Guards the convention registration back office. Mirrors the backend, which lets
- * **Secretariat or Admin** work the registration list — working the list is
+ * **Secretariat, Registration Admin or Admin** work the registration list — working the list is
  * day-to-day secretariat work, unlike configuring the event itself. Assumes it
  * sits inside <ProtectedRoute>, so the user is already authenticated.
  */

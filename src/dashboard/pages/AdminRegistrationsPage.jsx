@@ -6,6 +6,7 @@ import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
 import Modal from '../components/Modal'
 import MasterListButton from '../components/MasterListButton'
+import IdCardsButton from '../components/IdCardsButton'
 import { formatDate } from '@/lib/pearlAwards'
 import { REGIONS } from '@/lib/pearlAwards'
 import {
@@ -95,7 +96,11 @@ export default function AdminRegistrationsPage() {
           <p className="dash-sub">Every booking for the convention, and what each has paid.</p>
         </div>
         {/* The whole list, not the page on screen — the filters and paging here do not apply. */}
-        <MasterListButton eventId={event.id} />
+        <div className="ar-head-actions">
+          {/* Follows the region dropdown below: the print run, one region at a time. */}
+          <IdCardsButton eventId={event.id} region={region} />
+          <MasterListButton eventId={event.id} />
+        </div>
       </div>
 
       {/* Seats are counted per delegate on CONFIRMED bookings — which includes anyone who has paid
@@ -235,6 +240,7 @@ export default function AdminRegistrationsPage() {
         /* dash-grid only sets display+gap; the columns are ours. auto-fit rather than the
            cols-4 modifier so four tiles don't crush on a narrow window. */
         .ar-stats { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 16px; }
+        .ar-head-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
         .ar-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
         .ar-search { display: flex; gap: 8px; flex: 1 1 320px; }
         .ar-search .dash-input { flex: 1; }

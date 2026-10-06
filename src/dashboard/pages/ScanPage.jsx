@@ -6,7 +6,7 @@ import {
   tallyVerb, CAMERA_TROUBLE, DESK_POST, KIT_POST,
 } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
-import { canManageRegistrations } from '../dashboardNav'
+import { canManageCheckIn } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { useIdleSignOut } from '../useIdleSignOut'
 import { Loading, ErrorState } from '../components/states'
@@ -35,7 +35,7 @@ export default function ScanPage() {
   const { signOut, touch } = useIdleSignOut()
   // The desk and the kit table are Secretariat and Admin's, as on the API. A phone remembered on the desk and then
   // signed in as a marshal just lands on the post list.
-  const canDesk = canManageRegistrations(user?.roles)
+  const canDesk = canManageCheckIn(user?.roles)
   const { loading, error, data: checkpoints, reload } = useAsync(listMarshalCheckpoints, [])
 
   const [postId, setPostId] = useState(readPost)
