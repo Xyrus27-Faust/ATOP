@@ -55,8 +55,10 @@ const SQ_CSS = `
   .sq {
     display: block; padding: 5px; cursor: zoom-in;
     background: #ffffff; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
-    line-height: 0; transition: var(--transition-fast);
+    line-height: 0; transition: var(--transition-fast); max-width: 100%;
   }
+  /* Drawn at full size, shown smaller on a narrow phone rather than spilling off it: still sharp. */
+  .sq canvas { max-width: 100%; height: auto; }
   .sq:hover { border-color: var(--navy); }
   .sq canvas { display: block; }
   .sq-failed {
