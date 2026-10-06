@@ -14,6 +14,7 @@ import {
   registrationStatusMeta,
   formatPeso,
 } from '@/lib/events'
+import Stat from '../components/Stat'
 
 const PAGE_SIZE = 50
 
@@ -408,18 +409,6 @@ function RowMenu({ registration: r, onComp }) {
         </span>
       )}
     </span>
-  )
-}
-
-function Stat({ icon, label, value }) {
-  return (
-    <div className="dash-card dash-stat">
-      <div className="dash-stat-icon"><i className={`fas ${icon}`} aria-hidden="true" /></div>
-      <div>
-        <div className="dash-stat-value">{value}</div>
-        <div className="dash-stat-label">{label}</div>
-      </div>
-    </div>
   )
 }
 

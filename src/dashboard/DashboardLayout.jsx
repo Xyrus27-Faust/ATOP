@@ -419,11 +419,25 @@ export const DASH_CSS = `
   .dash-badge.tone-success { color: #15803D; background: #F0FDF4; border-color: #BBF7D0; }
   .dash-badge.tone-danger { color: #B91C1C; background: #FEF2F2; border-color: #FECACA; }
 
-  /* ---------- Stat cards ---------- */
-  .dash-stat { padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; position: relative; overflow: hidden; }
-  .dash-stat-value { font-family: var(--font-heading); font-size: 2rem; font-weight: 800; color: var(--navy); line-height: 1; }
+  /* ---------- Stat cards ----------
+     The watermark is decoration and belongs behind the number. It used to paint on top of it: the
+     icon is absolutely positioned and the value is not, and positioned boxes paint over in-flow
+     ones, so the last digits of anything long went under the glyph — "₱12,369,600.00" read as
+     "₱12,369,600.0" with a cross through the tail. The content is lifted onto its own layer, and
+     the value shrinks when it would not otherwise fit beside it.
+
+     That last bit is sized rather than guessed: --stat-len is how many characters the value has
+     (set by components/Stat.jsx), 100cqi is the tile's content box (padding already off) and 36px
+     is the room the watermark needs. Montserrat ExtraBold runs about 0.58em per digit, so the
+     widest the value can be set and still clear the corner is that leftover divided by the
+     character count. Counts stay at the full 2rem; only money and ratios ever give anything back, and only
+     in a tile too narrow to hold them. Without --stat-len (the two pages that write their own
+     markup, which show single counts) the default keeps them at 2rem. */
+  .dash-stat { padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; position: relative; overflow: hidden; container-type: inline-size; }
+  .dash-stat > *:not(.dash-stat-icon) { position: relative; z-index: 1; min-width: 0; }
+  .dash-stat-value { font-family: var(--font-heading); font-size: min(2rem, calc((100cqi - 36px) / (var(--stat-len, 4) * 0.58))); font-weight: 800; color: var(--navy); line-height: 1; }
   .dash-stat-label { font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); }
-  .dash-stat-icon { position: absolute; right: -8px; top: -8px; font-size: 3.4rem; color: var(--gray-100); }
+  .dash-stat-icon { position: absolute; right: -8px; top: -8px; font-size: 3.4rem; color: var(--gray-100); z-index: 0; pointer-events: none; }
 
   /* ---------- Readiness (signature element) ---------- */
   .dash-meter { height: 8px; border-radius: 999px; background: var(--gray-200); overflow: hidden; }
