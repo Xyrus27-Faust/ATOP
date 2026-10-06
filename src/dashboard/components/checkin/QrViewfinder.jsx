@@ -16,15 +16,20 @@ const SAME_CODE_COOLDOWN_MS = 3000
  * flight, or a result is on screen) decoded frames are dropped rather than queued: a guard wants
  * the badge in front of them now, not the one from four seconds ago.</p>
  *
+ * <p>{@code lastCode} is for a parent that takes the camera away while a result shows (the desk swaps
+ * in the card): the code it last handled, so the badge still in front of the lens when the camera
+ * comes back isn't read again as a new arrival. It gets the same cooldown as any repeat.</p>
+ *
  * <p>When the camera cannot be used — no permission, no camera, or a page not served over HTTPS —
  * {@code onUnavailable} gets a sentence the guard can act on, and the parent swaps in the search.</p>
  */
-export default function QrViewfinder({ ready, onCode, onUnavailable }) {
+export default function QrViewfinder({ ready, onCode, onUnavailable, lastCode = null }) {
   const video = useRef(null)
   const readyRef = useRef(ready)
   const onCodeRef = useRef(onCode)
   const onUnavailableRef = useRef(onUnavailable)
-  const last = useRef({ code: null, at: 0 })
+  // Read once, at mount: the cooldown below starts it from the moment the camera is ready.
+  const last = useRef({ code: lastCode, at: 0 })
   const [starting, setStarting] = useState(true)
 
   useEffect(() => {

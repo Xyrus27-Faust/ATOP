@@ -36,9 +36,13 @@ export default function DeskStation({ post, touch }) {
   // gets a fresh key, so a card left half-confirmed never carries over to the next delegate.
   const [view, setView] = useState(null)
   const show = useCallback((v) => setView({ ...v, key: Date.now() }), [])
+  // The camera is unmounted while a card is up; the last badge it read is kept here, so the one
+  // still in front of it after "Next delegate" doesn't reopen the same card.
+  const [lastCode, setLastCode] = useState(null)
 
   const handleCode = useCallback(async (code) => {
     touch()
+    setLastCode(code)
     if (!isBadgeCode(code)) {
       show({ failed: 'That isn’t an ATOP badge. Scan the QR on their pass, or search by name.' })
       return
@@ -107,7 +111,7 @@ export default function DeskStation({ post, touch }) {
             )}
           </div>
         ) : (
-          <QrViewfinder key={cameraKey} ready={!busy} onCode={handleCode} onUnavailable={setCamera} />
+          <QrViewfinder key={cameraKey} ready={!busy} onCode={handleCode} onUnavailable={setCamera} lastCode={lastCode} />
         )}
         <p className="dsk-aim">{trouble ? ' ' : busy ? 'Checking…' : atKit ? 'Scan to release a kit' : 'Scan to check in'}</p>
       </div>

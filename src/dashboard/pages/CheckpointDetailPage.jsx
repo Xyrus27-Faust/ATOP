@@ -56,9 +56,10 @@ export default function CheckpointDetailPage() {
     setToggling(false)
   }
 
-  // Deleting is for a checkpoint made by mistake: offered only while nobody has been scanned here,
-  // and a second tap confirms. The API checks again, so a scan landing in between still wins.
-  const deletable = scans.length === 0 && voids.length === 0
+  // Deleting is for a checkpoint made by mistake: offered only while nothing points at it (the API's
+  // own rule — scans, voids and faces looked at here), and a second tap confirms. The API checks
+  // again, so a scan landing in between still wins.
+  const deletable = data.deletable
   async function remove() {
     if (!confirmDelete) {
       setConfirmDelete(true)
