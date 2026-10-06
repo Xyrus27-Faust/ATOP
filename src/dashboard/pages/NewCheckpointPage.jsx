@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, ApiError } from '@/lib/apiClient'
+import { ApiError } from '@/lib/apiClient'
+import { fetchCurrentEvent } from '@/lib/eventInfo'
 import {
   createCheckpoint, listTourPackages, eventDays, scanningToday, formatDay, CHECKPOINT_KIND, LABEL_MAX, MEAL_NAMES,
 } from '@/lib/checkin'
@@ -25,7 +26,7 @@ const batchLabel = (pkg, batch) => `${pkg.name} — ${batch.label}`.slice(0, LAB
 export default function NewCheckpointPage() {
   const navigate = useNavigate()
   const { loading, error, data, reload } = useAsync(async () => {
-    const event = (await api.get('/events/'))[0] || null
+    const event = await fetchCurrentEvent()
     // The batches come with the page rather than on picking Tour, so the picker never spins mid-form.
     return { event, packages: event ? await listTourPackages(event.slug) : [] }
   }, [])

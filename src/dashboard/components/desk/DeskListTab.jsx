@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '@/lib/apiClient'
+import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { formatPeso } from '@/lib/events'
 import { deskRoster, formatVenueTime } from '@/lib/checkin'
 import { downloadCsv, datedFilename } from '@/lib/csv'
@@ -29,7 +29,7 @@ const FILTERS = [
  */
 export default function DeskListTab() {
   const { loading, error, data, reload } = useAsync(async () => {
-    const event = (await api.get('/events/'))[0]
+    const event = await fetchCurrentEvent()
     if (!event) return { event: null, rows: [] }
     return { event, rows: await deskRoster(event.id) }
   }, [])

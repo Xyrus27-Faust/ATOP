@@ -12,7 +12,7 @@ export const listMarshalCheckpoints = () => api.get('/marshal/checkpoints', { au
 // A refusal is an answer, not an error: the API returns 200 with result 'denied' and a reason, so
 // only a genuine failure (network, 404 on a deleted checkpoint) reaches a catch.
 export const scanCode = (checkpointId, code) =>
-  api.post(`/marshal/checkpoints/${checkpointId}/scan`, { code }, { auth: true })
+  api.post(`/marshal/checkpoints/${checkpointId}/scan`, { code: badgeCode(code) }, { auth: true })
 
 export const searchDelegates = (checkpointId, q) =>
   api.get(`/marshal/checkpoints/${checkpointId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
@@ -73,8 +73,11 @@ export const forgetPost = () => writePost(null)
 
 // What a delegate's QR holds: their reference code, e.g. "DLG26-07DB6" (DelegateFactory on the API).
 // Anything else the camera reads — a restaurant menu, a Wi-Fi sticker — is not sent to the server.
+// Every scan call sends it through badgeCode(), so no screen can forget: a camera read can carry
+// stray spaces, and a code typed off a printed badge can come in lowercase.
 const BADGE_CODE = /^DLG\d{2}-[0-9A-Z]{5}$/
-export const isBadgeCode = (text) => BADGE_CODE.test(text.trim().toUpperCase())
+const badgeCode = (text) => text.trim().toUpperCase()
+export const isBadgeCode = (text) => BADGE_CODE.test(badgeCode(text))
 
 // ---- Booker ----------------------------------------------------------------
 
@@ -113,12 +116,15 @@ export const REASON_MAX = 200
 // ---- Secretariat desk ------------------------------------------------------
 
 // A scan checks the delegate in (once — four desk phones may read the same badge) and returns their
-// card. Like a marshal's scan, a refusal is a 200 with result 'denied', not an error.
-export const deskScan = (code) => api.post('/desk/scan', { code }, { auth: true })
+// card. Like a marshal's scan, a refusal is a 200 with result 'denied', not an error. Scans are per
+// event: a pass from another year's convention reads as unknown.
+export const deskScan = (eventId, code) =>
+  api.post(`/desk/events/${eventId}/scan`, { code: badgeCode(code) }, { auth: true })
 
 // The kit table's scan: the same card and the same refusals, but it changes nothing — a delegate who
 // skipped the desk must not be checked in at the kit table.
-export const deskLookup = (code) => api.post('/desk/lookup', { code }, { auth: true })
+export const deskLookup = (eventId, code) =>
+  api.post(`/desk/events/${eventId}/lookup`, { code: badgeCode(code) }, { auth: true })
 
 export const deskSearch = (eventId, q) =>
   api.get(`/desk/events/${eventId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
@@ -139,9 +145,13 @@ export const TRAIL_STATUS = {
 
 const DESK_ACTION = { CheckIn: 'check-in', Payment: 'mark-paid', Id: 'release-id', Kit: 'release-kit' }
 
-/** Do the card's next step. Every step answers with the updated card, or 409 with a reasonCode. */
-export const deskStep = (delegateId, step) =>
-  api.post(`/desk/delegates/${delegateId}/${DESK_ACTION[step]}`, {}, { auth: true })
+/**
+ * Do the card's next step. Every step answers with the updated card, or 409 with a reasonCode.
+ * Cash carries the balance the cashier was shown: if the seat owes anything else by now (an online
+ * payment landed meanwhile) the API records nothing and answers 'balance_changed'.
+ */
+export const deskStep = (card, step) =>
+  api.post(`/desk/delegates/${card.id}/${DESK_ACTION[step]}`, step === 'Payment' ? { amount: card.balance } : {}, { auth: true })
 
 /** Take back the last step. The step is named so a stale card can't undo something newer. */
 export const deskUndo = (delegateId, step, reason) =>

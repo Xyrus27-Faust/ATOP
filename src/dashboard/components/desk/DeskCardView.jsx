@@ -10,7 +10,9 @@ import DelegateFace from '../checkin/DelegateFace'
  *
  * <p>The server decides the order and refuses anything out of it; this only offers the next step.
  * Taking cash is two taps — the amount is read back before it is recorded — and undoing a step
- * always asks why, because the API keeps the reason on record.</p>
+ * always asks why, because the API keeps the reason on record. If the balance moved while the card
+ * was open (an online payment came in), the API records nothing and the card reloads itself onto
+ * the new figure, so the cashier just counts again.</p>
  *
  * <p>{@code note} is the line above the card: "Checked in just now", or "Already checked in".</p>
  */
@@ -18,6 +20,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
   const [card, setCard] = useState(initial)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [notice, setNotice] = useState(null)
   const [confirmCash, setConfirmCash] = useState(false)
   const [undoing, setUndoing] = useState(false)
   const [reason, setReason] = useState('')
@@ -33,15 +36,32 @@ export default function DeskCardView({ card: initial, note, onDone }) {
   async function run(call) {
     setBusy(true)
     setError(null)
+    setNotice(null)
     try {
       setCard(await call())
       setConfirmCash(false)
       setUndoing(false)
       setReason('')
     } catch (err) {
-      setError(err)
+      if (err instanceof ApiError && err.raw?.reasonCode === 'balance_changed') await catchUp(err)
+      else setError(err)
     } finally {
       setBusy(false)
+    }
+  }
+
+  // Nothing was recorded: put the new balance on the same confirm, or say there's nothing left to take.
+  async function catchUp(err) {
+    try {
+      const fresh = await deskCard(card.id)
+      setCard(fresh)
+      const owesNow = fresh.balance > 0 && fresh.nextStep === 'Payment'
+      setConfirmCash(owesNow)
+      setNotice(owesNow
+        ? `An online payment just came in. The balance is now ${formatPeso(fresh.balance)}. Collect that instead.`
+        : 'They just paid the rest online. No cash needed.')
+    } catch {
+      setError(err)
     }
   }
 
@@ -50,7 +70,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
       setConfirmCash(true)
       return
     }
-    run(() => deskStep(card.id, next.step))
+    run(() => deskStep(card, next.step))
   }
 
   const undo = (e) => {
@@ -60,7 +80,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
   }
 
   // Another phone moved this delegate on since the card loaded: the fix is the fresh card.
-  const stale = error instanceof ApiError && ['not_last_step', 'nothing_to_undo', 'step_refused'].includes(error.raw?.reasonCode)
+  const stale = error instanceof ApiError && ['not_last_step', 'nothing_to_undo', 'step_refused', 'balance_changed'].includes(error.raw?.reasonCode)
 
   return (
     <div className="dsk-card">
@@ -113,6 +133,11 @@ export default function DeskCardView({ card: initial, note, onDone }) {
         })}
       </ol>
 
+      {notice && (
+        <div className="dash-banner tone-warn dsk-error" role="status">
+          <i className="fas fa-triangle-exclamation" aria-hidden="true" /> <span>{notice}</span>
+        </div>
+      )}
       {error && (
         <div className="dash-banner tone-error dsk-error">
           <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{error.message}</span>
@@ -129,7 +154,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
           <div className="dsk-cash">
             <p>Received <strong>{formatPeso(card.balance)}</strong> in cash from {card.fullName}?</p>
             <div className="dsk-row">
-              <button type="button" className="dash-btn is-ghost" disabled={busy} onClick={() => setConfirmCash(false)}>Cancel</button>
+              <button type="button" className="dash-btn is-ghost" disabled={busy} onClick={() => { setConfirmCash(false); setNotice(null) }}>Cancel</button>
               <button type="button" className="dash-btn is-primary" disabled={busy} onClick={doNext}>
                 {busy ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : <i className="fas fa-check" aria-hidden="true" />} Yes, mark paid
               </button>

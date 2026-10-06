@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { api } from '@/lib/apiClient'
+import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { deskScan, deskLookup, deskCard, isBadgeCode, formatVenueTime, CAMERA_TROUBLE, DESK_REFUSAL, KIT_POST } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
@@ -26,7 +26,7 @@ import DeskSearch from './DeskSearch'
  */
 export default function DeskStation({ post, touch }) {
   const atKit = post === KIT_POST
-  const { loading, error, data: event, reload } = useAsync(async () => (await api.get('/events/'))[0] || null, [])
+  const { loading, error, data: event, reload } = useAsync(fetchCurrentEvent, [])
 
   const [mode, setMode] = useState('scan')
   const [camera, setCamera] = useState('ok')
@@ -45,14 +45,14 @@ export default function DeskStation({ post, touch }) {
     }
     setBusy(true)
     try {
-      const r = await (atKit ? deskLookup : deskScan)(code.trim().toUpperCase())
+      const r = await (atKit ? deskLookup : deskScan)(event.id, code)
       show(r.result === 'denied' ? { denied: r } : { card: r.card, note: atKit ? null : arrivalNote(r) })
     } catch (err) {
       show({ failed: `${err.message} Scan again, or search by name.` })
     } finally {
       setBusy(false)
     }
-  }, [atKit, show, touch])
+  }, [atKit, event, show, touch])
 
   const pick = async (row) => {
     setBusy(true)

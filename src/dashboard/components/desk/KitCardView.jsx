@@ -101,7 +101,7 @@ export default function KitCardView({ card: initial, onDone }) {
           <p>Release kit to <strong>{card.fullName}</strong>?</p>
           <div className="dsk-row">
             <button type="button" className="dash-btn is-ghost" disabled={busy} onClick={onDone}>Cancel</button>
-            <button type="button" className="dash-btn is-primary" ref={first} disabled={busy} onClick={() => run(() => deskStep(card.id, 'Kit'), true)}>
+            <button type="button" className="dash-btn is-primary" ref={first} disabled={busy} onClick={() => run(() => deskStep(card, 'Kit'), true)}>
               {busy ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : <i className="fas fa-check" aria-hidden="true" />} Yes, release kit
             </button>
           </div>

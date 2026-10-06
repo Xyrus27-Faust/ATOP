@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { api } from '@/lib/apiClient'
+import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { listCheckpoints, groupByDay, formatDayHeader, kindMeta, stateMeta, progressPct } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
@@ -13,8 +13,7 @@ import { Loading, ErrorState } from '../states'
  */
 export default function CheckpointsTab() {
   const { loading, error, data, reload } = useAsync(async () => {
-    const events = await api.get('/events/')
-    const event = events[0]
+    const event = await fetchCurrentEvent()
     if (!event) return { event: null, checkpoints: [] }
     return { event, checkpoints: await listCheckpoints(event.id) }
   }, [])
