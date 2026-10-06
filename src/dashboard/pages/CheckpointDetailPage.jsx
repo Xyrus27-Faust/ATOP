@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { getCheckpointScans, updateCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, REASON_MAX } from '@/lib/checkin'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { getCheckpointScans, updateCheckpoint, deleteCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, REASON_MAX } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -19,10 +19,12 @@ const fold = (text) => (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g,
  */
 export default function CheckpointDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { loading, error, data, reload } = useAsync(() => getCheckpointScans(id), [id])
   const [toggling, setToggling] = useState(false)
   const [toggleError, setToggleError] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [q, setQ] = useState('')
 
   if (loading && !data) return <Loading />
@@ -45,6 +47,27 @@ export default function CheckpointDetailPage() {
       setToggleError(err.message)
     }
     setToggling(false)
+  }
+
+  // Deleting is for a checkpoint made by mistake: offered only while nobody has been scanned here,
+  // and a second tap confirms. The API checks again, so a scan landing in between still wins.
+  const deletable = scans.length === 0 && voids.length === 0
+  async function remove() {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    setToggling(true)
+    setToggleError(null)
+    try {
+      await deleteCheckpoint(c.id)
+      navigate('/dashboard/admin/checkpoints', { replace: true })
+    } catch (err) {
+      setToggleError(err.message)
+      setConfirmDelete(false)
+      setToggling(false)
+      reload()
+    }
   }
 
   return (
@@ -80,7 +103,20 @@ export default function CheckpointDetailPage() {
               {' '}{c.isActive ? 'Close checkpoint' : 'Reopen checkpoint'}
             </button>
           )}
+          {deletable && confirmDelete && (
+            <button type="button" className="dash-btn is-sm is-ghost" onClick={() => setConfirmDelete(false)} disabled={toggling}>
+              Keep it
+            </button>
+          )}
+          {deletable && (
+            <button type="button" className={`dash-btn is-sm ${confirmDelete ? 'is-danger' : 'is-ghost'}`} onClick={remove} disabled={toggling}>
+              <i className="fas fa-trash" aria-hidden="true" /> {confirmDelete ? 'Yes, delete it' : 'Delete'}
+            </button>
+          )}
         </div>
+        {deletable && confirmDelete && (
+          <p className="dash-help">Nobody has been scanned here yet, so nothing is lost. This can&rsquo;t be undone.</p>
+        )}
         {toggleError && (
           <div className="dash-banner tone-error">
             <i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{toggleError}</span>

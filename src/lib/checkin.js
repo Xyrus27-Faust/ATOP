@@ -54,6 +54,10 @@ export const CAMERA_TROUBLE = {
 // forgotten on sign-out, so the next guard handed the phone doesn't start on someone else's post.
 const POST_KEY = 'atop.scan.checkpoint'
 
+// The Secretariat desk is a post on the scanner like any checkpoint, but has no checkpoint id: this
+// stands in for one in the remembered post. Never a Guid, so it can't collide with a real one.
+export const DESK_POST = 'desk'
+
 export function readPost() {
   try { return localStorage.getItem(POST_KEY) } catch { return null }
 }
@@ -84,6 +88,8 @@ export const createCheckpoint = (eventId, body) =>
   api.post(`/admin/events/${eventId}/checkpoints`, body, { auth: true })
 
 export const updateCheckpoint = (id, body) => api.put(`/admin/checkpoints/${id}`, body, { auth: true })
+// Only while nobody has been scanned there; after that the API answers 409 and Close is the way out.
+export const deleteCheckpoint = (id) => api.delete(`/admin/checkpoints/${id}`, { auth: true })
 
 export const getCheckpointScans = (id) => api.get(`/admin/checkpoints/${id}/scans`, { auth: true })
 
@@ -254,9 +260,20 @@ export function formatVenueTime(instant) {
   return new Date(instant).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' })
 }
 
+// The scanning day turns over at 4 AM Manila, not midnight — the API's CheckInDesk.DayTurnsOverAt.
+const DAY_TURNS_OVER_MS = 4 * 3_600_000
+
 /**
- * The convention's days as "YYYY-MM-DD", read at the venue (Manila) — the same reading the API uses
- * to accept a checkpoint's day, so the picker can't offer a day the server would refuse.
+ * Today as the scanner reads it, "YYYY-MM-DD" in Manila: the earliest day a checkpoint can be set
+ * on, since the API refuses a past one.
+ */
+export function scanningToday(now = Date.now()) {
+  return new Date(now - DAY_TURNS_OVER_MS).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+}
+
+/**
+ * The convention's days as "YYYY-MM-DD", read at the venue (Manila). Offered as quick picks for a
+ * checkpoint's day; any later day is allowed too.
  */
 export function eventDays(startsAt, endsAt) {
   const venueDate = (instant) => new Date(instant).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })

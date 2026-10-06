@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
 import {
-  createCheckpoint, listTourPackages, eventDays, formatDay, CHECKPOINT_KIND, LABEL_MAX, MEAL_NAMES,
+  createCheckpoint, listTourPackages, eventDays, scanningToday, formatDay, CHECKPOINT_KIND, LABEL_MAX, MEAL_NAMES,
 } from '@/lib/checkin'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -48,8 +48,12 @@ export default function NewCheckpointPage() {
     )
   }
 
-  const days = eventDays(event.startsAt, event.endsAt)
-  const day = form.day || days[0]
+  // Any day from today on. The convention's own days are quick picks, and the first one still ahead
+  // is the default; past the convention, today is.
+  const today = scanningToday()
+  const days = eventDays(event.startsAt, event.endsAt).filter((d) => d >= today)
+  const day = form.day || days[0] || today
+  const outside = day && !eventDays(event.startsAt, event.endsAt).includes(day)
 
   const set = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -85,7 +89,7 @@ export default function NewCheckpointPage() {
       ...f,
       tourBatchId: id,
       label: batch && suggested(f.label) ? batchLabel(pkg, batch) : f.label,
-      day: batch?.tourDate && days.includes(batch.tourDate) ? batch.tourDate : f.day,
+      day: batch?.tourDate && batch.tourDate >= today ? batch.tourDate : f.day,
     }))
     setErrors((x) => ({ ...x, tourBatchId: undefined, label: undefined, day: undefined }))
   }
@@ -93,6 +97,10 @@ export default function NewCheckpointPage() {
   async function submit(e) {
     e.preventDefault()
     const label = form.label.trim()
+    if (!day || day < today) {
+      setErrors({ day: 'Pick today or a later day.' })
+      return
+    }
     if (form.kind === 'Tour' && !form.tourBatchId) {
       setErrors({ tourBatchId: 'Pick the tour batch this bus is for.' })
       return
@@ -147,10 +155,36 @@ export default function NewCheckpointPage() {
       )}
 
       <form onSubmit={submit} noValidate className="dash-card dash-card-pad ckn-form">
-        <Field label="Day" htmlFor="day" required error={errors.day}>
-          <select id="day" className={ctl('dash-select', errors.day)} value={day} onChange={set('day')}>
-            {days.map((d) => <option key={d} value={d}>{formatDay(d)}</option>)}
-          </select>
+        <Field
+          label="Day"
+          htmlFor="day"
+          required
+          error={errors.day}
+          hint={outside
+            ? `Not a convention day. Marshals will only see this on ${formatDay(day)}.`
+            : 'Tap a convention day, or pick any date from today on.'}
+        >
+          <input
+            id="day"
+            type="date"
+            className={ctl('dash-input', errors.day)}
+            min={today}
+            value={day}
+            onChange={set('day')}
+          />
+          <div className="ckn-names" role="group" aria-label="Quick picks">
+            {[...new Set([today, ...days])].map((d) => (
+              <button
+                key={d}
+                type="button"
+                className={`ckn-name${day === d ? ' is-on' : ''}`}
+                aria-pressed={day === d}
+                onClick={() => { setForm((f) => ({ ...f, day: d })); setErrors((x) => ({ ...x, day: undefined })) }}
+              >
+                {d === today ? 'Today' : formatDay(d)}
+              </button>
+            ))}
+          </div>
         </Field>
 
         <Field label="Kind" required error={errors.kind}>
