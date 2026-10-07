@@ -2,15 +2,12 @@ import { useEffect, useRef } from 'react'
 import DelegateFace from './DelegateFace'
 import { RESULT, GATE_LANE, resultHeadline, formatVenueTime } from '@/lib/checkin'
 
-// Long enough to read a name and where to send them, short enough that a queue keeps moving.
-const DISMISS_MS = 4000
-
 /**
  * The verdict on one scan, as a sheet over the camera.
  *
- * <p>Every verdict closes itself after four seconds, or sooner on a tap anywhere on the sheet, and the
- * camera is live again for the next badge. Each one says where to send someone who can't go on, so
- * the guard reads one line and points.</p>
+ * <p>The sheet stays until the guard taps it — anywhere, or Next scan — so no verdict goes by unread;
+ * behind it the camera is frozen, and the tap sets it reading again. Each verdict says where to send
+ * someone who can't go on, so the guard reads one line and points.</p>
  *
  * <p>At a meal the API sends {@code diet} for a plate handed to someone with dietary needs; it sits at
  * the top, above the name, with an allergy in red.</p>
@@ -32,16 +29,10 @@ export default function ScanResultSheet({ response, kind, onNext }) {
   const person = response.delegate
   const diet = person?.diet
   const green = meta.tone === 'ok'
-  // The four seconds run from when the sheet opened, whatever the page re-renders meanwhile.
-  const next = useRef(onNext)
-  useEffect(() => { next.current = onNext }, [onNext])
-
   useEffect(() => {
     navigator.vibrate?.(green ? 80 : [90, 60, 90])
-    const t = setTimeout(() => next.current(), DISMISS_MS)
     // Focus the one action, so a keyboard or a screen reader lands on it.
     button.current?.focus()
-    return () => clearTimeout(t)
   }, [green])
 
   return (
@@ -87,7 +78,6 @@ export default function ScanResultSheet({ response, kind, onNext }) {
 
       {lane ? <p className="srs-reason">{lane.line}</p> : response.reason && <p className="srs-reason">{response.reason}</p>}
 
-      <div className="srs-auto" aria-hidden="true"><span style={{ animationDuration: `${DISMISS_MS}ms` }} /></div>
       {/* Its click reaches the sheet's, which closes it: one tap, one close. */}
       <button ref={button} type="button" className="dash-btn is-primary srs-next">
         Next scan
@@ -169,12 +159,6 @@ const SRS_CSS = `
   .srs-reason { margin-top: 10px; font-family: var(--font-body); font-size: 1rem; line-height: 1.5; color: var(--gray-800); }
 
   .srs-next { width: 100%; min-height: 56px; margin-top: 16px; font-size: 1rem; justify-content: center; }
-  .srs-auto { margin-top: 16px; height: 6px; border-radius: 999px; background: var(--gray-200); overflow: hidden; }
-  .srs-auto span {
-    display: block; height: 100%; width: 100%; background: var(--srs-c);
-    transform-origin: left; animation: srs-drain linear forwards;
-  }
-  @keyframes srs-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
   @media (min-width: 640px) {
     .srs { left: 50%; right: auto; width: 480px; transform: translateX(-50%); bottom: 24px; border-radius: 18px; }
@@ -182,6 +166,5 @@ const SRS_CSS = `
   }
   @media (prefers-reduced-motion: reduce) {
     .srs { animation: none; }
-    .srs-auto span { animation: none; }
   }
 `

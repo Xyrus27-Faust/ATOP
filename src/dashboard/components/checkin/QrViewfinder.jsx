@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // The same badge held in front of the camera decodes several times a second. Once a code has been
 // handled, the same code is ignored for this long after the guard is ready again — otherwise
 // dismissing "Let in" would instantly re-scan the badge still in frame and show "Already entered".
 const SAME_CODE_COOLDOWN_MS = 3000
+
+// A minute with no badge read and no result closed: the camera goes off, which is what heats a phone
+// left running at a quiet gate. One tap — or closing the result — brings it back in about a second.
+const SLEEP_AFTER_MS = 60_000
 
 /**
  * The camera, reading QR codes.
@@ -13,8 +17,12 @@ const SAME_CODE_COOLDOWN_MS = 3000
  * because iOS Safari does not have one — and most of the guards will be holding iPhones.</p>
  *
  * <p>{@code ready} is the parent saying "I can take another code". While it is false (a scan is in
- * flight, or a result is on screen) decoded frames are dropped rather than queued: a guard wants
- * the badge in front of them now, not the one from four seconds ago.</p>
+ * flight, or a result is on screen) the picture freezes and nothing is decoded — the camera stays
+ * warm, so closing the result scans again at once. Anything decoded in the gap is dropped, not
+ * queued: a guard wants the badge in front of them now, not the one from a minute ago.</p>
+ *
+ * <p>After {@link SLEEP_AFTER_MS} without a read or a closed result the camera switches off and a
+ * "Tap to scan" button takes its place; the tap, or the parent becoming ready again, wakes it.</p>
  *
  * <p>{@code lastCode} is for a parent that takes the camera away while a result shows (the desk swaps
  * in the card): the code it last handled, so the badge still in front of the lens when the camera
@@ -30,7 +38,16 @@ export default function QrViewfinder({ ready, onCode, onUnavailable, lastCode = 
   const onUnavailableRef = useRef(onUnavailable)
   // Read once, at mount: the cooldown below starts it from the moment the camera is ready.
   const last = useRef({ code: lastCode, at: 0 })
+  const scannerRef = useRef(null)
+  const wasReady = useRef(ready)
   const [starting, setStarting] = useState(true)
+  const [asleep, setAsleep] = useState(false)
+
+  const wake = useCallback(() => {
+    scannerRef.current?.start()
+      .then(() => setAsleep(false))
+      .catch(() => onUnavailableRef.current?.('no-camera'))
+  }, [])
 
   useEffect(() => {
     readyRef.current = ready
@@ -67,7 +84,8 @@ export default function QrViewfinder({ ready, onCode, onUnavailable, lastCode = 
           },
           {
             preferredCamera: 'environment',
-            maxScansPerSecond: 8,
+            // Plenty for a badge held still, at half the work for the phone.
+            maxScansPerSecond: 4,
             returnDetailedScanResult: true,
             // Our own gold brackets mark the target; the library's overlay would fight them.
             highlightScanRegion: false,
@@ -76,7 +94,9 @@ export default function QrViewfinder({ ready, onCode, onUnavailable, lastCode = 
           },
         )
         await scanner.start()
-        if (!cancelled) setStarting(false)
+        if (cancelled) return
+        scannerRef.current = scanner
+        setStarting(false)
       } catch (err) {
         if (cancelled) return
         const text = String(err?.name || err?.message || err)
@@ -86,10 +106,28 @@ export default function QrViewfinder({ ready, onCode, onUnavailable, lastCode = 
 
     start()
     return () => {
+      scannerRef.current = null
       cancelled = true
       scanner?.destroy()
     }
   }, [])
+
+  // Behind a result: freeze the picture, which stops the decoder's frame loop without letting the
+  // camera go. Ready again: play, and the loop picks up. Either way the sleep clock starts over.
+  useEffect(() => {
+    const s = scannerRef.current
+    if (!s || asleep) return
+    if (ready) video.current?.play().catch(() => {})
+    else video.current?.pause()
+    const t = setTimeout(() => { s.stop(); setAsleep(true) }, SLEEP_AFTER_MS)
+    return () => clearTimeout(t)
+  }, [ready, asleep, starting])
+
+  // Closing a result is the guard's tap: a camera that fell asleep behind it wakes with it.
+  useEffect(() => {
+    if (ready && !wasReady.current && asleep) wake()
+    wasReady.current = ready
+  }, [ready, asleep, wake])
 
   return (
     <div className="qvf">
@@ -99,6 +137,13 @@ export default function QrViewfinder({ ready, onCode, onUnavailable, lastCode = 
         <span className="qvf-corner tl" /><span className="qvf-corner tr" />
         <span className="qvf-corner bl" /><span className="qvf-corner br" />
       </div>
+      {asleep && (
+        <button type="button" className="qvf-sleep" onClick={wake}>
+          <i className="fas fa-camera" aria-hidden="true" />
+          <span>Tap to scan</span>
+          <small>Camera off to save battery</small>
+        </button>
+      )}
       {starting && (
         <div className="qvf-starting" role="status">
           <i className="fas fa-camera" aria-hidden="true" /> Starting camera…
@@ -122,6 +167,13 @@ const QVF_CSS = `
   .qvf-corner.tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 10px; }
   .qvf-corner.bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 10px; }
   .qvf-corner.br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 10px; }
+  .qvf-sleep {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; border: 0; cursor: pointer; background: var(--navy); color: var(--white);
+    font-family: var(--font-heading); font-weight: 800; font-size: 1.3rem;
+  }
+  .qvf-sleep i { font-size: 2.4rem; color: var(--gold); }
+  .qvf-sleep small { font-family: var(--font-body); font-weight: 400; font-size: 0.85rem; color: rgba(255,255,255,0.7); }
   .qvf-starting {
     position: absolute; inset: 0; display: grid; place-items: center; gap: 8px;
     color: rgba(255,255,255,0.85); font-family: var(--font-heading); font-size: 0.85rem; font-weight: 600;
