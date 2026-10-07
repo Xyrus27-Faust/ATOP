@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/lib/apiClient'
 import {
   listMarshalCheckpoints, scanCode, formatDay, kindMeta, isPostGone, progressPct, readPost, writePost, isBadgeCode,
-  tallyVerb, CAMERA_TROUBLE, DESK_POST, KIT_POST,
+  tallyVerb, CAMERA_TROUBLE, GATE_POST, DESK_POST,
 } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { canManageCheckIn } from '../dashboardNav'
@@ -15,16 +15,18 @@ import QrViewfinder from '../components/checkin/QrViewfinder'
 import ScanResultSheet from '../components/checkin/ScanResultSheet'
 import ManualSearch from '../components/checkin/ManualSearch'
 import DeskStation from '../components/desk/DeskStation'
+import GateStation from '../components/gate/GateStation'
 import { DASH_CSS } from '../DashboardLayout'
 
 /**
  * The one scanner: a full-screen page (no dashboard chrome) built for one hand and bright sun.
  *
- * <p>Pick a post — the Secretariat desk, the kit table, or one of today's checkpoints — then point
- * the camera at badges. The desk checks delegates in and walks them through payment, ID and kit; the
- * kit table only releases kits (both are {@link DeskStation}). Everything below is the checkpoint side.</p>
+ * <p>Pick a post — the main gate, the Secretariat desk, or one of today's checkpoints — then point
+ * the camera at badges. The gate checks delegates in and says Desk A or Desk B ({@link GateStation});
+ * the desk takes balances and hands over the ID & receipt and the kit ({@link DeskStation}).
+ * Everything below is the checkpoint side.</p>
  *
- * <p>At a checkpoint, Each code goes to the API, which returns a
+ * <p>At a checkpoint, each code goes to the API, which returns a
  * verdict — green, amber or red with a reason — and the result sheet shows it over the camera.
  * When a badge won't read, the bar at the bottom opens a search by name. There is no offline mode:
  * a verdict needs the server, and a guard without signal sends people to the Secretariat desk.</p>
@@ -33,14 +35,14 @@ export default function ScanPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { signOut, touch } = useIdleSignOut()
-  // The desk and the kit table are Secretariat and Admin's, as on the API. A phone remembered on the desk and then
-  // signed in as a marshal just lands on the post list.
+  // The gate is every scanner's; the desk is Secretariat and Admin's, as on the API. A phone remembered
+  // on the desk and then signed in as a marshal just lands on the post list.
   const canDesk = canManageCheckIn(user?.roles)
   const { loading, error, data: checkpoints, reload } = useAsync(listMarshalCheckpoints, [])
 
   const [postId, setPostId] = useState(readPost)
-  const atDesk = canDesk && (postId === DESK_POST || postId === KIT_POST)
-  const atKit = atDesk && postId === KIT_POST
+  const atGate = postId === GATE_POST
+  const atDesk = canDesk && postId === DESK_POST
   const [mode, setMode] = useState('scan')
   const [camera, setCamera] = useState('ok')
   const [cameraKey, setCameraKey] = useState(0)
@@ -64,7 +66,7 @@ export default function ScanPage() {
     setMode('scan')
   }
 
-  const pickDesk = (post) => {
+  const pickPost = (post) => {
     writePost(post)
     setPostId(post)
   }
@@ -122,9 +124,9 @@ export default function ScanPage() {
   }, [])
 
   let body
-  // Before the checkpoint list: the desk doesn't need it, and shouldn't wait on it or fail with it.
-  // Keyed by post, so switching between the desk and the kit table starts the station fresh.
-  if (atDesk) body = <DeskStation key={postId} post={postId} touch={touch} />
+  // Before the checkpoint list: the gate and the desk don't need it, and shouldn't wait on it or fail with it.
+  if (atGate) body = <GateStation touch={touch} />
+  else if (atDesk) body = <DeskStation touch={touch} />
   else if (loading && !checkpoints) body = <Loading />
   else if (error) body = <div className="scn-pad"><ErrorState error={error} onRetry={reload} /></div>
   else if (!checkpoint) {
@@ -132,7 +134,8 @@ export default function ScanPage() {
       <CheckpointPicker
         checkpoints={offered}
         onPick={pick}
-        onPickDesk={canDesk ? pickDesk : null}
+        onPickPost={pickPost}
+        canDesk={canDesk}
         onRefresh={reload}
         refreshing={loading}
       />
@@ -183,14 +186,14 @@ export default function ScanPage() {
   return (
     <div className={`scn-shell${checkpoint && mode === 'scan' ? ' is-scanning' : ''}`}>
       <header className="scn-bar">
-        {atDesk ? (
+        {atGate || atDesk ? (
           <>
             <div className="scn-post">
               <span className="scn-post-day">
-                <i className={`fas ${atKit ? 'fa-box-open' : 'fa-id-card'}`} aria-hidden="true" />
-                {atKit ? ' Secretariat · Kits only' : ' Check-in · ID · Kit'}
+                <i className={`fas ${atGate ? 'fa-door-open' : 'fa-id-card'}`} aria-hidden="true" />
+                {atGate ? ' Check-in · Desk A / B' : ' Balance · ID · Kit'}
               </span>
-              <span className="scn-post-label">{atKit ? 'Kit table' : 'Secretariat desk'}</span>
+              <span className="scn-post-label">{atGate ? 'Main gate' : 'Secretariat desk'}</span>
             </div>
             <button type="button" className="scn-bar-btn" onClick={change}>Change</button>
           </>

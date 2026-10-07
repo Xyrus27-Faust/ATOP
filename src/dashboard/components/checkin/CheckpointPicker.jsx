@@ -1,4 +1,4 @@
-import { groupByDay, formatDayHeader, kindMeta, progressPct, DESK_POST, KIT_POST } from '@/lib/checkin'
+import { groupByDay, formatDayHeader, kindMeta, progressPct, GATE_POST, DESK_POST } from '@/lib/checkin'
 
 /**
  * "Where are you posted?" — the guard's first tap of a shift. The API sends today's only, so the
@@ -6,11 +6,11 @@ import { groupByDay, formatDayHeader, kindMeta, progressPct, DESK_POST, KIT_POST
  * one mistake that matters here is scanning lunch at the dinner line: every badge would come back
  * "already claimed". The chosen checkpoint's name then sits in the bar above the camera all shift.
  *
- * <p>{@code onPickDesk} adds the Secretariat's two posts on top — the desk and the kit table — for
- * those who may work them, and is called with the one picked. They're there whatever the day holds:
- * the desk checks people in before any door or meal is set up.</p>
+ * <p>The main gate sits on top for everyone, and the Secretariat desk under it for those who may work
+ * it ({@code canDesk}); {@code onPickPost} is called with the one picked. They're there whatever the
+ * day holds: the gate checks people in before any session or meal opens.</p>
  */
-export default function CheckpointPicker({ checkpoints, onPick, onPickDesk, onRefresh, refreshing }) {
+export default function CheckpointPicker({ checkpoints, onPick, onPickPost, canDesk, onRefresh, refreshing }) {
   // A button rather than "pull to refresh": a scanner saved to the home screen has no browser reload.
   const refresh = (
     <button type="button" className="dash-btn is-ghost ckpk-refresh" onClick={onRefresh} disabled={refreshing}>
@@ -19,47 +19,37 @@ export default function CheckpointPicker({ checkpoints, onPick, onPickDesk, onRe
     </button>
   )
 
-  const desk = onPickDesk && (
+  const posts = (
     <ul className="ckpk-list">
       <li>
-        <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickDesk(DESK_POST)}>
-          <i className="fas fa-id-card" aria-hidden="true" />
+        <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickPost(GATE_POST)}>
+          <i className="fas fa-door-open" aria-hidden="true" />
           <span className="ckpk-tile-body">
-            <span className="ckpk-tile-label">Secretariat desk</span>
-            <span className="ckpk-tile-sub">Check-in, Desk A / B, ID &amp; receipt, kit</span>
+            <span className="ckpk-tile-label">Main gate</span>
+            <span className="ckpk-tile-sub">Check-in, then Desk A or Desk B</span>
           </span>
         </button>
       </li>
-      <li>
-        <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickDesk(KIT_POST)}>
-          <i className="fas fa-box-open" aria-hidden="true" />
-          <span className="ckpk-tile-body">
-            <span className="ckpk-tile-label">Kit table</span>
-            <span className="ckpk-tile-sub">Kits only, once the ID &amp; receipt are out</span>
-          </span>
-        </button>
-      </li>
+      {canDesk && (
+        <li>
+          <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickPost(DESK_POST)}>
+            <i className="fas fa-id-card" aria-hidden="true" />
+            <span className="ckpk-tile-body">
+              <span className="ckpk-tile-label">Secretariat desk</span>
+              <span className="ckpk-tile-sub">Desk A / B: balance, ID &amp; receipt, kit</span>
+            </span>
+          </button>
+        </li>
+      )}
     </ul>
   )
-
-  if (checkpoints.length === 0 && !desk) {
-    return (
-      <div className="dash-card dash-empty ckpk-empty">
-        <div className="dash-empty-icon"><i className="fas fa-clipboard-list" aria-hidden="true" /></div>
-        <h3>No checkpoints open today</h3>
-        <p>Only today&rsquo;s doors and meals show here. If the Secretariat hasn&rsquo;t opened one yet, ask them to, then refresh.</p>
-        {refresh}
-        <style>{CKPK_CSS}</style>
-      </div>
-    )
-  }
 
   return (
     <div className="ckpk">
       <h1 className="ckpk-title">Where are you posted?</h1>
-      {desk}
+      {posts}
       {checkpoints.length === 0 && (
-        <p className="ckpk-none">No doors, meals or buses open today. Refresh once the Secretariat opens one.</p>
+        <p className="ckpk-none">No sessions, meals or buses open today. Refresh once the Secretariat opens one.</p>
       )}
       {groupByDay(checkpoints).map((g) => (
         <section key={g.day} className="ckpk-day" aria-label={formatDayHeader(g.day)}>
@@ -124,7 +114,6 @@ const CKPK_CSS = `
     background: var(--gray-100); border-radius: 999px; padding: 4px 10px; font-variant-numeric: tabular-nums;
   }
   .ckpk-tile-count b { color: var(--navy); }
-  .ckpk-empty { margin: 20px 16px; }
   .ckpk-refresh { align-self: center; min-height: 44px; margin-top: 12px; }
 
   @media (min-width: 640px) {

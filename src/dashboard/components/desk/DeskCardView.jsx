@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/apiClient'
 import { formatPeso } from '@/lib/events'
-import { deskCard, deskStep, deskUndo, DESK_STEPS, lastDeskStep, formatVenueTime, formatDay, kindMeta, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
+import { deskCard, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, formatVenueTime, formatDay, kindMeta, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
 import DelegateFace from '../checkin/DelegateFace'
 
 /**
- * One delegate at the Secretariat desk: which desk they belong at, what they owe, how far through
- * check-in → payment → ID & receipt → kit they are, and the one button for whatever comes next.
+ * One delegate at the Secretariat desk: which desk they belong at, what they owe, and where they are
+ * with check-in → cash (if owed) → ID & receipt and kit, the last two in either order.
  *
- * <p>The server decides the order and refuses anything out of it; this only offers the next step.
- * Taking cash is two taps — the amount is read back before it is recorded — and undoing a step
- * always asks why, because the API keeps the reason on record. If the balance moved while the card
+ * <p>The server enforces the order and refuses anything out of it; this only offers what it would
+ * accept. Check-in and cash are the one big button while they're due; once nothing is owed, the ID &
+ * receipt and the kit each get their own Release button and their own Undo, so whichever table is free
+ * goes first. Taking cash is two taps — the amount is read back before it is recorded — and undoing a
+ * step always asks why, because the API keeps the reason on record. If the balance moved while the card
  * was open (an online payment came in), the API records nothing and the card reloads itself onto
  * the new figure, so the cashier just counts again. Cash that cancels the group's online link names
  * the others on it who still owe, so the cashier can tell them to pay here.</p>
@@ -23,12 +25,15 @@ export default function DeskCardView({ card: initial, note, onDone }) {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
   const [confirmCash, setConfirmCash] = useState(false)
-  const [undoing, setUndoing] = useState(false)
+  // The step whose undo form is open, or null.
+  const [undoing, setUndoing] = useState(null)
   const [reason, setReason] = useState('')
   const done = useRef(null)
 
-  const next = DESK_STEPS.find((s) => s.step === card.nextStep) || null
-  const last = lastDeskStep(card)
+  // The big button: only check-in and cash. The ID and kit have a button each, on their own row.
+  const next = ['CheckIn', 'Payment'].includes(card.nextStep) ? DESK_STEPS.find((s) => s.step === card.nextStep) : null
+  // The ID & receipt and the kit are released once they're checked in and owe nothing (API's rule).
+  const canRelease = Boolean(card.checkIn) && card.nextStep !== 'Payment'
   const owes = card.balance > 0
   const deskB = card.desk === 'B'
 
@@ -46,7 +51,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
       if (others.length > 0)
         setNotice(`Their group's online payment link was cancelled. ${others.join(', ')} still owe${others.length === 1 ? 's' : ''}. Ask them to pay here.`)
       setConfirmCash(false)
-      setUndoing(false)
+      setUndoing(null)
       setReason('')
     } catch (err) {
       if (err instanceof ApiError && err.raw?.reasonCode === 'balance_changed') await catchUp(err)
@@ -79,10 +84,16 @@ export default function DeskCardView({ card: initial, note, onDone }) {
     run(() => deskStep(card, next.step))
   }
 
+  const startUndo = (s) => {
+    setUndoing(s)
+    setReason('')
+    setConfirmCash(false)
+  }
+
   const undo = (e) => {
     e.preventDefault()
     if (!reason.trim()) return
-    run(() => deskUndo(card, last.step, reason.trim()))
+    run(() => deskUndo(card, undoing.step, reason.trim()))
   }
 
   // Another phone moved this delegate on since the card loaded: the fix is the fresh card.
@@ -124,11 +135,24 @@ export default function DeskCardView({ card: initial, note, onDone }) {
           const at = card[s.field]
           // Payment is a step only for someone who owed: a fully paid seat skips it.
           if (s.step === 'Payment' && !at && !owes) return null
-          const isNext = s.step === card.nextStep
+          const isNext = s.step === next?.step
+          const toggle = s.step === 'Id' || s.step === 'Kit'
+          const due = isNext || (toggle && !at && canRelease)
           return (
-            <li key={s.step} className={at ? 'is-done' : isNext ? 'is-next' : ''}>
-              <i className={`fas ${at ? 'fa-circle-check' : isNext ? 'fa-circle-dot' : 'fa-circle'}`} aria-hidden="true" />
-              <span className="dsk-step-label">{s.label}</span>
+            <li key={s.step} className={at ? 'is-done' : due ? 'is-next' : ''}>
+              <i className={`fas ${at ? 'fa-circle-check' : due ? 'fa-circle-dot' : 'fa-circle'}`} aria-hidden="true" />
+              <span className="dsk-step-label">{toggle && at ? `${s.label} released` : s.label}</span>
+              {toggle && !at && canRelease && (
+                <button type="button" className="dash-btn is-primary dsk-step-go" disabled={busy}
+                  onClick={() => run(() => deskStep(card, s.step))}>
+                  <i className="fas fa-check" aria-hidden="true" /> {s.action}
+                </button>
+              )}
+              {at && canUndoDeskStep(card, s.step) && undoing?.step !== s.step && (
+                <button type="button" className="dsk-step-undo" disabled={busy} onClick={() => startUndo(s)}>
+                  Undo
+                </button>
+              )}
               {at && (
                 <span className="dsk-step-when">
                   {formatVenueTime(at.at)} · {at.by}{at.amount != null && <> · {formatPeso(at.amount)}</>}
@@ -175,20 +199,15 @@ export default function DeskCardView({ card: initial, note, onDone }) {
                 : <><i className="fas fa-check" aria-hidden="true" /> {next.action}</>}
           </button>
         )
-      ) : (
+      ) : card.idRelease && card.kit ? (
         <p className="dsk-all-done"><i className="fas fa-circle-check" aria-hidden="true" /> All done at the desk.</p>
-      )}
+      ) : null}
       {next?.step === 'CheckIn' && <p className="dash-help dsk-face">Check the face against the person first.</p>}
 
-      {last && !undoing && (
-        <button type="button" className="dsk-undo-link" disabled={busy} onClick={() => { setUndoing(true); setConfirmCash(false) }}>
-          Undo {last.undo}
-        </button>
-      )}
-      {last && undoing && (
+      {undoing && (
         <form className="dsk-undo" onSubmit={undo}>
           <label className="dash-field">
-            <span className="dash-label">Why undo the {last.undo}?</span>
+            <span className="dash-label">Why undo the {undoing.undo}?</span>
             <input
               className="dash-input"
               maxLength={REASON_MAX}
@@ -199,7 +218,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
             />
           </label>
           <div className="dsk-row">
-            <button type="button" className="dash-btn is-ghost" disabled={busy} onClick={() => { setUndoing(false); setReason('') }}>Keep it</button>
+            <button type="button" className="dash-btn is-ghost" disabled={busy} onClick={() => { setUndoing(null); setReason('') }}>Keep it</button>
             <button type="submit" className="dash-btn is-danger" disabled={busy || !reason.trim()}>Undo</button>
           </div>
         </form>
@@ -249,8 +268,7 @@ function Trail({ stops = [] }) {
   )
 }
 
-// Shared with the kit table's card, which shows the same person, facts and steps.
-export const DSK_CARD_CSS = `
+const DSK_CARD_CSS = `
   .dsk-card { display: flex; flex-direction: column; gap: 14px; padding: 16px; max-width: 560px; width: 100%; margin: 0 auto; }
   .dsk-desk {
     display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -279,12 +297,17 @@ export const DSK_CARD_CSS = `
   .dsk-facts dd { margin: 2px 0 0; font-family: var(--font-heading); font-weight: 800; color: var(--navy); overflow-wrap: anywhere; }
 
   .dsk-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  .dsk-steps li { display: grid; grid-template-columns: 22px 1fr; column-gap: 10px; align-items: center; color: var(--gray-400); }
+  .dsk-steps li { display: grid; grid-template-columns: 22px 1fr auto; column-gap: 10px; align-items: center; color: var(--gray-400); min-height: 44px; }
   .dsk-steps li i { font-size: 1.05rem; }
   .dsk-steps li.is-done { color: var(--ok); }
   .dsk-steps li.is-next { color: var(--gold-dark); }
   .dsk-step-label { font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
   .dsk-steps li:not(.is-done):not(.is-next) .dsk-step-label { color: var(--gray-400); }
+  .dsk-step-go { grid-column: 3; grid-row: 1; min-height: 44px; }
+  .dsk-step-undo {
+    grid-column: 3; grid-row: 1; min-height: 44px; padding: 0 12px; background: none; border: 0; cursor: pointer;
+    color: var(--gray-600); text-decoration: underline; font-family: var(--font-body); font-size: 0.9rem;
+  }
   .dsk-step-when { grid-column: 2; font-family: var(--font-body); font-size: 0.82rem; color: var(--gray-600); }
 
   .dsk-error { flex-wrap: wrap; }
@@ -295,10 +318,6 @@ export const DSK_CARD_CSS = `
   .dsk-row .dash-btn { flex: 1; min-height: 48px; justify-content: center; }
   .dsk-all-done { font-family: var(--font-heading); font-weight: 800; color: var(--ok); text-align: center; padding: 8px; }
   .dsk-face { text-align: center; }
-  .dsk-undo-link {
-    align-self: center; min-height: 44px; padding: 0 12px; background: none; border: 0; cursor: pointer;
-    color: var(--gray-600); text-decoration: underline; font-family: var(--font-body); font-size: 0.9rem;
-  }
   .dsk-undo { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
   .dsk-undo .dash-input { font-size: 16px; min-height: 48px; }
 

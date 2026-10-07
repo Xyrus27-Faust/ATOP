@@ -1,31 +1,30 @@
 import { useCallback, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { deskScan, deskLookup, deskCard, isBadgeCode, formatVenueTime, CAMERA_TROUBLE, DESK_REFUSAL, KIT_POST } from '@/lib/checkin'
+import { registrationStatusMeta } from '@/lib/events'
+import { deskScan, deskSearch, deskCard, isBadgeCode, formatVenueTime, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
 import QrViewfinder from '../checkin/QrViewfinder'
 import DelegateFace from '../checkin/DelegateFace'
 import DeskCardView from './DeskCardView'
-import KitCardView from './KitCardView'
 import DeskSearch from './DeskSearch'
 
 /**
- * The Secretariat desk, as one post on the scanner: the first stop for every delegate.
+ * The Secretariat desk, as one post on the scanner: where the main gate sends every delegate.
  *
- * <p>A badge scanned here checks the delegate in straight away — a second phone scanning the same
- * badge changes nothing — and opens their card, which says Desk A (fully paid) or Desk B (balance
- * to pay in cash), then walks them through payment, ID & receipt, and kit. A name search only opens
- * the card; the Confirm tap on it is the check-in, after a look at the photo.</p>
+ * <p>A badge scanned here opens the delegate's card — checking them in too if they walked round the
+ * gate; a second phone scanning the same badge changes nothing. The card says Desk A (fully paid) or
+ * Desk B (balance to pay in cash), takes the cash, then hands over the ID & receipt and the kit in
+ * either order. A name search only opens the card; the Confirm tap on it is the check-in, after a
+ * look at the photo.</p>
  *
- * <p>The kit table ({@code post} of {@link KIT_POST}) is the same station with the steps taken out:
- * its scan only opens the card — never checks anyone in — and the card asks one thing, whether to
- * release the kit.</p>
+ * <p>Someone with no seat is never checked in. The desk shows whose booking it was and how to reach
+ * them, so Desk B can sort it out with the person who booked.</p>
  *
  * <p>The scanner around it owns the bar, the idle sign-out and the way back to the post list;
  * {@code touch} is how a badge read counts as activity.</p>
  */
-export default function DeskStation({ post, touch }) {
-  const atKit = post === KIT_POST
+export default function DeskStation({ touch }) {
   const { loading, error, data: event, reload } = useAsync(fetchCurrentEvent, [])
 
   const [mode, setMode] = useState('scan')
@@ -49,14 +48,14 @@ export default function DeskStation({ post, touch }) {
     }
     setBusy(true)
     try {
-      const r = await (atKit ? deskLookup : deskScan)(event.id, code)
-      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: atKit ? null : arrivalNote(r) })
+      const r = await deskScan(event.id, code)
+      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r) })
     } catch (err) {
       show({ failed: `${err.message} Scan again, or search by name.` })
     } finally {
       setBusy(false)
     }
-  }, [atKit, event, show, touch])
+  }, [event, show, touch])
 
   const pick = async (row) => {
     setBusy(true)
@@ -66,7 +65,7 @@ export default function DeskStation({ post, touch }) {
       // 409: someone the desk turns away. Shown like a refused scan, with the name read back.
       const code = err.raw?.reasonCode
       show(code
-        ? { denied: { reasonCode: code, reason: err.message, named: { fullName: row.fullName, lgu: row.lgu } } }
+        ? { denied: { reasonCode: code, reason: err.message, named: { fullName: row.fullName, lgu: row.lgu }, booking: err.raw.booking } }
         : { failed: err.message })
     } finally {
       setBusy(false)
@@ -88,13 +87,11 @@ export default function DeskStation({ post, touch }) {
       </div>
     )
   } else if (view?.card) {
-    body = atKit
-      ? <KitCardView key={view.key} card={view.card} onDone={nextDelegate} />
-      : <DeskCardView key={view.key} card={view.card} note={view.note} onDone={nextDelegate} />
+    body = <DeskCardView key={view.key} card={view.card} note={view.note} onDone={nextDelegate} />
   } else if (view) {
-    body = <Refused view={view} fallback={atKit ? 'No kit' : 'Not checked in'} onDone={nextDelegate} />
+    body = <Refused view={view} onDone={nextDelegate} />
   } else if (mode === 'search') {
-    body = <DeskSearch eventId={event.id} onPick={pick} onClose={() => setMode('scan')} />
+    body = <DeskSearch eventId={event.id} search={deskSearch} post="Secretariat desk" onPick={pick} onClose={() => setMode('scan')} />
   } else {
     const trouble = CAMERA_TROUBLE[camera]
     body = (
@@ -113,7 +110,7 @@ export default function DeskStation({ post, touch }) {
         ) : (
           <QrViewfinder key={cameraKey} ready={!busy} onCode={handleCode} onUnavailable={setCamera} lastCode={lastCode} />
         )}
-        <p className="dsk-aim">{trouble ? ' ' : busy ? 'Checking…' : atKit ? 'Scan to release a kit' : 'Scan to check in'}</p>
+        <p className="dsk-aim">{trouble ? ' ' : busy ? 'Checking…' : 'Scan their pass'}</p>
       </div>
     )
   }
@@ -144,15 +141,19 @@ function arrivalNote(r) {
   return at ? `Already checked in at ${formatVenueTime(at.at)} by ${at.by}.` : null
 }
 
-/** Someone the desk turns away, or a scan that never reached a verdict. */
-function Refused({ view, fallback, onDone }) {
+/**
+ * Someone the desk turns away, or a scan that never reached a verdict. A refusal carries the booking
+ * behind the seat — no cash button: Desk B only collects balances, and a seat never paid for has none.
+ */
+function Refused({ view, onDone }) {
   const denied = view.denied
   const person = denied?.named
+  const booking = denied?.booking
   return (
     <div className="dsk-refused">
       <div className="dsk-refused-head">
         <i className="fas fa-circle-xmark" aria-hidden="true" />
-        <span>{denied ? DESK_REFUSAL[denied.reasonCode] || fallback : 'Scan failed'}</span>
+        <span>{denied ? DESK_REFUSAL[denied.reasonCode] || 'Not checked in' : 'Scan failed'}</span>
       </div>
       {person && (
         <div className="dsk-refused-who">
@@ -164,6 +165,14 @@ function Refused({ view, fallback, onDone }) {
         </div>
       )}
       <p>{denied ? denied.reason : view.failed}</p>
+      {booking && (
+        <dl className="dsk-booking">
+          <div><dt>Booking</dt><dd>{booking.referenceCode} · {registrationStatusMeta(booking.status).label}</dd></div>
+          <div><dt>Booked by</dt><dd>{booking.bookedBy}</dd></div>
+          {booking.mobile && <div><dt>Mobile</dt><dd><a href={`tel:${booking.mobile}`}>{booking.mobile}</a></dd></div>}
+          {booking.email && <div><dt>Email</dt><dd><a href={`mailto:${booking.email}`}>{booking.email}</a></dd></div>}
+        </dl>
+      )}
       <button type="button" className="dash-btn is-primary dsk-refused-next" autoFocus onClick={onDone}>
         Next delegate
       </button>
@@ -206,6 +215,11 @@ const DSK_CSS = `
   .dsk-refused-who strong { font-family: var(--font-heading); font-weight: 800; color: var(--navy); text-transform: uppercase; overflow-wrap: anywhere; }
   .dsk-refused-who span { font-size: 0.9rem; color: var(--gray-600); }
   .dsk-refused > p { font-size: 1rem; line-height: 1.5; color: var(--gray-800); }
+  .dsk-booking { margin: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+  .dsk-booking > div { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
+  .dsk-booking dt { font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-600); padding-top: 2px; }
+  .dsk-booking dd { margin: 0; font-family: var(--font-heading); font-weight: 700; color: var(--navy); overflow-wrap: anywhere; }
+  .dsk-booking a { color: var(--navy); }
   .dsk-refused-next { width: 100%; min-height: 56px; justify-content: center; font-size: 1rem; }
 
   @media (min-width: 640px) {

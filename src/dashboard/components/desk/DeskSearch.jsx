@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { deskSearch, SEARCH_MIN_CHARS } from '@/lib/checkin'
+import { SEARCH_MIN_CHARS } from '@/lib/checkin'
 
 // Long enough that typing "dela cruz" sends one request, not nine.
 const DEBOUNCE_MS = 350
 
 /**
- * Find a delegate at the desk when their badge won't scan. Picking a row only opens their card: a
- * name search never checks anyone in by itself, so the Confirm tap on the card (with their photo)
- * is what does it. The list shows no photos — it's ten strangers' faces to whoever is in the queue.
+ * Find a delegate when their badge won't scan — at the desk or at the main gate ({@code search} is
+ * deskSearch or gateSearch, {@code post} names the place in the header). Picking a row never checks
+ * anyone in by itself: the desk opens their card, the gate asks for a Confirm tap. The list shows no
+ * photos — it's ten strangers' faces to whoever is in the queue.
+ *
+ * <p>Someone who never paid has no QR at all, so they are listed too, last and tagged No seat:
+ * picking them says why and where to send them.</p>
  */
-export default function DeskSearch({ eventId, onPick, onClose }) {
+export default function DeskSearch({ eventId, search, post, onPick, onClose }) {
   const [q, setQ] = useState('')
   // The last answer, tagged with the term it answers, so anything stale is read off at render.
   const [answer, setAnswer] = useState({ term: null, error: null, rows: null })
@@ -23,13 +27,13 @@ export default function DeskSearch({ eventId, onPick, onClose }) {
     if (!searchable) return undefined
     let active = true
     const t = setTimeout(() => {
-      deskSearch(eventId, term).then(
+      search(eventId, term).then(
         (rows) => { if (active) setAnswer({ term, error: null, rows }) },
         (error) => { if (active) setAnswer({ term, error, rows: null }) },
       )
     }, DEBOUNCE_MS)
     return () => { active = false; clearTimeout(t) }
-  }, [eventId, term, searchable])
+  }, [eventId, term, searchable, search])
 
   const current = searchable && answer.term === term
   const loading = searchable && !current
@@ -42,7 +46,7 @@ export default function DeskSearch({ eventId, onPick, onClose }) {
         <button type="button" className="dsr-back" onClick={onClose} aria-label="Back to the camera">
           <i className="fas fa-arrow-left" aria-hidden="true" />
         </button>
-        <span>Search · Secretariat desk</span>
+        <span>Search · {post}</span>
       </div>
 
       <div className="dsr-field">
@@ -71,8 +75,8 @@ export default function DeskSearch({ eventId, onPick, onClose }) {
         )}
         {rows?.length === 0 && (
           <p className="dsr-hint">
-            No in-person delegate with a paid seat matches &ldquo;{term}&rdquo;. Check the spelling — a seat
-            with nothing paid yet can&rsquo;t be checked in here.
+            No in-person delegate matches &ldquo;{term}&rdquo;. Check the spelling, or try the reference code
+            on their pass. If they aren&rsquo;t booked at all, send them to Desk B.
           </p>
         )}
         {rows?.length > 0 && (
@@ -84,9 +88,11 @@ export default function DeskSearch({ eventId, onPick, onClose }) {
                     <strong>{r.fullName}</strong>
                     <span>{[r.lgu, r.designation].filter(Boolean).join(' · ')}</span>
                   </span>
-                  {r.checkedIn
-                    ? <span className="dash-badge tone-success">Checked in</span>
-                    : <i className="fas fa-chevron-right" aria-hidden="true" />}
+                  {r.noSeat
+                    ? <span className="dash-badge tone-danger">No seat</span>
+                    : r.checkedIn
+                      ? <span className="dash-badge tone-success">Checked in</span>
+                      : <i className="fas fa-chevron-right" aria-hidden="true" />}
                 </button>
               </li>
             ))}

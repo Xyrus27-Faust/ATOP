@@ -1,9 +1,10 @@
 import { api } from './apiClient'
 
-// Convention check-in: the Secretariat desk, the marshal's scanner and the secretariat's checkpoint
-// set-up. Mirrors the backend's DeskEndpoints and CheckInEndpoints. Everyone passes the desk first;
-// after that a checkpoint is one session, one meal or one tour bus on one day — every scan is made
-// against one, which is how the same QR can let someone in, then feed them lunch, then board a bus.
+// Convention check-in: the main gate, the Secretariat desk, the marshal's scanner and the
+// secretariat's checkpoint set-up. Mirrors the backend's GateEndpoints, DeskEndpoints and
+// CheckInEndpoints. Everyone passes the main gate first, which checks them in and sends them to Desk A
+// or Desk B; after that a checkpoint is one session, one meal or one tour bus on one day — every scan
+// is made against one, which is how the same QR can let someone in, then feed them lunch, then board a bus.
 
 // ---- Marshal ---------------------------------------------------------------
 
@@ -54,11 +55,10 @@ export const CAMERA_TROUBLE = {
 // forgotten on sign-out, so the next guard handed the phone doesn't start on someone else's post.
 const POST_KEY = 'atop.scan.checkpoint'
 
-// The Secretariat desk is a post on the scanner like any checkpoint, but has no checkpoint id: this
-// stands in for one in the remembered post. Never a Guid, so it can't collide with a real one.
+// The main gate and the Secretariat desk are posts on the scanner like any checkpoint, but have no
+// checkpoint id: these stand in for one in the remembered post. Never a Guid, so they can't collide.
+export const GATE_POST = 'gate'
 export const DESK_POST = 'desk'
-// The kit table: a second Secretariat post that only hands out kits, so the desk line keeps moving.
-export const KIT_POST = 'kit'
 
 export function readPost() {
   try { return localStorage.getItem(POST_KEY) } catch { return null }
@@ -113,25 +113,43 @@ export const LABEL_MAX = 80
 export const NOTE_MAX = 200
 export const REASON_MAX = 200
 
+// ---- Main gate -------------------------------------------------------------
+
+// Checks the delegate in (once — the same badge comes through every morning) and says which desk to
+// go to: lane 'A', 'B', or 'Done' (go straight in). Never an amount: marshals work the gate. Someone
+// with no seat is a 200 with result 'denied', named, and sent to Desk B.
+export const gateScan = (eventId, code) =>
+  api.post(`/gate/events/${eventId}/scan`, { code: badgeCode(code) }, { auth: true })
+
+// Seat or no seat, so someone who never paid is found and told where to go. No photos in the list.
+export const gateSearch = (eventId, q) =>
+  api.get(`/gate/events/${eventId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
+
+// The confirm tap on a name from the search: the same check-in a scan does.
+export const gateCheckIn = (eventId, delegateId) =>
+  api.post(`/gate/events/${eventId}/delegates/${delegateId}/check-in`, null, { auth: true })
+
+// What each lane tells whoever is at the gate. Tone is the sheet's colour.
+export const GATE_LANE = {
+  A: { tone: 'ok', icon: 'fa-circle-check', headline: 'Desk A', line: 'Paid in full. Send them to Desk A for their ID & receipt and kit.' },
+  B: { tone: 'warn', icon: 'fa-circle-exclamation', headline: 'Desk B', line: 'Send them to Desk B.' },
+  Done: { tone: 'ok', icon: 'fa-circle-check', headline: 'Go in', line: 'ID and kit already collected. Let them in.' },
+}
+
 // ---- Secretariat desk ------------------------------------------------------
 
-// A scan checks the delegate in (once — four desk phones may read the same badge) and returns their
-// card. Like a marshal's scan, a refusal is a 200 with result 'denied', not an error. Scans are per
-// event: a pass from another year's convention reads as unknown.
+// A scan returns the delegate's card, checking them in if the gate didn't (once — four desk phones may
+// read the same badge). Like a marshal's scan, a refusal is a 200 with result 'denied', not an error,
+// and carries the booking behind the seat. Scans are per event: last year's pass reads as unknown.
 export const deskScan = (eventId, code) =>
   api.post(`/desk/events/${eventId}/scan`, { code: badgeCode(code) }, { auth: true })
-
-// The kit table's scan: the same card and the same refusals, but it changes nothing — a delegate who
-// skipped the desk must not be checked in at the kit table.
-export const deskLookup = (eventId, code) =>
-  api.post(`/desk/events/${eventId}/lookup`, { code: badgeCode(code) }, { auth: true })
 
 export const deskSearch = (eventId, q) =>
   api.get(`/desk/events/${eventId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
 
 // Read-only: the card behind a name-search row, before the Confirm tap checks them in. Someone the
-// desk would turn away answers 409 with a reasonCode. Like every call on one delegate, it names the
-// event: an id from another event's card answers 404.
+// desk would turn away answers 409 with a reasonCode and the booking. Like every call on one delegate,
+// it names the event: an id from another event's card answers 404.
 export const deskCard = (eventId, delegateId) =>
   api.get(`/desk/events/${eventId}/delegates/${delegateId}`, { auth: true })
 // Every pass holder and how far each has got at the desk.
@@ -156,22 +174,31 @@ export const deskStep = (card, step) =>
   api.post(`/desk/events/${card.eventId}/delegates/${card.id}/${DESK_ACTION[step]}`,
     step === 'Payment' ? { amount: card.balance } : {}, { auth: true })
 
-/** Take back the last step. The step is named so a stale card can't undo something newer. */
+/**
+ * Take back one step, with a reason. The API refuses one that something later still stands on: the
+ * cash while the ID or kit is out, the check-in while anything is.
+ */
 export const deskUndo = (card, step, reason) =>
   api.post(`/desk/events/${card.eventId}/delegates/${card.id}/undo`, { step, reason }, { auth: true })
 
-// In the order they happen. The card's field for each, and what the button and the log call it.
+// Check-in, then cash for anyone who owes; then the ID & receipt and the kit, in either order, once
+// nothing is owed. The card's field for each, and what the button and the log call it.
 export const DESK_STEPS = [
   { step: 'CheckIn', field: 'checkIn', label: 'Checked in', action: 'Check in', undo: 'check-in' },
   { step: 'Payment', field: 'payment', label: 'Balance paid at the desk', action: 'Mark paid', undo: 'payment' },
-  { step: 'Id', field: 'idRelease', label: 'ID & receipt released', action: 'Release ID & receipt', undo: 'ID & receipt release' },
-  { step: 'Kit', field: 'kit', label: 'Kit released', action: 'Release kit', undo: 'kit release' },
+  { step: 'Id', field: 'idRelease', label: 'ID & receipt', action: 'Release', undo: 'ID & receipt release' },
+  { step: 'Kit', field: 'kit', label: 'Kit', action: 'Release', undo: 'kit release' },
 ]
 
-/** The most recent step done on a card — the only one that can be undone — or null. */
-export function lastDeskStep(card) {
-  for (let i = DESK_STEPS.length - 1; i >= 0; i--) if (card[DESK_STEPS[i].field]) return DESK_STEPS[i]
-  return null
+/**
+ * Whether a done step can be taken back now — the API's rule, so the card only offers what it would
+ * accept: the ID and kit any time, the cash once neither is out, the check-in once nothing else is.
+ * (A check-in someone was already scanned in on is still refused by the API.)
+ */
+export function canUndoDeskStep(card, step) {
+  if (step === 'Id' || step === 'Kit') return true
+  if (step === 'Payment') return !card.idRelease && !card.kit
+  return !card.payment && !card.idRelease && !card.kit
 }
 
 // What the desk says when it turns someone away. The API's sentence follows underneath.
@@ -180,7 +207,7 @@ export const DESK_REFUSAL = {
   cancelled: 'Cancelled',
   no_show: 'Marked no-show',
   online: 'Online attendee',
-  no_pass: 'Nothing paid yet',
+  no_pass: 'No seat',
 }
 
 // ---- Convention staff (admin) ----------------------------------------------
@@ -227,10 +254,10 @@ export function progressPct(scanCount, expected) {
 export const tallyVerb = (kind) => ({ Meal: 'claimed', Tour: 'boarded' }[kind] || 'entered')
 
 // What the guard sees at the top of the result sheet. Colour carries the verdict; the words say it
-// again for anyone who can't tell green from amber in the sun.
+// again for anyone who can't tell green from red in the sun. Only a seat paid in full gets through a
+// checkpoint, so there is no in-between: a balance is a refusal that sends them to Desk B.
 export const RESULT = {
   ok: { tone: 'ok', icon: 'fa-circle-check', entry: 'Let in', meal: 'Meal claimed', tour: 'Boarded' },
-  warn: { tone: 'warn', icon: 'fa-triangle-exclamation', entry: 'Let in — balance due', meal: 'Meal claimed — balance due', tour: 'Boarded — balance due' },
   denied: { tone: 'bad', icon: 'fa-circle-xmark', entry: 'Not let in', meal: 'Not served', tour: 'Not boarded' },
 }
 
@@ -241,8 +268,9 @@ const DENIED_HEADLINE = {
   unknown_code: 'Code not recognised',
   cancelled: 'Cancelled',
   online: 'Online attendee',
-  no_pass: 'No pass yet',
-  not_checked_in: 'Secretariat desk first',
+  no_pass: 'No seat',
+  balance_due: 'Balance not paid',
+  not_checked_in: 'Main gate first',
   no_tour: 'Not on a tour',
   wrong_tour: 'Wrong bus',
   checkpoint_inactive: 'Checkpoint closed',
