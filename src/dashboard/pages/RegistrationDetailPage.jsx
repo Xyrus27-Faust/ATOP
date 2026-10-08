@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/lib/apiClient'
+import { useAuth } from '@/auth/AuthContext'
+import { isRegionalRep } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import Modal from '../components/Modal'
@@ -50,6 +52,20 @@ export default function RegistrationDetailPage() {
   const [selected, setSelected] = useState(null)   // null = "everyone who still owes", set on first edit
   const [modes, setModes] = useState({})
   const [amountError, setAmountError] = useState(null)
+  // A representative chooses, before a booking's first payment, whether it goes on their region's
+  // allocation — here as well as in the wizard, so a draft saved for later can still use the slots.
+  const { user } = useAuth()
+  const [allocation, setAllocation] = useState(null)
+  const [useSlot, setUseSlot] = useState(true)
+
+  useEffect(() => {
+    if (!isRegionalRep(user?.roles)) return undefined
+    let active = true
+    api.get('/regional/allocation', { auth: true })
+      .then((a) => { if (active) setAllocation(a) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [user])
 
   const status = data?.status
   const invoiceStatus = data?.invoice?.status
@@ -64,7 +80,7 @@ export default function RegistrationDetailPage() {
     return () => clearInterval(timer)
   }, [shouldPoll, reload])
 
-  const pay = useCallback(async (payments) => {
+  const pay = useCallback(async (payments, useAllocation) => {
     setPaying(true)
     setActionError(null)
     try {
@@ -75,6 +91,7 @@ export default function RegistrationDetailPage() {
           payments,
           successRedirectUrl: `${origin}/convention/registrations/${id}`,
           failureRedirectUrl: `${origin}/convention/registrations/${id}`,
+          ...(useAllocation === undefined ? {} : { useAllocation }),
         },
         { auth: true },
       )
@@ -110,6 +127,14 @@ export default function RegistrationDetailPage() {
 
   const payingNow = owing.filter((d) => chosen.includes(d.id)).reduce((sum, d) => sum + chargeFor(d), 0)
 
+  // The region's seats this payment would take: chosen delegates with nothing paid yet. A seat
+  // already downpaid holds its place, so settling it takes nothing new (no seat until paid).
+  const ownRegion = allocation && allocation.region === reg.lguRegion
+  const canChooseSlot = ownRegion && (reg.status === 'Draft' || reg.status === 'Expired')
+  const newSeats = owing.filter((d) => chosen.includes(d.id) && Number(d.amountPaid) === 0).length
+  const slotTooSmall = ownRegion && newSeats > allocation.remaining
+  const onSlot = canChooseSlot && useSlot && !slotTooSmall
+
   const toggleSeat = (id) =>
     setSelected(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id])
 
@@ -129,7 +154,10 @@ export default function RegistrationDetailPage() {
   function startPayment() {
     if (chosen.length === 0) return setAmountError('Choose at least one delegate to pay for.')
     setAmountError(null)
-    return pay(owing.filter((d) => chosen.includes(d.id)).map((d) => ({ delegateId: d.id, mode: modeFor(d) })))
+    return pay(
+      owing.filter((d) => chosen.includes(d.id)).map((d) => ({ delegateId: d.id, mode: modeFor(d) })),
+      canChooseSlot ? onSlot : undefined,
+    )
   }
 
   return (
@@ -446,6 +474,42 @@ export default function RegistrationDetailPage() {
                 {/* Who this payment is for. Each seat settles or reserves on its own terms, so the
                     choice is a list, not a single button — a treasurer paying for two stragglers in
                     November uses exactly the same control as the booking did in August. */}
+                {canChooseSlot && (
+                  <div className="rd-cover" role="radiogroup" aria-label="How is this paid for?">
+                    <button
+                      type="button"
+                      className={`rd-cover-opt${onSlot ? ' is-active' : ''}`}
+                      aria-pressed={onSlot}
+                      disabled={slotTooSmall}
+                      onClick={() => setUseSlot(true)}
+                    >
+                      <strong><i className="fas fa-award" aria-hidden="true" /> Regional slots</strong>
+                      <span>
+                        {slotTooSmall
+                          ? `Only ${allocation.remaining} of ${allocation.seatAllowance} left — this payment needs ${newSeats}`
+                          : `${allocation.remaining} of ${allocation.seatAllowance} left · gets past a full convention`}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`rd-cover-opt${!onSlot ? ' is-active' : ''}`}
+                      aria-pressed={!onSlot}
+                      onClick={() => setUseSlot(false)}
+                    >
+                      <strong><i className="fas fa-credit-card" aria-hidden="true" /> Pay outright</strong>
+                      <span>Spends none of your region’s seats</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Already on the allocation: further delegates paid for take the region's seats. */}
+                {ownRegion && !canChooseSlot && reg.isRegionalAllocation && newSeats > 0 && (
+                  <p className="rd-inclusive">
+                    {newSeats === 1 ? 'This delegate takes' : `These ${newSeats} delegates take`} a seat from your
+                    region’s allocation once paid — {allocation.remaining} of {allocation.seatAllowance} left.
+                  </p>
+                )}
+
                 <ul className="rd-seats">
                   {owing.map((seat) => {
                     const ticked = chosen.includes(seat.id)
@@ -561,6 +625,13 @@ export default function RegistrationDetailPage() {
 
         /* A list, not a table: this lives in a narrow aside, and four columns of anything turn
            into wrapped names and a select with nowhere to render its value. */
+        .rd-cover { display: grid; gap: 8px; margin-bottom: 12px; }
+        .rd-cover-opt { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px;
+                        border: 1px solid var(--gray-200, #e5e7eb); border-radius: 8px; background: var(--white, #fff);
+                        font-size: 0.82rem; color: var(--gray-600); cursor: pointer; }
+        .rd-cover-opt strong { color: var(--navy, #17284a); font-size: 0.88rem; }
+        .rd-cover-opt.is-active { border-color: var(--navy, #17284a); box-shadow: inset 0 0 0 1px var(--navy, #17284a); }
+        .rd-cover-opt:disabled { opacity: 0.55; cursor: not-allowed; }
         .rd-seats { list-style: none; margin: 14px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
         .rd-seat { padding: 10px 12px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); }
         .rd-seat.is-off { opacity: 0.5; }

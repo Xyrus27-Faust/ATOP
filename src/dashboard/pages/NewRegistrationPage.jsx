@@ -633,7 +633,7 @@ export default function NewRegistrationPage() {
                   errorPrefix={`delegates[${i}].`}
                   idPrefix={`d${i}`}
                   onChange={(field, val) => setDelegate(i, field, val)}
-                  showPaymentChoice={!repMode}
+                  showPaymentChoice
                 />
               </div>
             )
