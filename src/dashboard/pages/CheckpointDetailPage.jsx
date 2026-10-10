@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getCheckpointScans, getCheckpointNotYet, updateCheckpoint, deleteCheckpoint, voidScan, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, REASON_MAX } from '@/lib/checkin'
+import { getCheckpointScans, getCheckpointNotYet, updateCheckpoint, deleteCheckpoint, voidScan, markAttended, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, scanningToday, SCAN_METHOD, REASON_MAX } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -13,6 +13,10 @@ const fold = (text) => (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g,
  * still waiting for, against everyone it expects. The escape hatch for a wrong scan lives on the
  * first: voiding keeps a copy with the reason and frees the slot, so the right person can then be
  * scanned; the voids list below the log is the paper trail.
+ *
+ * <p>Someone who was there but never scanned — the gate swamped, a phone down — is put on the list
+ * from Not yet with Mark attended and a reason, and shows as "Marked by staff" from then on. Only
+ * someone checked in at the desk, and only from the checkpoint's day: the API refuses the rest.</p>
  *
  * <p>The search narrows whichever list is showing by name or LGU ("did anyone from Tacloban eat?") in
  * the browser: the page already holds both. Print turns whatever is showing into a paper list — the
@@ -39,6 +43,9 @@ export default function CheckpointDetailPage() {
   const kind = kindMeta(c.kind)
   const state = stateMeta(c.state)
   const pct = progressPct(c.scanCount, c.expected)
+  const isSession = c.kind === 'Entry'
+  // Marking someone attended is for a day that has come: the API refuses one still to come.
+  const canMark = c.day <= scanningToday()
   const term = fold(q.trim())
   const waiting = list === 'notyet'
   const rows = waiting ? notYet : scans
@@ -102,13 +109,15 @@ export default function CheckpointDetailPage() {
           <div className={`dash-meter-fill${pct >= 100 ? ' is-complete' : ''}`} style={{ width: `${pct}%` }} />
         </div>
         <div className="ckd-state">
-          <span className={`dash-badge ${state.tone}`}>{state.detail}</span>
+          <span className={`dash-badge ${state.tone}`}>{isSession ? sessionDetail(c.state) : state.detail}</span>
           {state.canToggle && (
             <button type="button" className={`dash-btn is-sm ${c.isActive ? 'is-ghost' : 'is-primary'}`} onClick={toggle} disabled={toggling}>
               {toggling
                 ? <i className="fas fa-spinner fa-spin" aria-hidden="true" />
                 : <i className={`fas ${c.isActive ? 'fa-lock' : 'fa-lock-open'}`} aria-hidden="true" />}
-              {' '}{c.isActive ? 'Close checkpoint' : 'Reopen checkpoint'}
+              {' '}{isSession
+                ? (c.isActive ? 'Close session' : 'Open session')
+                : (c.isActive ? 'Close checkpoint' : 'Reopen checkpoint')}
             </button>
           )}
           {deletable && confirmDelete && (
@@ -122,6 +131,9 @@ export default function CheckpointDetailPage() {
             </button>
           )}
         </div>
+        {isSession && state.canToggle && !c.isActive && (
+          <p className="dash-help">Opening it closes any other session open that day. From then on, every check-in at the gate or desk counts for it.</p>
+        )}
         {deletable && confirmDelete && (
           <p className="dash-help">Nobody has been scanned here yet, so nothing is lost. This can&rsquo;t be undone.</p>
         )}
@@ -181,7 +193,7 @@ export default function CheckpointDetailPage() {
         </div>
       ) : waiting ? (
         <ul className="dash-card ckd-list">
-          {shown.map((d) => <NotYetRow key={d.delegateId} person={d} />)}
+          {shown.map((d) => <NotYetRow key={d.delegateId} person={d} checkpointId={c.id} canMark={canMark} onMarked={reload} />)}
         </ul>
       ) : (
         <ul className="dash-card ckd-list">
@@ -257,7 +269,7 @@ function PrintSheet({ checkpoint: c, waiting, rows: listed, total, query, printe
           {!waiting && rows.map((s, i) => (
             <tr key={s.id}>
               <td>{i + 1}</td>
-              <td>{s.fullName}{s.method === 'Manual' ? ' (manual)' : ''}</td>
+              <td>{s.fullName}{SCAN_METHOD[s.method]?.print || ''}</td>
               <td>{s.lgu || '—'}</td>
               <td>{formatVenueTime(s.scannedAt)}</td>
               <td>{s.scannedBy}</td>
@@ -274,20 +286,84 @@ function PrintSheet({ checkpoint: c, waiting, rows: listed, total, query, printe
   )
 }
 
+/** A session's state in the admin's words: sessions are worked by the gate, not by marshals. */
+function sessionDetail(state) {
+  return {
+    Open: 'Open — the gate and desk count check-ins here',
+    Closed: 'Closed — not counting',
+    Upcoming: 'Upcoming — open it on the day',
+    Ended: 'Ended — its day is over',
+  }[state] || state
+}
+
 /**
  * Someone this checkpoint is still waiting for. "Not at the desk yet" sets apart the delegate who
  * hasn't reached the convention from the one who is here but hasn't come through this door.
+ *
+ * <p>Mark attended puts someone who was there on the list after the fact, with a reason for the
+ * record. Offered only for someone the desk checked in: anyone else never arrived.</p>
  */
-function NotYetRow({ person: d }) {
+function NotYetRow({ person: d, checkpointId, canMark, onMarked }) {
+  const [marking, setMarking] = useState(false)
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!reason.trim()) {
+      setError('Say why — it goes in the record.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await markAttended(checkpointId, d.delegateId, reason.trim())
+      onMarked()
+    } catch (err) {
+      setError(err.fieldErrors?.reason?.[0] || err.message)
+      setSaving(false)
+    }
+  }
+
   return (
     <li className="ckd-row">
-      <div className="ckd-row-main">
-        <strong>
-          {d.fullName}
-          {!d.checkedIn && <span className="dash-badge tone-neutral ckd-chip">Not at the desk yet</span>}
-        </strong>
-        <span>{[d.designation, d.lgu].filter(Boolean).join(' · ')}</span>
+      <div className="ckd-row-top">
+        <div className="ckd-row-main">
+          <strong>
+            {d.fullName}
+            {!d.checkedIn && <span className="dash-badge tone-neutral ckd-chip">Not at the desk yet</span>}
+          </strong>
+          <span>{[d.designation, d.lgu].filter(Boolean).join(' · ')}</span>
+        </div>
+        {canMark && d.checkedIn && !marking && (
+          <button type="button" className="dash-btn is-ghost is-sm" onClick={() => setMarking(true)}>Mark attended</button>
+        )}
       </div>
+
+      {marking && (
+        <form className="ckd-mark" onSubmit={submit} noValidate>
+          <label className="dash-label" htmlFor={`mark-${d.delegateId}`}>Why mark {d.fullName} attended?</label>
+          <input
+            id={`mark-${d.delegateId}`}
+            className={`dash-input${error ? ' has-error' : ''}`}
+            maxLength={REASON_MAX}
+            placeholder="e.g. Seen at the plenary, gate phone was down"
+            value={reason}
+            onChange={(e) => { setReason(e.target.value); setError(null) }}
+            autoFocus
+          />
+          {error && <span className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {error}</span>}
+          <div className="ckd-void-actions">
+            <button type="button" className="dash-btn is-ghost is-sm" onClick={() => { setMarking(false); setReason(''); setError(null) }} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" className="dash-btn is-primary is-sm" disabled={saving}>
+              {saving ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : <i className="fas fa-check" aria-hidden="true" />} Mark attended
+            </button>
+          </div>
+        </form>
+      )}
     </li>
   )
 }
@@ -321,7 +397,7 @@ function ScanRow({ scan: s, onVoided }) {
         <div className="ckd-row-main">
           <strong>
             {s.fullName}
-            {s.method === 'Manual' && <span className="dash-badge tone-warn ckd-chip">Manual</span>}
+            {SCAN_METHOD[s.method] && <span className={`dash-badge ${SCAN_METHOD[s.method].tone} ckd-chip`}>{SCAN_METHOD[s.method].label}</span>}
           </strong>
           <span>{[s.lgu, `${formatVenueTime(s.scannedAt)} by ${s.scannedBy}`].filter(Boolean).join(' · ')}</span>
           {s.note && <span className="ckd-note">&ldquo;{s.note}&rdquo;</span>}
@@ -393,6 +469,8 @@ const CKD_CSS = `
 
   .ckd-void { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--radius-sm); background: var(--bad-bg); }
   .ckd-void .dash-input { font-size: 16px; min-height: 44px; }
+  .ckd-mark { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--radius-sm); background: var(--gray-100); }
+  .ckd-mark .dash-input { font-size: 16px; min-height: 44px; }
   .ckd-void-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .ckd-void-actions .dash-btn { min-height: 40px; }
 

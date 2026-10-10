@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import DelegateFace from './DelegateFace'
-import { RESULT, GATE_LANE, resultHeadline, formatVenueTime } from '@/lib/checkin'
+import { RESULT, GATE_LANE, resultHeadline, formatVenueTime, paymentLine, sessionLine } from '@/lib/checkin'
 
 /**
  * The verdict on one scan, as a sheet over the camera.
@@ -13,7 +13,9 @@ import { RESULT, GATE_LANE, resultHeadline, formatVenueTime } from '@/lib/checki
  * the top, above the name, with an allergy in red.</p>
  *
  * <p>At the main gate the response carries a {@code lane} instead of a checkpoint verdict: Desk A,
- * Desk B or Go in, in letters big enough to read from the queue — never an amount.</p>
+ * Desk B or Go in, in letters big enough to read from the queue. The gate keeps it lean — face, name,
+ * LGU — plus the session the check-in counted at. Every result with a delegate on it says what they
+ * still owe ("Paid in full", "Balance ₱6,000"), so the marshal can say it before the desk has to.</p>
  *
  * <p>The phone buzzes once for green and twice for anything else, so a guard watching the queue
  * rather than the screen still knows. iOS has no vibration API and ignores this silently.</p>
@@ -28,6 +30,8 @@ export default function ScanResultSheet({ response, kind, onNext }) {
   const meta = lane || (isError ? RESULT.denied : RESULT[response.result] || RESULT.denied)
   const person = response.delegate
   const diet = person?.diet
+  const pay = paymentLine(person?.payment)
+  const session = lane ? sessionLine(response.session) : null
   const green = meta.tone === 'ok'
   useEffect(() => {
     navigator.vibrate?.(green ? 80 : [90, 60, 90])
@@ -49,9 +53,15 @@ export default function ScanResultSheet({ response, kind, onNext }) {
           <DelegateFace name={person.fullName} photoUrl={person.photoUrl} />
           <div className="srs-who">
             <strong>{person.fullName}</strong>
-            <span>{[person.designation, person.lgu].filter(Boolean).join(' · ')}</span>
+            <span>{(lane ? [person.lgu] : [person.designation, person.lgu]).filter(Boolean).join(' · ')}</span>
           </div>
         </div>
+      )}
+
+      {pay && (
+        <p className={`srs-pay is-${pay.tone}`}>
+          <i className="fas fa-peso-sign" aria-hidden="true" /> {pay.text}
+        </p>
       )}
 
       {/* At a bus: theirs when they board, and the right one when this isn't it. */}
@@ -73,6 +83,12 @@ export default function ScanResultSheet({ response, kind, onNext }) {
         <p className="srs-when">
           <i className="fas fa-clock" aria-hidden="true" />
           {response.justCheckedIn ? ' Checked in just now' : ` Already checked in at ${formatVenueTime(response.checkedInAt)}`}
+        </p>
+      )}
+
+      {session && (
+        <p className="srs-when">
+          <i className="fas fa-door-open" aria-hidden="true" /> {session}
         </p>
       )}
 
@@ -151,6 +167,15 @@ const SRS_CSS = `
     font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem; color: var(--navy); overflow-wrap: anywhere;
   }
   .srs-tour i { color: var(--gold-dark); margin-right: 6px; }
+
+  .srs-pay {
+    margin-top: 12px; padding: 8px 14px; border-radius: var(--radius-sm); width: fit-content;
+    font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem;
+  }
+  .srs-pay i { margin-right: 4px; }
+  .srs-pay.is-ok { background: var(--ok-bg); color: var(--ok); }
+  .srs-pay.is-warn { background: var(--warn-bg); color: var(--warn); }
+  .srs-pay.is-bad { background: var(--bad-bg); color: var(--bad); }
 
   .srs-when {
     margin-top: 12px; font-family: var(--font-heading); font-weight: 700; font-size: 1rem; color: var(--navy);

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/apiClient'
 import { formatPeso } from '@/lib/events'
-import { deskCard, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, formatVenueTime, formatDay, kindMeta, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
+import { deskCard, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, formatVenueTime, formatDay, kindMeta, sessionLine, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
 import DelegateFace from '../checkin/DelegateFace'
 
 /**
@@ -17,10 +17,12 @@ import DelegateFace from '../checkin/DelegateFace'
  * the new figure, so the cashier just counts again. Cash that cancels the group's online link names
  * the others on it who still owe, so the cashier can tell them to pay here.</p>
  *
- * <p>{@code note} is the line above the card: "Checked in just now", or "Already checked in".</p>
+ * <p>{@code note} is the line above the card: "Checked in just now", or "Already checked in";
+ * {@code session} the one under it — "Counted for Opening Ceremony" — when a session is open.</p>
  */
-export default function DeskCardView({ card: initial, note, onDone }) {
+export default function DeskCardView({ card: initial, note, session: initialSession, onDone }) {
   const [card, setCard] = useState(initial)
+  const [session, setSession] = useState(initialSession)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
@@ -44,7 +46,12 @@ export default function DeskCardView({ card: initial, note, onDone }) {
     setError(null)
     setNotice(null)
     try {
-      const updated = await call()
+      const res = await call()
+      // The check-in answers as a scan does — the card inside, with the session it counted at, or a
+      // refusal; every other step answers with the card itself.
+      if (res?.result === 'denied') throw new Error(res.reason || 'The desk can’t check this delegate in.')
+      const updated = res?.card ?? res
+      if (res?.card) setSession(sessionLine(res.session))
       setCard(updated)
       // A link can't drop one person, so cash here cancels the whole link the group was sent.
       const others = updated.cancelledLinkAlsoBilled ?? []
@@ -112,6 +119,7 @@ export default function DeskCardView({ card: initial, note, onDone }) {
       </div>
 
       {note && <p className="dsk-note">{note}</p>}
+      {session && <p className="dsk-note dsk-session"><i className="fas fa-door-open" aria-hidden="true" /> {session}</p>}
 
       <div className="dsk-person">
         <DelegateFace name={card.fullName} photoUrl={card.photoUrl} size={96} />
@@ -280,6 +288,7 @@ const DSK_CARD_CSS = `
   .dsk-desk-name { font-weight: 900; font-size: 1.8rem; letter-spacing: 0.04em; }
   .dsk-desk-why { font-weight: 700; font-size: 1rem; }
   .dsk-note { font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
+  .dsk-session i { color: var(--ok); margin-right: 4px; }
 
   .dsk-person { display: flex; align-items: center; gap: 14px; }
   .dsk-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }

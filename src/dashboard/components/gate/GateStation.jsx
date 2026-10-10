@@ -6,16 +6,20 @@ import { Loading, ErrorState } from '../states'
 import QrViewfinder from '../checkin/QrViewfinder'
 import ScanResultSheet from '../checkin/ScanResultSheet'
 import DeskSearch from '../desk/DeskSearch'
+import SessionBar from '../checkin/SessionBar'
+import { useLiveSession } from '../../useLiveSession'
 
 /**
  * The main gate, as one post on the scanner: every delegate's first stop.
  *
  * <p>A badge scanned here checks the delegate in and says where to go — Desk A (paid in full), Desk B
- * (a balance to pay) or Go in (ID and kit already collected) — with their photo and name, and never
- * an amount, because marshals work the gate. Someone with no seat (never paid, cancelled, online) is
- * not checked in: the sheet names them and says Desk B.</p>
+ * (a balance to pay) or Go in (ID and kit already collected) — with their photo, name, LGU and what
+ * they still owe. Someone with no seat (never paid, cancelled, online) is not checked in: the sheet
+ * names them and says Desk B.</p>
  *
- * <p>The gate is arrival, not attendance: nothing here counts at a session. A check-in from a name
+ * <p>While the admin has a session open, every check-in here also counts them there — a balance
+ * doesn't stop that, a refusal does. The bar on top says which session, so the marshal knows what
+ * they're scanning into; it is asked again after each scan and every minute. A check-in from a name
  * search is one Confirm tap after picking the row, and the face shows on the result — if it's the
  * wrong person, the desk can take the check-in back.</p>
  *
@@ -24,6 +28,8 @@ import DeskSearch from '../desk/DeskSearch'
  */
 export default function GateStation({ touch }) {
   const { loading, error, data: event, reload } = useAsync(fetchCurrentEvent, [])
+  const live = useLiveSession(event?.id)
+  const refreshSession = live.refresh
 
   const [mode, setMode] = useState('scan')
   const [camera, setCamera] = useState('ok')
@@ -46,8 +52,9 @@ export default function GateStation({ touch }) {
       setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
     } finally {
       setBusy(false)
+      refreshSession()
     }
-  }, [event, touch])
+  }, [event, touch, refreshSession])
 
   const confirm = async () => {
     setBusy(true)
@@ -59,6 +66,7 @@ export default function GateStation({ touch }) {
       setBusy(false)
       setPicked(null)
       setMode('scan')
+      refreshSession()
     }
   }
 
@@ -127,6 +135,7 @@ export default function GateStation({ touch }) {
 
   return (
     <div className={`gte-station${scanning ? ' is-scanning' : ''}`}>
+      {event && <SessionBar session={live.session} known={live.known} />}
       {body}
 
       {scanning && (

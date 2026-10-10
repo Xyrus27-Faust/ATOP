@@ -1,4 +1,5 @@
 import { api } from './apiClient'
+import { formatPeso } from './events'
 
 // Convention check-in: the main gate, the Secretariat desk, the marshal's scanner and the
 // secretariat's checkpoint set-up. Mirrors the backend's GateEndpoints, DeskEndpoints and
@@ -102,6 +103,18 @@ export const getCheckpointNotYet = (id) => api.get(`/admin/checkpoints/${id}/not
 
 export const voidScan = (scanId, reason) => api.post(`/admin/scans/${scanId}/void`, { reason }, { auth: true })
 
+// For someone who was there but never scanned (the gate was swamped, the phone died): adds them to
+// this checkpoint's list as "Marked by staff", with the reason on record. Only someone checked in at
+// the desk, and never on a day still to come; the API refuses anything else with a reasonCode.
+export const markAttended = (checkpointId, delegateId, reason) =>
+  api.post(`/admin/checkpoints/${checkpointId}/attend`, { delegateId, reason }, { auth: true })
+
+// How each way of landing on a list is labelled in the scan log; a scan by camera needs no chip.
+export const SCAN_METHOD = {
+  Manual: { label: 'Manual', tone: 'tone-warn', print: ' (manual)' },
+  Marked: { label: 'Marked by staff', tone: 'tone-info', print: ' (marked by staff)' },
+}
+
 // The tour batches a bus checkpoint can board. Public on the API (the posters are), so no auth.
 export const listTourPackages = (slug) => api.get(`/events/${slug}/tours`)
 
@@ -116,8 +129,9 @@ export const REASON_MAX = 200
 // ---- Main gate -------------------------------------------------------------
 
 // Checks the delegate in (once — the same badge comes through every morning) and says which desk to
-// go to: lane 'A', 'B', or 'Done' (go straight in). Never an amount: marshals work the gate. Someone
-// with no seat is a 200 with result 'denied', named, and sent to Desk B.
+// go to: lane 'A', 'B', or 'Done' (go straight in), with what they still owe. While a session is open
+// the check-in also counts them there (`session`). Someone with no seat is a 200 with result 'denied',
+// named, and sent to Desk B — and counted nowhere.
 export const gateScan = (eventId, code) =>
   api.post(`/gate/events/${eventId}/scan`, { code: badgeCode(code) }, { auth: true })
 
@@ -129,9 +143,36 @@ export const gateSearch = (eventId, q) =>
 export const gateCheckIn = (eventId, delegateId) =>
   api.post(`/gate/events/${eventId}/delegates/${delegateId}/check-in`, null, { auth: true })
 
+// The session open right now — the one every gate and desk check-in is counted at — or null when
+// none is (the API answers 204). Today's only; the admin opens and closes it on the Check-in page.
+export const getLiveSession = (eventId) => api.get(`/gate/events/${eventId}/session`, { auth: true })
+
+// How often the gate and desk ask again, so a session the admin opens or closes reaches every phone.
+export const SESSION_POLL_MS = 60_000
+
+/**
+ * The line a check-in result shows about the session: counted now, already on its list (a second
+ * pass, or the desk after the gate), or nothing when no session is open.
+ */
+export function sessionLine(session) {
+  if (!session) return null
+  return session.counted ? `Counted for ${session.label}` : `Welcome back · already counted for ${session.label}`
+}
+
+/**
+ * What a delegate still owes, as the scanner says it: { tone, text }. Null for someone with no seat
+ * to pay for (cancelled, substituted) — the API sends none.
+ */
+export function paymentLine(payment) {
+  if (!payment) return null
+  if (payment.status === 'paid') return { tone: 'ok', text: 'Paid in full' }
+  if (payment.status === 'partial') return { tone: 'warn', text: `Balance ${formatPeso(payment.balance)}` }
+  return { tone: 'bad', text: `Not paid · ${formatPeso(payment.balance)}` }
+}
+
 // What each lane tells whoever is at the gate. Tone is the sheet's colour.
 export const GATE_LANE = {
-  A: { tone: 'ok', icon: 'fa-circle-check', headline: 'Desk A', line: 'Paid in full. Send them to Desk A for their ID & receipt and kit.' },
+  A: { tone: 'ok', icon: 'fa-circle-check', headline: 'Desk A', line: 'Send them to Desk A for their ID & receipt and kit.' },
   B: { tone: 'warn', icon: 'fa-circle-exclamation', headline: 'Desk B', line: 'Send them to Desk B.' },
   Done: { tone: 'ok', icon: 'fa-circle-check', headline: 'Go in', line: 'ID and kit already collected. Let them in.' },
 }
@@ -223,7 +264,7 @@ export const revokeStaffRole = (userId, role) =>
 // ---- Vocabulary ------------------------------------------------------------
 
 export const CHECKPOINT_KIND = {
-  Entry: { label: 'Session', icon: 'fa-door-open', blurb: 'A door or a session — e.g. “Oct 21 AM” or “Pearl Awards”. Someone coming back in is welcomed back, not refused.' },
+  Entry: { label: 'Session', icon: 'fa-door-open', blurb: 'A programme session — e.g. “Opening Ceremony”. One is open at a time: opening it closes the day’s other session, and every check-in at the gate or desk while it’s open counts for it.' },
   Meal: { label: 'Meal', icon: 'fa-utensils', blurb: 'One plate per delegate. A second scan of the same badge is refused.' },
   Tour: { label: 'Tour', icon: 'fa-bus', blurb: 'One bus — a tour batch. Only the delegates booked on it board; anyone else is told which bus is theirs.' },
 }

@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { registrationStatusMeta } from '@/lib/events'
-import { deskScan, deskSearch, deskCard, isBadgeCode, formatVenueTime, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
+import { deskScan, deskSearch, deskCard, isBadgeCode, formatVenueTime, sessionLine, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
 import QrViewfinder from '../checkin/QrViewfinder'
 import DelegateFace from '../checkin/DelegateFace'
 import DeskCardView from './DeskCardView'
 import DeskSearch from './DeskSearch'
+import SessionBar from '../checkin/SessionBar'
+import { useLiveSession } from '../../useLiveSession'
 
 /**
  * The Secretariat desk, as one post on the scanner: where the main gate sends every delegate.
@@ -18,6 +20,9 @@ import DeskSearch from './DeskSearch'
  * either order. A name search only opens the card; the Confirm tap on it is the check-in, after a
  * look at the photo.</p>
  *
+ * <p>A check-in here counts at the open session just as the gate's does — the bar on top names it,
+ * and the line above the card says whether this scan counted them or they already were.</p>
+ *
  * <p>Someone with no seat is never checked in. The desk shows whose booking it was and how to reach
  * them, so Desk B can sort it out with the person who booked.</p>
  *
@@ -26,6 +31,8 @@ import DeskSearch from './DeskSearch'
  */
 export default function DeskStation({ touch }) {
   const { loading, error, data: event, reload } = useAsync(fetchCurrentEvent, [])
+  const live = useLiveSession(event?.id)
+  const refreshSession = live.refresh
 
   const [mode, setMode] = useState('scan')
   const [camera, setCamera] = useState('ok')
@@ -49,13 +56,14 @@ export default function DeskStation({ touch }) {
     setBusy(true)
     try {
       const r = await deskScan(event.id, code)
-      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r) })
+      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r), session: sessionLine(r.session) })
     } catch (err) {
       show({ failed: `${err.message} Scan again, or search by name.` })
     } finally {
       setBusy(false)
+      refreshSession()
     }
-  }, [event, show, touch])
+  }, [event, show, touch, refreshSession])
 
   const pick = async (row) => {
     setBusy(true)
@@ -87,7 +95,7 @@ export default function DeskStation({ touch }) {
       </div>
     )
   } else if (view?.card) {
-    body = <DeskCardView key={view.key} card={view.card} note={view.note} onDone={nextDelegate} />
+    body = <DeskCardView key={view.key} card={view.card} note={view.note} session={view.session} onDone={nextDelegate} />
   } else if (view) {
     body = <Refused view={view} onDone={nextDelegate} />
   } else if (mode === 'search') {
@@ -119,6 +127,7 @@ export default function DeskStation({ touch }) {
 
   return (
     <div className={`dsk-station${scanning ? ' is-scanning' : ''}`}>
+      {event && <SessionBar session={live.session} known={live.known} />}
       {body}
 
       {scanning && (
