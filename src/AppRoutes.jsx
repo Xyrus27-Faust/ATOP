@@ -46,6 +46,7 @@ import CheckInPage from './dashboard/pages/CheckInPage'
 import { OldCheckpoints, OldCheckpoint, OldStaff } from './dashboard/pages/CheckInRedirects'
 import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
 import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
+import PassPage from './components/pass/PassPage'
 
 // Auth pages are real routes (the email verification link points at
 // /verify-email). The authenticated dashboard lives under /dashboard, guarded
@@ -57,6 +58,9 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+      {/* A delegate's live pass. Public: delegates have no accounts, and the signed link is the key. */}
+      <Route path="/pass/:token" element={<PassPage />} />
 
       <Route element={<ProtectedRoute />}>
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
