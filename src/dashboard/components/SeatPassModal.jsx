@@ -3,6 +3,7 @@ import Modal from './Modal'
 import SeatQr from './SeatQr'
 import { lguLabel } from '@/lib/lgu'
 import { currentEvent, formatEventDates } from '@/lib/eventInfo'
+import SharePassButton from '@/components/pass/SharePassButton'
 
 /**
  * One delegate's pass, big enough to scan off the screen and downloadable as a card.
@@ -14,8 +15,11 @@ import { currentEvent, formatEventDates } from '@/lib/eventInfo'
  * The download is composed rather than captured. Saving the bare QR canvas produced a PNG of
  * anonymous squares — whoever found it in Downloads could not tell whose it was, and neither
  * could anyone it was forwarded to.
+ *
+ * `passUrl` is the delegate's live pass link, given only on the booker's own page: the Secretariat's
+ * copy of this modal has no business handing it out.
  */
-export default function SeatPassModal({ delegate, reference, onClose }) {
+export default function SeatPassModal({ delegate, reference, passUrl, onClose }) {
   const canvas = useRef(null)
   const [where, setWhere] = useState(null)
   const [event, setEvent] = useState(null)
@@ -59,9 +63,17 @@ export default function SeatPassModal({ delegate, reference, onClose }) {
         <p className="pm-note">
           Show this at the registration desk. It admits {delegate.fullName} only, under booking {reference}.
         </p>
-        <button type="button" className="dash-btn is-primary" onClick={download}>
-          <i className="fas fa-download" aria-hidden="true" /> Download
-        </button>
+        <div className="pm-actions">
+          <button type="button" className="dash-btn is-primary" onClick={download}>
+            <i className="fas fa-download" aria-hidden="true" /> Download
+          </button>
+          {passUrl && <SharePassButton url={passUrl} name={delegate.firstName} />}
+        </div>
+        {passUrl && (
+          <a className="pm-live" href={passUrl} target="_blank" rel="noopener noreferrer">
+            Open {delegate.firstName}'s live pass <i className="fas fa-arrow-up-right-from-square" aria-hidden="true" />
+          </a>
+        )}
       </div>
 
       <style>{`
@@ -72,6 +84,9 @@ export default function SeatPassModal({ delegate, reference, onClose }) {
         }
         .pm-where { font-size: 0.92rem; font-weight: 600; color: var(--gray-700, #374151); text-align: center; }
         .pm-note { margin: 0; text-align: center; font-size: 0.86rem; color: var(--gray-600); max-width: 34ch; }
+        .pm-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .pm-live { font-size: 0.84rem; font-weight: 700; color: var(--gold-dark); text-decoration: none; }
+        .pm-live:hover { text-decoration: underline; }
       `}</style>
     </Modal>
   )
