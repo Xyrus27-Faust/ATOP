@@ -132,24 +132,24 @@ export default function NewRegistrationPage() {
   // Delegations and walk-ins both name their LGU; only an organization may have none.
   const needsLgu = form.registrantType === 'LguDelegation' || form.registrantType === 'Individual'
 
-  // A representative's booking is always their own region's LGU delegation, so fill both in rather
-  // than asking — and load that region's provinces, since locking the region skips the change
-  // handler that would normally have fetched them. Guarded on emptiness so it never fights a
-  // resumed draft, which restores its own cascade above.
+  // A representative's region is locked to their own, so whenever it is blank, fill it — and load
+  // its provinces, since locking the region skips the change handler that would normally fetch
+  // them. Keyed on the region being blank rather than run once: it went blank, and stayed blank
+  // under a locked select, when a rep clicked "LGU delegation" before the provinces arrived, or
+  // switched a saved Organization draft to a delegation (ATOP, 2026-10-12 — a Region VI rep could
+  // pick no LGU, and so could not pay). A resumed draft that has its own LGU sets the region itself.
   useEffect(() => {
-    if (!repMode || routeDraftId) return
+    if (!repMode || form.lguRegion || hydrating) return
     let active = true
+    const fill = () => setForm((f) => (f.lguRegion
+      ? f
+      : { ...f, registrantType: f.registrantType || 'LguDelegation', lguRegion: allocation.region }))
     api.get(`/lgus/provinces?region=${allocation.region}`)
-      .then((list) => {
-        if (!active) return
-        setProvinces(list)
-        setForm((f) => (f.registrantType || f.lguRegion
-          ? f
-          : { ...f, registrantType: 'LguDelegation', lguRegion: allocation.region }))
-      })
-      .catch(() => {})
+      .then((list) => { if (active) { setProvinces(list); fill() } })
+      // The region is still the rep's own even if the provinces failed to load; never leave it blank.
+      .catch(() => { if (active) fill() })
     return () => { active = false }
-  }, [repMode, allocation, routeDraftId])
+  }, [repMode, allocation, form.lguRegion, hydrating])
 
   // With one rate on sale there is nothing for anyone to pick, so fill it in once the
   // event has loaded. An effect, not render-time state, so React isn't asked to update
