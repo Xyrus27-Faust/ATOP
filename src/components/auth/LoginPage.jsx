@@ -139,6 +139,9 @@ export default function LoginPage() {
           onChange={set('password')}
           error={errors.password}
         />
+        <Link to="/forgot-password" state={{ email: form.email.trim() }} className="auth-forgot">
+          Forgot password?
+        </Link>
 
         <button type="submit" className="btn-gold auth-submit" disabled={submitting}>
           {submitting ? (

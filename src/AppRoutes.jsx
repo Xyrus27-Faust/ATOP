@@ -3,6 +3,8 @@ import App from './App'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import VerifyEmailPage from './components/auth/VerifyEmailPage'
+import ForgotPasswordPage from './components/auth/ForgotPasswordPage'
+import ResetPasswordPage from './components/auth/ResetPasswordPage'
 import ProtectedRoute from './auth/ProtectedRoute'
 import ApplicantRoute from './auth/ApplicantRoute'
 import AdminRoute from './auth/AdminRoute'
@@ -40,8 +42,8 @@ import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDeta
 import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
 
-// Auth pages are real routes (the email verification link points at
-// /verify-email). The authenticated dashboard lives under /dashboard, guarded
+// Auth pages are real routes (the emailed links point at /verify-email and
+// /reset-password). The authenticated dashboard lives under /dashboard, guarded
 // by ProtectedRoute and framed by DashboardLayout. The existing marketing SPA
 // stays untouched under the /* catch-all with its own currentPage navigation.
 export default function AppRoutes() {
@@ -50,6 +52,9 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      {/* The reset email links here. */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
