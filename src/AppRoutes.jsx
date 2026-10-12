@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import App from './App'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
@@ -9,6 +9,7 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import ApplicantRoute from './auth/ApplicantRoute'
 import AdminRoute from './auth/AdminRoute'
 import RegistrationsAdminRoute from './auth/RegistrationsAdminRoute'
+import CheckInAdminRoute from './auth/CheckInAdminRoute'
 import RegionalRepRoute from './auth/RegionalRepRoute'
 import DashboardLayout from './dashboard/DashboardLayout'
 import SubmissionLayout, { ConventionLayout } from './dashboard/SubmissionLayout'
@@ -41,6 +42,13 @@ import AdminTalliesPage from './dashboard/pages/AdminTalliesPage'
 import AdminRegistrationDetailPage from './dashboard/pages/AdminRegistrationDetailPage'
 import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
+import MarshalRoute from './auth/MarshalRoute'
+import ScanPage from './dashboard/pages/ScanPage'
+import CheckInPage from './dashboard/pages/CheckInPage'
+import { OldCheckpoints, OldCheckpoint, OldStaff } from './dashboard/pages/CheckInRedirects'
+import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
+import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
+import PassPage from './components/pass/PassPage'
 
 // Auth pages are real routes (the emailed links point at /verify-email and
 // /reset-password). The authenticated dashboard lives under /dashboard, guarded
@@ -56,6 +64,9 @@ export default function AppRoutes() {
       {/* The reset email links here. */}
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+      {/* A delegate's live pass. Public: delegates have no accounts, and the signed link is the key. */}
+      <Route path="/pass/:token" element={<PassPage />} />
+
       <Route element={<ProtectedRoute />}>
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
             chrome) — opened in a new tab from the scoring queue. Role-gated in-page. */}
@@ -64,6 +75,15 @@ export default function AppRoutes() {
         {/* Ranking a bracket's finalists is likewise a focused, full-screen task — the adjudicator
             orders the whole field in one sitting, so it gets its own shell. Role-gated in-page. */}
         <Route path="/finals/:categoryNumber/:bracket" element={<FinalsBracketPage />} />
+
+        {/* The one badge scanner, a phone-first, full-screen tool — no dashboard chrome between
+            the staff and the camera. Marshals, Secretariat and Admin; the Secretariat desk is one of
+            its posts, offered to Secretariat and Admin only. */}
+        <Route element={<MarshalRoute />}>
+          <Route path="/scan" element={<ScanPage />} />
+        </Route>
+        {/* The desk had its own page before it became a post on the scanner. Old links still land. */}
+        <Route path="/desk" element={<Navigate to="/scan" replace />} />
 
         {/* The submission flow lives outside the dashboard in a focused shell —
             composing an entry is an application, not a dashboard page. It's
@@ -113,6 +133,17 @@ export default function AppRoutes() {
             <Route path="admin/tallies" element={<AdminTalliesPage />} />
             <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
           </Route>
+          <Route element={<CheckInAdminRoute />}>
+            {/* Checkpoints, the desk list and (for admins) staff: one page, one tab each. */}
+            <Route path="admin/checkin" element={<CheckInPage />} />
+            <Route path="admin/checkin/checkpoints/new" element={<NewCheckpointPage />} />
+            <Route path="admin/checkin/checkpoints/:id" element={<CheckpointDetailPage />} />
+            {/* Where they lived before the merge. */}
+            <Route path="admin/checkpoints" element={<OldCheckpoints />} />
+            <Route path="admin/checkpoints/new" element={<Navigate to="/dashboard/admin/checkin/checkpoints/new" replace />} />
+            <Route path="admin/checkpoints/:id" element={<OldCheckpoint />} />
+            <Route path="admin/checkin/desk" element={<Navigate to="/dashboard/admin/checkin?tab=desk" replace />} />
+          </Route>
           <Route element={<AdminRoute />}>
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
             <Route path="admin/assessors" element={<AssessorAdminPage />} />
@@ -121,6 +152,9 @@ export default function AppRoutes() {
             <Route path="admin/finals" element={<FinalsResultsPage />} />
             <Route path="admin/finalists" element={<FinalistRosterPage />} />
             <Route path="admin/access" element={<AdminAccessPage />} />
+            {/* The staff lists have moved three times; an old bookmark still lands on them. */}
+            <Route path="admin/checkin/staff" element={<OldStaff />} />
+            <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkin?tab=staff" replace />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
             <Route path="admin/registration-admins" element={<RegistrationAdminsPage />} />
           </Route>

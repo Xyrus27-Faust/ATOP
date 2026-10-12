@@ -12,6 +12,9 @@ import SeatPassModal from '../components/SeatPassModal'
 import ConventionExtras from '../components/ConventionExtras'
 import MealsCard from '../components/MealsCard'
 import IdPhotoCard from '../components/IdPhotoCard'
+import AttendanceCard from '../components/checkin/AttendanceCard'
+import SharePassButton from '@/components/pass/SharePassButton'
+import { usePassLinks } from '@/components/pass/usePassLinks'
 import { validateEmail } from '@/lib/validation'
 import { formatDate, labelFor, REGIONS } from '@/lib/pearlAwards'
 import {
@@ -105,6 +108,9 @@ export default function RegistrationDetailPage() {
       setPaying(false)
     }
   }, [id, reload])
+
+  // Each delegate's live pass link, for the payer to send on — asked for once any seat has a pass.
+  const passLinks = usePassLinks(id, Boolean(data?.delegates?.some((d) => d.hasCheckInPass)))
 
   if (loading) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -290,6 +296,9 @@ export default function RegistrationDetailPage() {
                       {d.hasCheckInPass && !cancelled && (
                         <code className="rd-del-code" title="Check-in code">{d.referenceCode}</code>
                       )}
+                      {passLinks[d.id] && !cancelled && (
+                        <SharePassButton url={passLinks[d.id]} name={d.firstName} className="is-sm" />
+                      )}
                       <span className={`dash-badge tone-${dm.tone} rd-del-mode`}>
                         <i className={`fas ${dm.icon}`} aria-hidden="true" /> {dm.label}
                       </span>
@@ -344,6 +353,14 @@ export default function RegistrationDetailPage() {
               </p>
             )}
           </div>
+
+          {/* ---- Attendance ---- */}
+          {/* Straight under the delegates: during the convention it is the first thing a booker
+              wants — who is in. Renders nothing until the first day, so it isn't there for weeks
+              saying "not yet". Draft bookings have no passes, so they never ask. A cancelled booking
+              still asks: scans from before the cancellation are the booker's proof of attendance,
+              and with none the card renders nothing. */}
+          {reg.status !== 'Draft' && <AttendanceCard registrationId={reg.id} />}
 
           {/* ---- Tours & kit ---- */}
           {/* Sits under the delegates rather than in the sidebar: it is a per-person checklist, and
@@ -587,7 +604,12 @@ export default function RegistrationDetailPage() {
       </div>
 
       {passFor && (
-        <SeatPassModal delegate={passFor} reference={reg.referenceCode} onClose={() => setPassFor(null)} />
+        <SeatPassModal
+          delegate={passFor}
+          reference={reg.referenceCode}
+          passUrl={passLinks[passFor.id]}
+          onClose={() => setPassFor(null)}
+        />
       )}
 
       {adding && (

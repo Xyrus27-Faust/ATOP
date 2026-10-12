@@ -155,7 +155,16 @@
   --gray-800:         #1F2937;
   --text-body:        #374151;
 
-  --font-heading:     'Montserrat', sans-serif;
+  /* Verdict colours for the check-in scanner — the same greens, ambers and reds the dashboard's
+     success/warn/danger badges already use, named so the scanner doesn't repeat the hex values. */
+  --ok:               #15803D;
+  --ok-bg:            #F0FDF4;
+  --warn:             #C2410C;
+  --warn-bg:          #FFF7ED;
+  --bad:              #B91C1C;
+  --bad-bg:           #FEF2F2;
+
+  --font-heading:    'Montserrat', sans-serif;
   --font-body:        'Open Sans', sans-serif;
 
   --transition:       all 0.4s cubic-bezier(0.16, 1, 0.3, 1);

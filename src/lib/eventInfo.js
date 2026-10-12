@@ -1,16 +1,28 @@
-import { api } from './apiClient'
+import { api, ApiError } from './apiClient'
 
 /**
- * The published convention, fetched once per page.
- *
- * The pass used to carry a hardcoded title, a hardcoded venue and hardcoded dates — which had
- * already drifted from the record before anyone printed one. Anything a delegate is handed should
- * say what the event row says.
+ * "The convention": the one event the desk, the scanner, the checkpoints and the pass mean. The API
+ * decides which (the one still to finish that starts soonest, never a draft or a cancelled one), so
+ * publishing next year early can't move this year's desk. Null when there is none; any other
+ * failure throws, so a page can offer Retry instead of claiming there's no event.
+ */
+export async function fetchCurrentEvent() {
+  try {
+    return await api.get('/events/current')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
+}
+
+/**
+ * The same, fetched once per page, for the pass: it used to carry a hardcoded title, venue and
+ * dates, which had drifted from the record before anyone printed one. A failure just leaves them off.
  */
 let pending = null
 
 export function currentEvent() {
-  pending ??= api.get('/events/').then((events) => events?.[0] ?? null).catch(() => null)
+  pending ??= fetchCurrentEvent().catch(() => null)
   return pending
 }
 

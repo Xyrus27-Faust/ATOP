@@ -6,6 +6,10 @@ import { downloadCsv, datedFilename } from '@/lib/csv'
 
 const REGION_LABELS = Object.fromEntries(REGIONS.map((r) => [r.value, r.label]))
 
+// "2026-11-18 09:14" in Manila — sortable in a spreadsheet, and venue time whatever the laptop says.
+const venueStamp = (instant) =>
+  instant ? new Date(instant).toLocaleString('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' }) : ''
+
 /**
  * The convention's master list as one CSV: every delegate on a live booking, with LGU, contact,
  * seat, shirt, tour and meals on the same row. It replaced the three partial exports that used to
@@ -31,6 +35,7 @@ export default function MasterListButton({ eventId }) {
           'Classification', 'Attendance', 'Email', 'Mobile',
           'Seat', 'Regional slot', 'Shirt size', 'Tour', 'Tour batch', 'Tour date',
           'Dietary restrictions', 'Dietary notes',
+          'Checked in', 'Paid at desk', 'ID released', 'Kit released',
         ],
         ...rows.map((r) => [
           r.bookingReference,
@@ -56,6 +61,10 @@ export default function MasterListButton({ eventId }) {
           r.tourDate ?? '',
           r.dietary ?? '',
           r.dietaryNotes ?? '',
+          venueStamp(r.checkedInAt),
+          venueStamp(r.paidAtDeskAt),
+          venueStamp(r.idReleasedAt),
+          venueStamp(r.kitReleasedAt),
         ]),
       ])
     } catch (err) {
