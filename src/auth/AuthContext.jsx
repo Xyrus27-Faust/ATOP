@@ -98,6 +98,23 @@ export function AuthProvider({ children }) {
     return api.post('/auth/resend-verification', { email })
   }
 
+  function forgotPassword(email) {
+    return api.post('/auth/forgot-password', { email })
+  }
+
+  function resetPassword(userId, token, newPassword) {
+    return api.post('/auth/reset-password', { userId, token, newPassword })
+  }
+
+  // The server signs out every other session and hands this one a fresh pair.
+  async function changePassword({ currentPassword, newPassword }) {
+    const tokens = await api.post('/auth/change-password', { currentPassword, newPassword }, { auth: true })
+    setTokens(tokens)
+    const me = await api.get('/auth/me', { auth: true })
+    setUser(me)
+    return me
+  }
+
   async function logout() {
     try {
       await api.post('/auth/logout', { refreshToken: getRefreshToken() })
@@ -120,6 +137,9 @@ export function AuthProvider({ children }) {
     updateProfile,
     verifyEmail,
     resendVerification,
+    forgotPassword,
+    resetPassword,
+    changePassword,
     logout,
   }
 

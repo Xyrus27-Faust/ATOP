@@ -260,6 +260,8 @@ export default function AuthLayout({
 
         /* ---------- Shared form controls (used by the auth pages) ---------- */
         .auth-form { display: flex; flex-direction: column; gap: 18px; }
+        .auth-forgot { align-self: flex-end; margin-top: -10px; font-family: var(--font-heading); font-size: 0.8rem; font-weight: 700; color: var(--gold-dark); text-decoration: none; }
+        .auth-forgot:hover { text-decoration: underline; text-underline-offset: 2px; }
         .auth-row { display: flex; gap: 16px; }
         .auth-row > * { flex: 1; }
         .auth-field { display: flex; flex-direction: column; gap: 8px; }
@@ -386,7 +388,7 @@ export default function AuthLayout({
           color: var(--gold-dark);
         }
         .auth-banner--success { background: #F0FDF4; border: 1px solid #BBF7D0; color: #15803D; }
-        .auth-banner button.auth-link {
+        .auth-banner button.auth-link, .auth-status button.auth-link {
           background: none; border: none; padding: 0; cursor: pointer;
           font-family: var(--font-heading); font-weight: 700; color: inherit;
           text-decoration: underline; text-underline-offset: 2px; font-size: 0.86rem;

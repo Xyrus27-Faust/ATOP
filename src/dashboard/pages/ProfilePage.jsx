@@ -4,6 +4,7 @@ import { api, ApiError } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
 import { Field, ctl } from '../components/form'
 import { roleLabel } from '../dashboardNav'
+import { PASSWORD_HINT, validatePassword, validatePasswordConfirm } from '@/lib/validation'
 
 // Roles a user can request from their profile. Adding a "scorer" later is one entry here plus the
 // matching role in the backend allowlist (RoleRequestEndpoints.AssignableRoles).
@@ -146,6 +147,7 @@ export default function ProfilePage() {
           )}
         </aside>
 
+        <div className="pf-main">
         <form className="dash-card dash-card-pad pf-form" onSubmit={handleSubmit} noValidate>
           {banner && (
             <div className={`dash-banner tone-${banner.tone}`}>
@@ -181,6 +183,9 @@ export default function ProfilePage() {
             </button>
           </div>
         </form>
+
+        <PasswordCard />
+        </div>
       </div>
 
       {requestOpen && (
@@ -207,6 +212,7 @@ export default function ProfilePage() {
         .pf-req-badge.is-approved { color: var(--success, #16a34a); border-color: var(--success, #16a34a); background: rgba(22,163,74,0.06); }
         .pf-req-badge.is-declined { color: var(--danger, #dc2626); border-color: var(--danger, #dc2626); background: rgba(220,38,38,0.05); }
         .pf-request-btn { margin-top: 16px; }
+        .pf-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
         .pf-form { display: flex; flex-direction: column; gap: 16px; }
         .pf-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
         @media (max-width: 760px) {
@@ -214,6 +220,106 @@ export default function ProfilePage() {
         }
       `}</style>
     </>
+  )
+}
+
+// Change the password, or set a first one on a Google-only account (no current password to ask for).
+// The server signs out every other session; this one carries on with the fresh tokens it returns.
+function PasswordCard() {
+  const { user, changePassword } = useAuth()
+  const hasPassword = user?.hasPassword !== false
+  const empty = { current: '', next: '', confirm: '' }
+
+  const [form, setForm] = useState(empty)
+  const [errors, setErrors] = useState({})
+  const [banner, setBanner] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setBanner(null) }
+
+  async function handleSubmit(ev) {
+    ev.preventDefault()
+    const e = {
+      current: hasPassword && !form.current ? 'Enter your current password.' : null,
+      next: validatePassword(form.next),
+      confirm: validatePasswordConfirm(form.next, form.confirm),
+    }
+    setErrors(e)
+    if (e.current || e.next || e.confirm) return
+
+    setSaving(true)
+    setBanner(null)
+    try {
+      await changePassword({ currentPassword: hasPassword ? form.current : null, newPassword: form.next })
+      setForm(empty)
+      setBanner({
+        tone: 'success',
+        message: hasPassword
+          ? 'Your password has been changed. Other devices have been signed out.'
+          : 'Your password is set. You can now also sign in with your email and password.',
+      })
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors) {
+        setErrors({
+          current: err.fieldErrors.currentPassword?.join(' ') || null,
+          next: err.fieldErrors.newPassword?.join(' ') || null,
+        })
+      } else {
+        setBanner({ tone: 'error', message: err instanceof ApiError ? err.message : 'We couldn’t change your password. Please try again.' })
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="dash-card dash-card-pad pf-form" onSubmit={handleSubmit} noValidate>
+      <div>
+        <h2 className="pf-section-title">{hasPassword ? 'Change password' : 'Set a password'}</h2>
+        <p className="pf-section-note">
+          {hasPassword
+            ? 'Changing your password signs you out on every other device.'
+            : 'You sign in with Google. Add a password to also sign in with your email.'}
+        </p>
+      </div>
+
+      {banner && (
+        <div className={`dash-banner tone-${banner.tone}`}>
+          <i className={`fas ${banner.tone === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}`} aria-hidden="true" />
+          <span>{banner.message}</span>
+        </div>
+      )}
+
+      {/* Lets the browser's password manager pair the new password with the account. */}
+      <input type="email" autoComplete="username" value={user?.email || ''} readOnly hidden />
+
+      {hasPassword && (
+        <Field label="Current password" htmlFor="currentPassword" required error={errors.current}>
+          <input id="currentPassword" type="password" className={ctl('dash-input', errors.current)} value={form.current} onChange={set('current')} autoComplete="current-password" />
+        </Field>
+      )}
+      <div className="dash-form-row">
+        <Field label="New password" htmlFor="newPassword" required error={errors.next} hint={errors.next ? undefined : PASSWORD_HINT}>
+          <input id="newPassword" type="password" className={ctl('dash-input', errors.next)} value={form.next} onChange={set('next')} autoComplete="new-password" />
+        </Field>
+        <Field label="Confirm new password" htmlFor="confirmPassword" required error={errors.confirm}>
+          <input id="confirmPassword" type="password" className={ctl('dash-input', errors.confirm)} value={form.confirm} onChange={set('confirm')} autoComplete="new-password" />
+        </Field>
+      </div>
+
+      <div className="pf-actions">
+        <button type="submit" className="dash-btn is-primary" disabled={saving}>
+          {saving
+            ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</>
+            : <><i className="fas fa-key" aria-hidden="true" /> {hasPassword ? 'Change password' : 'Set password'}</>}
+        </button>
+      </div>
+
+      <style>{`
+        .pf-section-title { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); }
+        .pf-section-note { color: var(--gray-600); font-size: 0.86rem; margin-top: 4px; }
+      `}</style>
+    </form>
   )
 }
 
