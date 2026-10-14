@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import SeatQr from '@/dashboard/components/SeatQr'
 import WelcomeOverlay from './WelcomeOverlay'
 import { usePassStatus } from './usePassStatus'
@@ -16,7 +16,18 @@ import {
  * only what the pass picture already did plus their own progress: no phone, no email, no amounts.
  */
 export default function PassPage() {
-  const { token } = useParams()
+  const { token: raw } = useParams()
+  const navigate = useNavigate()
+  // A share sheet's "Copy" can glue the message onto the link ("…/pass/<token> Ramon, here is your
+  // pass…"), and pasting that whole line into a browser sends it all here. A token never holds a
+  // space, so everything from the first one on was never part of it.
+  const token = raw.split(/\s/)[0]
+
+  // Put the clean link back in the address bar, so a bookmark or Add to Home Screen saves that one.
+  useEffect(() => {
+    if (token !== raw) navigate(`/pass/${token}`, { replace: true })
+  }, [token, raw, navigate])
+
   const { pass, status, updatedAt, fresh, clearFresh } = usePassStatus(token)
 
   useEffect(() => {
