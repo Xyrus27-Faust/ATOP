@@ -174,10 +174,11 @@ export function navForRoles(roles = []) {
   const applicant = roles.includes('Applicant') || (!reviewer && !assessor && !adjudicator && !regionalRep && !marshal)
 
   const groups = []
-  // Marshals see the scanner only; the lists of who's been where are the secretariat's.
+  // Marshals get the scanner; the secretariat and admins get the Check-in page, whose Open scanner
+  // button goes to the same place, so a second link to it would only be clutter.
   const checkIn = canScan(roles) && {
     label: 'Check-in',
-    items: [SCAN, ...(canManageCheckIn(roles) ? [CHECKIN] : [])],
+    items: canManageCheckIn(roles) ? [CHECKIN] : [SCAN],
   }
   // A guard's one job, first thing in their sidebar.
   if (checkIn && isPureMarshal(roles)) groups.push(checkIn)
