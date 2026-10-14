@@ -16,8 +16,8 @@ import { useLiveSession } from '../../useLiveSession'
  *
  * <p>A badge scanned here opens the delegate's card — checking them in too if they walked round the
  * gate; a second phone scanning the same badge changes nothing. The card says Desk A (fully paid) or
- * Desk B (balance to pay in cash), takes the cash, then hands over the ID & receipt and the kit in
- * either order. A name search only opens the card; the Confirm tap on it is the check-in, after a
+ * Desk B (balance to pay in cash), where handing over the ID & OR records the cash in the same tap;
+ * then Desk C hands over the kit. Every desk runs this same screen. A name search only opens the card; the Confirm tap on it is the check-in, after a
  * look at the photo.</p>
  *
  * <p>A check-in here counts at the open session just as the gate's does — the bar on top names it,

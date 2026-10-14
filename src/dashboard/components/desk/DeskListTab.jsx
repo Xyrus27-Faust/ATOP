@@ -9,19 +9,20 @@ import { Loading, ErrorState } from '../states'
 // Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
 const fold = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-// The questions the desk asks of its list, each a filter. Order follows the desk: arrive, pay, ID, kit.
+// The questions the desk asks of its list, each a filter. Order follows the desks: arrive, ID & OR
+// (paid with it at Desk B), kit at Desk C.
 const FILTERS = [
   { key: 'all', label: 'Everyone', test: () => true },
   { key: 'arriving', label: 'Not checked in', test: (r) => !r.checkIn },
   { key: 'owing', label: 'Desk B owing', test: (r) => r.balance > 0 },
-  { key: 'id', label: 'No ID yet', test: (r) => r.checkIn && r.balance <= 0 && !r.idRelease },
-  { key: 'kit', label: 'No kit yet', test: (r) => r.idRelease && !r.kit },
+  { key: 'id', label: 'No ID & OR yet', test: (r) => r.checkIn && !r.idRelease },
+  { key: 'kit', label: 'Desk C: no kit yet', test: (r) => r.idRelease && !r.kit },
   { key: 'done', label: 'All done', test: (r) => r.kit },
 ]
 
 /**
  * The Secretariat desk's master list: every pass holder and how far each has got — checked in, paid,
- * ID and receipt, kit. Who hasn't arrived, who is still owed a kit, which Desk B balances are still
+ * ID & OR, kit. Who hasn't arrived, who is still owed a kit, which Desk B balances are still
  * out: one tap each, and the list as a CSV for the end of the day.
  *
  * <p>The same pool the desk scans from, so nobody is listed whom the desk would turn away. Cards on a

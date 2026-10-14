@@ -172,8 +172,9 @@ export function paymentLine(payment) {
 
 // What each lane tells whoever is at the gate. Tone is the sheet's colour.
 export const GATE_LANE = {
-  A: { tone: 'ok', icon: 'fa-circle-check', headline: 'Desk A', line: 'Send them to Desk A for their ID & receipt and kit.' },
-  B: { tone: 'warn', icon: 'fa-circle-exclamation', headline: 'Desk B', line: 'Send them to Desk B.' },
+  A: { tone: 'ok', icon: 'fa-circle-check', headline: 'Desk A', line: 'Send them to Desk A for their ID & OR.' },
+  B: { tone: 'warn', icon: 'fa-circle-exclamation', headline: 'Desk B', line: 'Send them to Desk B to pay the balance and get their ID & OR.' },
+  C: { tone: 'ok', icon: 'fa-circle-check', headline: 'Desk C', line: 'ID & OR collected. Send them to Desk C for their kit.' },
   Done: { tone: 'ok', icon: 'fa-circle-check', headline: 'Go in', line: 'ID and kit already collected. Let them in.' },
 }
 
@@ -204,41 +205,46 @@ export const TRAIL_STATUS = {
   Upcoming: { label: 'Upcoming', icon: 'fa-circle', tone: 'is-upcoming' },
 }
 
-const DESK_ACTION = { CheckIn: 'check-in', Payment: 'mark-paid', Id: 'release-id', Kit: 'release-kit' }
+const DESK_ACTION = { CheckIn: 'check-in', Id: 'release-id', Kit: 'release-kit' }
 
 /**
  * Do the card's next step. Every step answers with the updated card, or 409 with a reasonCode.
- * Cash carries the balance the cashier was shown: if the seat owes anything else by now (an online
- * payment landed meanwhile) the API records nothing and answers 'balance_changed'.
+ * At Desk B, releasing the ID & OR is the payment: it carries the balance the cashier was shown and
+ * took. If the seat owes anything else by now (an online payment landed meanwhile) the API records
+ * nothing and answers 'balance_changed'.
  */
 export const deskStep = (card, step) =>
   api.post(`/desk/events/${card.eventId}/delegates/${card.id}/${DESK_ACTION[step]}`,
-    step === 'Payment' ? { amount: card.balance } : {}, { auth: true })
+    step === 'Id' && card.balance > 0 ? { amount: card.balance } : {}, { auth: true })
 
 /**
  * Take back one step, with a reason. The API refuses one that something later still stands on: the
- * cash while the ID or kit is out, the check-in while anything is.
+ * ID & OR while the kit is out, the check-in while anything is. Taking back the ID & OR also takes
+ * back the cash recorded with it.
  */
 export const deskUndo = (card, step, reason) =>
   api.post(`/desk/events/${card.eventId}/delegates/${card.id}/undo`, { step, reason }, { auth: true })
 
-// Check-in, then cash for anyone who owes; then the ID & receipt and the kit, in either order, once
-// nothing is owed. The card's field for each, and what the button and the log call it.
+// Check-in; then the ID & OR at Desk A or B (at B, handing them over records the balance as paid);
+// then the kit at Desk C. The payment row has no button of its own: it comes with the ID & OR.
+// The card's field for each, and what the button and the log call it.
 export const DESK_STEPS = [
   { step: 'CheckIn', field: 'checkIn', label: 'Checked in', action: 'Check in', undo: 'check-in' },
-  { step: 'Payment', field: 'payment', label: 'Balance paid at the desk', action: 'Mark paid', undo: 'payment' },
-  { step: 'Id', field: 'idRelease', label: 'ID & receipt', action: 'Release', undo: 'ID & receipt release' },
+  { step: 'Payment', field: 'payment', label: 'Balance paid at the desk', action: null, undo: 'payment' },
+  { step: 'Id', field: 'idRelease', label: 'ID & OR', action: 'Release', undo: 'ID & OR release' },
   { step: 'Kit', field: 'kit', label: 'Kit', action: 'Release', undo: 'kit release' },
 ]
 
 /**
  * Whether a done step can be taken back now — the API's rule, so the card only offers what it would
- * accept: the ID and kit any time, the cash once neither is out, the check-in once nothing else is.
+ * accept: the kit any time, the ID & OR once the kit is back (its cash goes with it), the check-in
+ * once nothing else is. The cash alone is never offered: it only comes back with the ID & OR.
  * (A check-in someone was already scanned in on is still refused by the API.)
  */
 export function canUndoDeskStep(card, step) {
-  if (step === 'Id' || step === 'Kit') return true
-  if (step === 'Payment') return !card.idRelease && !card.kit
+  if (step === 'Kit') return true
+  if (step === 'Id') return !card.kit
+  if (step === 'Payment') return false
   return !card.payment && !card.idRelease && !card.kit
 }
 

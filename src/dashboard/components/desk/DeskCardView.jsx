@@ -5,17 +5,17 @@ import { deskCard, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, formatVenueT
 import DelegateFace from '../checkin/DelegateFace'
 
 /**
- * One delegate at the Secretariat desk: which desk they belong at, what they owe, and where they are
- * with check-in → cash (if owed) → ID & receipt and kit, the last two in either order.
+ * One delegate at the Secretariat desk: which desk they're at, what they owe, and where they are with
+ * check-in → ID & OR (Desk A, or Desk B where it is the payment) → kit (Desk C).
  *
  * <p>The server enforces the order and refuses anything out of it; this only offers what it would
- * accept. Check-in and cash are the one big button while they're due; once nothing is owed, the ID &
- * receipt and the kit each get their own Release button and their own Undo, so whichever table is free
- * goes first. Taking cash is two taps — the amount is read back before it is recorded — and undoing a
- * step always asks why, because the API keeps the reason on record. If the balance moved while the card
- * was open (an online payment came in), the API records nothing and the card reloads itself onto
- * the new figure, so the cashier just counts again. Cash that cancels the group's online link names
- * the others on it who still owe, so the cashier can tell them to pay here.</p>
+ * accept, as one big button for whatever is next. At Desk B the ID & OR button names the balance, and
+ * one tap hands them over and records that cash (ATOP, 2026-10-13: a thousand-plus partial payers, so
+ * no separate cash confirm). A wrong tap is fixed with Undo on the ID & OR, which takes the cash back
+ * with it; undoing always asks why, because the API keeps the reason on record. If the balance moved
+ * while the card was open (an online payment came in), the API records nothing and the card reloads
+ * onto the new figure, so the cashier just counts again. Cash that cancels the group's online link
+ * names the others on it who still owe, so the cashier can tell them to pay here.</p>
  *
  * <p>{@code note} is the line above the card: "Checked in just now", or "Already checked in";
  * {@code session} the one under it — "Counted for Opening Ceremony" — when a session is open.</p>
@@ -26,18 +26,16 @@ export default function DeskCardView({ card: initial, note, session: initialSess
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
-  const [confirmCash, setConfirmCash] = useState(false)
   // The step whose undo form is open, or null.
   const [undoing, setUndoing] = useState(null)
   const [reason, setReason] = useState('')
   const done = useRef(null)
 
-  // The big button: only check-in and cash. The ID and kit have a button each, on their own row.
-  const next = ['CheckIn', 'Payment'].includes(card.nextStep) ? DESK_STEPS.find((s) => s.step === card.nextStep) : null
-  // The ID & receipt and the kit are released once they're checked in and owe nothing (API's rule).
-  const canRelease = Boolean(card.checkIn) && card.nextStep !== 'Payment'
+  // The big button does whatever is next; the order is the API's.
+  const next = DESK_STEPS.find((s) => s.step === card.nextStep && s.action) ?? null
   const owes = card.balance > 0
-  const deskB = card.desk === 'B'
+  // Once the ID & OR are out, the kit is Desk C's, whichever desk they came through.
+  const station = card.idRelease && !card.kit ? 'C' : card.desk
 
   useEffect(() => { done.current?.focus() }, [])
 
@@ -57,7 +55,6 @@ export default function DeskCardView({ card: initial, note, session: initialSess
       const others = updated.cancelledLinkAlsoBilled ?? []
       if (others.length > 0)
         setNotice(`Their group's online payment link was cancelled. ${others.join(', ')} still owe${others.length === 1 ? 's' : ''}. Ask them to pay here.`)
-      setConfirmCash(false)
       setUndoing(null)
       setReason('')
     } catch (err) {
@@ -68,13 +65,12 @@ export default function DeskCardView({ card: initial, note, session: initialSess
     }
   }
 
-  // Nothing was recorded: put the new balance on the same confirm, or say there's nothing left to take.
+  // Nothing was recorded: put the new balance on the button, or say there's nothing left to take.
   async function catchUp(err) {
     try {
       const fresh = await deskCard(card.eventId, card.id)
       setCard(fresh)
-      const owesNow = fresh.balance > 0 && fresh.nextStep === 'Payment'
-      setConfirmCash(owesNow)
+      const owesNow = fresh.balance > 0 && !fresh.idRelease
       setNotice(owesNow
         ? `An online payment just came in. The balance is now ${formatPeso(fresh.balance)}. Collect that instead.`
         : 'They just paid the rest online. No cash needed.')
@@ -83,18 +79,11 @@ export default function DeskCardView({ card: initial, note, session: initialSess
     }
   }
 
-  const doNext = () => {
-    if (next.step === 'Payment' && !confirmCash) {
-      setConfirmCash(true)
-      return
-    }
-    run(() => deskStep(card, next.step))
-  }
+  const doNext = () => run(() => deskStep(card, next.step))
 
   const startUndo = (s) => {
     setUndoing(s)
     setReason('')
-    setConfirmCash(false)
   }
 
   const undo = (e) => {
@@ -108,10 +97,11 @@ export default function DeskCardView({ card: initial, note, session: initialSess
 
   return (
     <div className="dsk-card">
-      <div className={`dsk-desk ${deskB ? 'is-b' : 'is-a'}`}>
-        <span className="dsk-desk-name">Desk {card.desk}</span>
+      <div className={`dsk-desk is-${station.toLowerCase()}`}>
+        <span className="dsk-desk-name">Desk {station}</span>
         <span className="dsk-desk-why">
-          {card.complimentary ? 'Complimentary'
+          {station === 'C' ? 'Kit'
+            : card.complimentary ? 'Complimentary'
             : owes ? `Balance ${formatPeso(card.balance)}`
               : card.payment ? 'Paid at the desk'
                 : 'Fully paid'}
@@ -141,21 +131,14 @@ export default function DeskCardView({ card: initial, note, session: initialSess
       <ol className="dsk-steps">
         {DESK_STEPS.map((s) => {
           const at = card[s.field]
-          // Payment is a step only for someone who owed: a fully paid seat skips it.
-          if (s.step === 'Payment' && !at && !owes) return null
-          const isNext = s.step === next?.step
-          const toggle = s.step === 'Id' || s.step === 'Kit'
-          const due = isNext || (toggle && !at && canRelease)
+          // The payment row is a record, not a step: it shows once the ID & OR took the cash.
+          if (s.step === 'Payment' && !at) return null
+          const due = s.step === next?.step
+          const released = s.step === 'Id' || s.step === 'Kit'
           return (
             <li key={s.step} className={at ? 'is-done' : due ? 'is-next' : ''}>
               <i className={`fas ${at ? 'fa-circle-check' : due ? 'fa-circle-dot' : 'fa-circle'}`} aria-hidden="true" />
-              <span className="dsk-step-label">{toggle && at ? `${s.label} released` : s.label}</span>
-              {toggle && !at && canRelease && (
-                <button type="button" className="dash-btn is-primary dsk-step-go" disabled={busy}
-                  onClick={() => run(() => deskStep(card, s.step))}>
-                  <i className="fas fa-check" aria-hidden="true" /> {s.action}
-                </button>
-              )}
+              <span className="dsk-step-label">{released && at ? `${s.label} released` : s.label}</span>
               {at && canUndoDeskStep(card, s.step) && undoing?.step !== s.step && (
                 <button type="button" className="dsk-step-undo" disabled={busy} onClick={() => startUndo(s)}>
                   Undo
@@ -188,28 +171,18 @@ export default function DeskCardView({ card: initial, note, session: initialSess
       )}
 
       {next ? (
-        confirmCash ? (
-          <div className="dsk-cash">
-            <p>Received <strong>{formatPeso(card.balance)}</strong> in cash from {card.fullName}?</p>
-            <div className="dsk-row">
-              <button type="button" className="dash-btn is-ghost" disabled={busy} onClick={() => { setConfirmCash(false); setNotice(null) }}>Cancel</button>
-              <button type="button" className="dash-btn is-primary" disabled={busy} onClick={doNext}>
-                {busy ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : <i className="fas fa-check" aria-hidden="true" />} Yes, mark paid
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" className="dash-btn is-primary dsk-go" disabled={busy} onClick={doNext}>
-            {busy
-              ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</>
-              : next.step === 'Payment'
-                ? <><i className="fas fa-money-bill-wave" aria-hidden="true" /> Collect {formatPeso(card.balance)} cash</>
-                : <><i className="fas fa-check" aria-hidden="true" /> {next.action}</>}
-          </button>
-        )
+        <button type="button" className="dash-btn is-primary dsk-go" disabled={busy} onClick={doNext}>
+          {busy
+            ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Saving…</>
+            : next.step === 'Id' && owes
+              ? <><i className="fas fa-money-bill-wave" aria-hidden="true" /> Release ID & OR · {formatPeso(card.balance)} paid</>
+              : <><i className="fas fa-check" aria-hidden="true" /> {next.step === 'CheckIn' ? next.action : `Release ${next.label}`}</>}
+        </button>
       ) : card.idRelease && card.kit ? (
         <p className="dsk-all-done"><i className="fas fa-circle-check" aria-hidden="true" /> All done at the desk.</p>
       ) : null}
+      {next?.step === 'Id' && owes && <p className="dash-help dsk-face">Take the {formatPeso(card.balance)} first. The tap records it as paid.</p>}
+      {next?.step === 'Kit' && <p className="dash-help dsk-face">Send them to Desk C for their kit.</p>}
       {next?.step === 'CheckIn' && <p className="dash-help dsk-face">Check the face against the person first.</p>}
 
       {undoing && (
@@ -285,6 +258,7 @@ const DSK_CARD_CSS = `
   }
   .dsk-desk.is-a { background: var(--ok); }
   .dsk-desk.is-b { background: var(--warn); }
+  .dsk-desk.is-c { background: var(--navy); }
   .dsk-desk-name { font-weight: 900; font-size: 1.8rem; letter-spacing: 0.04em; }
   .dsk-desk-why { font-weight: 700; font-size: 1rem; }
   .dsk-note { font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
@@ -312,7 +286,6 @@ const DSK_CARD_CSS = `
   .dsk-steps li.is-next { color: var(--gold-dark); }
   .dsk-step-label { font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
   .dsk-steps li:not(.is-done):not(.is-next) .dsk-step-label { color: var(--gray-400); }
-  .dsk-step-go { grid-column: 3; grid-row: 1; min-height: 44px; }
   .dsk-step-undo {
     grid-column: 3; grid-row: 1; min-height: 44px; padding: 0 12px; background: none; border: 0; cursor: pointer;
     color: var(--gray-600); text-decoration: underline; font-family: var(--font-body); font-size: 0.9rem;
@@ -321,8 +294,6 @@ const DSK_CARD_CSS = `
 
   .dsk-error { flex-wrap: wrap; }
   .dsk-go, .dsk-next { width: 100%; min-height: 56px; justify-content: center; font-size: 1rem; }
-  .dsk-cash { padding: 14px; border: 2px solid var(--warn); background: var(--warn-bg); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 12px; }
-  .dsk-cash p { font-family: var(--font-body); color: var(--gray-800); line-height: 1.5; }
   .dsk-row { display: flex; gap: 10px; }
   .dsk-row .dash-btn { flex: 1; min-height: 48px; justify-content: center; }
   .dsk-all-done { font-family: var(--font-heading); font-weight: 800; color: var(--ok); text-align: center; padding: 8px; }

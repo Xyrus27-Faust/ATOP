@@ -72,12 +72,13 @@ export function nextStep(pass, phase) {
   }
 
   const live = pass.sessions.find((s) => s.isOpen && !s.attendedAt)
-  const toCollect = [!pass.idReleased && 'ID', !pass.kitReleased && 'kit'].filter(Boolean)
-
+  // ID & OR at Desk A or B (B takes the balance with it), then the kit at Desk C.
   if (pass.owes)
-    return { tone: 'warn', icon: 'fa-receipt', title: 'Please drop by Desk B', body: `Settle your balance at Desk B${toCollect.length ? `, then collect your ${toCollect.join(' and ')} there` : ''}.` }
-  if (pass.desk !== 'Done' && toCollect.length)
-    return { tone: 'go', icon: 'fa-id-badge', title: `Collect your ${toCollect.join(' and ')} at Desk ${pass.desk}`, body: 'Show this same QR at the desk.' }
+    return { tone: 'warn', icon: 'fa-receipt', title: 'Please drop by Desk B', body: 'Settle your balance at Desk B and collect your ID & OR there, then get your kit at Desk C.' }
+  if ((pass.desk === 'A' || pass.desk === 'B') && !pass.idReleased)
+    return { tone: 'go', icon: 'fa-id-badge', title: `Collect your ID & OR at Desk ${pass.desk}`, body: 'Then get your kit at Desk C. Show this same QR at each desk.' }
+  if (pass.desk === 'C' && !pass.kitReleased)
+    return { tone: 'go', icon: 'fa-box-open', title: 'Collect your kit at Desk C', body: 'Show this same QR at the desk.' }
   if (live)
     return { tone: 'go', icon: 'fa-door-open', title: `${live.label} is on now`, body: 'Show your QR at the door to be counted in.' }
   return { tone: 'done', icon: 'fa-champagne-glasses', title: "You're all set", body: 'Enjoy the convention. Keep this page handy — it is your pass all week.' }
