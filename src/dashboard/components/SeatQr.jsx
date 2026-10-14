@@ -23,6 +23,13 @@ export default function SeatQr({ code, size = 104, onOpen }) {
       margin: 1,                 // a QR with no quiet zone is one a cheap scanner refuses
       errorCorrectionLevel: 'Q', // survives a smudged screen held at an angle
       color: { dark: '#17284a', light: '#ffffff' },
+    }).then(() => {
+      // qrcode pins an inline width AND height in px. When max-width shrinks the width on a narrow
+      // column, that pinned height stays put and the code is squashed sideways. Hand sizing back to
+      // the stylesheet, which keeps it square.
+      if (cancelled || !canvas.current) return
+      canvas.current.style.width = ''
+      canvas.current.style.height = ''
     }).catch(() => { if (!cancelled) setFailed(true) })
 
     return () => { cancelled = true }
@@ -58,7 +65,7 @@ const SQ_CSS = `
     line-height: 0; transition: var(--transition-fast); max-width: 100%;
   }
   /* Drawn at full size, shown smaller on a narrow phone rather than spilling off it: still sharp. */
-  .sq canvas { max-width: 100%; height: auto; }
+  .sq canvas { max-width: 100%; height: auto; aspect-ratio: 1 / 1; }
   .sq:hover { border-color: var(--navy); }
   .sq canvas { display: block; }
   .sq-failed {
