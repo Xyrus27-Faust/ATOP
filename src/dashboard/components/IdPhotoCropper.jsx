@@ -261,7 +261,7 @@ export default function IdPhotoCropper({ registrationId, delegate, onClose, onSa
                 width={IP_CARD_WIDTH}
                 name={delegate.cardName || delegate.fullName}
                 classification={delegate.cardClassification}
-                idNo={delegate.referenceCode}
+                idNo={delegate.cardIdNo ?? delegate.referenceCode}
               >
                 <img src={image.src} alt="" draggable={false} style={wellPreview()} />
               </IdCardPreview>
