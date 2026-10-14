@@ -13,7 +13,7 @@ import { RESULT, GATE_LANE, resultHeadline, formatVenueTime, paymentLine, sessio
  * the top, above the name, with an allergy in red.</p>
  *
  * <p>At the main gate the response carries a {@code lane} instead of a checkpoint verdict: Desk A,
- * Desk B or Go in, in letters big enough to read from the queue. The gate keeps it lean — face, name,
+ * Desk B, Desk C or Go in, in letters big enough to read from the queue. The gate keeps it lean — face, name,
  * LGU — plus the session the check-in counted at. Every result with a delegate on it says what they
  * still owe ("Paid in full", "Balance ₱6,000"), so the marshal can say it before the desk has to.</p>
  *
