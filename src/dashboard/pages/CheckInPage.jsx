@@ -2,11 +2,13 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { isAdmin } from '../dashboardNav'
 import CheckpointsTab from '../components/checkin/CheckpointsTab'
+import AttendanceTab from '../components/checkin/AttendanceTab'
 import DeskListTab from '../components/desk/DeskListTab'
 import StaffTab from '../components/checkin/StaffTab'
 
 const TABS = [
   { key: 'checkpoints', label: 'Checkpoints', icon: 'fa-door-open', Body: CheckpointsTab },
+  { key: 'attendance', label: 'Attendance', icon: 'fa-user-check', Body: AttendanceTab },
   { key: 'desk', label: 'Desk list', icon: 'fa-clipboard-list', Body: DeskListTab },
   { key: 'staff', label: 'Staff', icon: 'fa-user-shield', Body: StaffTab, adminOnly: true },
 ]
