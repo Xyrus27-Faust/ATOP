@@ -6,11 +6,12 @@ import { groupByDay, formatDayHeader, kindMeta, progressPct, GATE_POST, DESK_POS
  * one mistake that matters here is scanning lunch at the dinner line: every badge would come back
  * "already claimed". The chosen checkpoint's name then sits in the bar above the camera all shift.
  *
- * <p>The main gate sits on top for everyone, and the Secretariat desk under it for those who may work
- * it ({@code canDesk}); {@code onPickPost} is called with the one picked. They're there whatever the
- * day holds: the gate checks people in before any session or meal opens.</p>
+ * <p>The main gate sits on top for marshals ({@code canGate}), and the Secretariat desk under it for
+ * the secretariat ({@code canDesk}); an admin sees both. {@code onPickPost} is called with the one
+ * picked. They're there whatever the day holds: the gate checks people in before any session or meal
+ * opens.</p>
  */
-export default function CheckpointPicker({ checkpoints, onPick, onPickPost, canDesk, onRefresh, refreshing }) {
+export default function CheckpointPicker({ checkpoints, onPick, onPickPost, canGate, canDesk, onRefresh, refreshing }) {
   // A button rather than "pull to refresh": a scanner saved to the home screen has no browser reload.
   const refresh = (
     <button type="button" className="dash-btn is-ghost ckpk-refresh" onClick={onRefresh} disabled={refreshing}>
@@ -21,15 +22,17 @@ export default function CheckpointPicker({ checkpoints, onPick, onPickPost, canD
 
   const posts = (
     <ul className="ckpk-list">
-      <li>
-        <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickPost(GATE_POST)}>
-          <i className="fas fa-door-open" aria-hidden="true" />
-          <span className="ckpk-tile-body">
-            <span className="ckpk-tile-label">Main gate</span>
-            <span className="ckpk-tile-sub">Check-in, then Desk A or Desk B</span>
-          </span>
-        </button>
-      </li>
+      {canGate && (
+        <li>
+          <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickPost(GATE_POST)}>
+            <i className="fas fa-door-open" aria-hidden="true" />
+            <span className="ckpk-tile-body">
+              <span className="ckpk-tile-label">Main gate</span>
+              <span className="ckpk-tile-sub">Check-in, then Desk A or Desk B</span>
+            </span>
+          </button>
+        </li>
+      )}
       {canDesk && (
         <li>
           <button type="button" className="ckpk-tile kind-desk" onClick={() => onPickPost(DESK_POST)}>
@@ -49,7 +52,7 @@ export default function CheckpointPicker({ checkpoints, onPick, onPickPost, canD
       <h1 className="ckpk-title">Where are you posted?</h1>
       {posts}
       {checkpoints.length === 0 && (
-        <p className="ckpk-none">No sessions, meals or buses open today. Refresh once the Secretariat opens one.</p>
+        <p className="ckpk-none">No sessions, meals or buses open today. Refresh once an admin opens one.</p>
       )}
       {groupByDay(checkpoints).map((g) => (
         <section key={g.day} className="ckpk-day" aria-label={formatDayHeader(g.day)}>

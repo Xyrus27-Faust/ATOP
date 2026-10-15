@@ -19,9 +19,9 @@ const SUGGESTED_LABEL = { Entry: 'Entry', Meal: '', Tour: '' }
 const batchLabel = (pkg, batch) => `${pkg.name} — ${batch.label}`.slice(0, LABEL_MAX)
 
 /**
- * Add one session, one meal or one tour bus on one day. A page, not a modal: the secretariat sets
- * these up on a phone at the venue as often as at a desk, and a full page keeps the keyboard from
- * covering the form.
+ * Add one session, one meal or one tour bus on one day. Admin only (ATOP, 2026-10-15). A page, not a
+ * modal: the admin sets these up on a phone at the venue as often as at a desk, and a full page keeps
+ * the keyboard from covering the form.
  */
 export default function NewCheckpointPage() {
   const navigate = useNavigate()

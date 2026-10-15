@@ -6,7 +6,7 @@ import {
   tallyVerb, CAMERA_TROUBLE, GATE_POST, DESK_POST,
 } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
-import { canManageCheckIn } from '../dashboardNav'
+import { canManageCheckIn, canWorkGate } from '../dashboardNav'
 import { useAsync } from '../useAsync'
 import { useIdleSignOut } from '../useIdleSignOut'
 import { Loading, ErrorState } from '../components/states'
@@ -35,13 +35,14 @@ export default function ScanPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { signOut, touch } = useIdleSignOut()
-  // The gate is every scanner's; the desk is Secretariat and Admin's, as on the API. A phone remembered
-  // on the desk and then signed in as a marshal just lands on the post list.
+  // The gate is the marshals' and the desk the secretariat's, as on the API; an admin works both. A
+  // phone remembered on one post and then signed in as someone who can't work it lands on the post list.
+  const canGate = canWorkGate(user?.roles)
   const canDesk = canManageCheckIn(user?.roles)
   const { loading, error, data: checkpoints, reload } = useAsync(listMarshalCheckpoints, [])
 
   const [postId, setPostId] = useState(readPost)
-  const atGate = postId === GATE_POST
+  const atGate = canGate && postId === GATE_POST
   const atDesk = canDesk && postId === DESK_POST
   const [mode, setMode] = useState('scan')
   const [camera, setCamera] = useState('ok')
@@ -135,6 +136,7 @@ export default function ScanPage() {
         checkpoints={offered}
         onPick={pick}
         onPickPost={pickPost}
+        canGate={canGate}
         canDesk={canDesk}
         onRefresh={reload}
         refreshing={loading}

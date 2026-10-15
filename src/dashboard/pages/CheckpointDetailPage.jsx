@@ -4,6 +4,7 @@ import { getCheckpointScans, getCheckpointNotYet, updateCheckpoint, deleteCheckp
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
+import { isAdmin } from '../dashboardNav'
 
 // Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
 const fold = (text) => (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -44,6 +45,10 @@ export default function CheckpointDetailPage() {
   const state = stateMeta(c.state)
   const pct = progressPct(c.scanCount, c.expected)
   const isSession = c.kind === 'Entry'
+  // Opening, closing and deleting are an admin's (ATOP, 2026-10-15); the secretariat keeps the lists,
+  // Mark attended and Void. The API refuses the rest anyway.
+  const canSetUp = isAdmin(user?.roles)
+  const canToggle = canSetUp && state.canToggle
   // Marking someone attended is for a day that has come: the API refuses one still to come.
   const canMark = c.day <= scanningToday()
   const term = fold(q.trim())
@@ -66,7 +71,7 @@ export default function CheckpointDetailPage() {
   // Deleting is for a checkpoint made by mistake: offered only while nothing points at it (the API's
   // own rule — scans, voids and faces looked at here), and a second tap confirms. The API checks
   // again, so a scan landing in between still wins.
-  const deletable = data.deletable
+  const deletable = canSetUp && data.deletable
   async function remove() {
     if (!confirmDelete) {
       setConfirmDelete(true)
@@ -110,7 +115,7 @@ export default function CheckpointDetailPage() {
         </div>
         <div className="ckd-state">
           <span className={`dash-badge ${state.tone}`}>{isSession ? sessionDetail(c.state) : state.detail}</span>
-          {state.canToggle && (
+          {canToggle && (
             <button type="button" className={`dash-btn is-sm ${c.isActive ? 'is-ghost' : 'is-primary'}`} onClick={toggle} disabled={toggling}>
               {toggling
                 ? <i className="fas fa-spinner fa-spin" aria-hidden="true" />
@@ -131,7 +136,7 @@ export default function CheckpointDetailPage() {
             </button>
           )}
         </div>
-        {isSession && state.canToggle && !c.isActive && (
+        {isSession && canToggle && !c.isActive && (
           <p className="dash-help">Opening it closes any other session open that day. From then on, every check-in at the gate or desk counts for it.</p>
         )}
         {deletable && confirmDelete && (

@@ -63,12 +63,19 @@ export const canManageRegistrations = (roles = []) =>
   roles.some((r) => REGISTRATION_ADMIN_ROLES.includes(r))
 
 // Who may scan badges at a checkpoint (mirrors the backend's /marshal policy). Marshals are the
-// guards; Secretariat and Admin can stand in at a door without being granted a second role.
+// guards; Secretariat and Admin can stand in at a meal or a bus without being granted a second role.
 export const CHECKIN_ROLES = ['Admin', 'Secretariat', 'Marshal']
 export const canScan = (roles = []) => roles.some((r) => CHECKIN_ROLES.includes(r))
-// Who runs check-in rather than standing at a door: checkpoints, the desk list, the Secretariat desk
-// and the kit table (mirrors the backend's /admin/checkpoints and /desk policies). Narrower than
-// canManageRegistrations — a Registration Admin works the bookings, not the venue.
+// Who works the main gate (mirrors the backend's /gate policy). The gate is the marshals' post and
+// the desk the secretariat's (ATOP, 2026-10-15), so each phone shows one job; staff who work both
+// are given both roles.
+export const GATE_ROLES = ['Admin', 'Marshal']
+export const canWorkGate = (roles = []) => roles.some((r) => GATE_ROLES.includes(r))
+// Who runs check-in rather than standing at a door: the checkpoint lists and their corrections, the
+// desk list and the Secretariat desk (mirrors the backend's /admin/checkpoints and /desk policies).
+// Narrower than canManageRegistrations — a Registration Admin works the bookings, not the venue.
+// Creating, opening, closing and deleting checkpoints is Admin only (isAdmin): opening a session
+// closes the one running, so one person owns it.
 export const CHECKIN_ADMIN_ROLES = ['Admin', 'Secretariat']
 export const canManageCheckIn = (roles = []) => roles.some((r) => CHECKIN_ADMIN_ROLES.includes(r))
 export const isMarshal = (roles = []) => roles.includes('Marshal')

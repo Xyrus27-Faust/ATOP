@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext'
 import { canManageCheckIn, roleHome } from '@/dashboard/dashboardNav'
 
 /**
- * Guards the check-in back office — checkpoints, the desk list and staff. Mirrors the backend's
+ * Guards the check-in back office — checkpoint lists, the desk list and staff. Mirrors the backend's
  * /admin/checkpoints and /desk policies, which let **Secretariat or Admin** in. A Registration
  * Admin works the bookings, not the venue, so they don't get here even though they pass
  * {@link RegistrationsAdminRoute}.
