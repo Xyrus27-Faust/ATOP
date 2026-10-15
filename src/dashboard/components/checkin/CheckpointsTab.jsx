@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '@/auth/AuthContext'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { listCheckpoints, getLiveSession, updateCheckpoint, groupByDay, formatDayHeader, kindMeta, stateMeta, progressPct } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
+import { isAdmin } from '../../dashboardNav'
 
 /**
  * The doors, meal lines and buses, and how far each has got.
@@ -15,8 +17,13 @@ import { Loading, ErrorState } from '../states'
  * <p>Sessions open and close from here. One is live at a time — opening one closes the day's other
  * session on the API — and every gate and desk check-in while it is live counts for it. "Live now"
  * is the API's answer, not a guess from the list, so it matches what the gate's bar says.</p>
+ *
+ * <p>Only an admin adds checkpoints or opens and closes sessions (ATOP, 2026-10-15), so one person
+ * owns which session the room counts for. The secretariat sees the same lists without those buttons.</p>
  */
 export default function CheckpointsTab() {
+  const { user } = useAuth()
+  const canSetUp = isAdmin(user?.roles)
   const { loading, error, data, reload } = useAsync(async () => {
     const event = await fetchCurrentEvent()
     if (!event) return { event: null, checkpoints: [], live: null }
@@ -60,9 +67,11 @@ export default function CheckpointsTab() {
         <button className="dash-btn is-ghost is-sm" onClick={reload}>
           <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
         </button>
-        <Link className="dash-btn is-primary is-sm" to="/dashboard/admin/checkin/checkpoints/new">
-          <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
-        </Link>
+        {canSetUp && (
+          <Link className="dash-btn is-primary is-sm" to="/dashboard/admin/checkin/checkpoints/new">
+            <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
+          </Link>
+        )}
       </div>
 
       <p className={`ckp-live${live ? ' is-live' : ''}`} role="status">
@@ -81,10 +90,16 @@ export default function CheckpointsTab() {
         <div className="dash-card dash-empty">
           <div className="dash-empty-icon"><i className="fas fa-door-open" aria-hidden="true" /></div>
           <h3>No checkpoints yet</h3>
-          <p>Add each day&rsquo;s sessions, meals and tour buses. Marshals see only the open ones.</p>
-          <Link className="dash-btn is-primary" to="/dashboard/admin/checkin/checkpoints/new">
-            <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
-          </Link>
+          {canSetUp ? (
+            <>
+              <p>Add each day&rsquo;s sessions, meals and tour buses. Marshals see only the open ones.</p>
+              <Link className="dash-btn is-primary" to="/dashboard/admin/checkin/checkpoints/new">
+                <i className="fas fa-plus" aria-hidden="true" /> New checkpoint
+              </Link>
+            </>
+          ) : (
+            <p>An admin adds each day&rsquo;s sessions, meals and tour buses.</p>
+          )}
         </div>
       ) : (
         groupByDay(checkpoints).map((g) => (
@@ -93,7 +108,7 @@ export default function CheckpointsTab() {
             <div className="ckp-grid">
               {g.items.map((c) => (
                 <CheckpointCard key={c.id} checkpoint={c} live={live?.id === c.id}
-                  switching={switching} onSession={setSession} />
+                  switching={switching} onSession={canSetUp ? setSession : null} />
               ))}
             </div>
           </section>
@@ -106,6 +121,7 @@ export default function CheckpointsTab() {
 /**
  * One checkpoint, linking to its lists. A session also carries its Open / Close button under the
  * link: opening one today is how the admin moves the gate on to the next part of the programme.
+ * Without {@code onSession} (anyone but an admin) the button isn't drawn.
  */
 function CheckpointCard({ checkpoint: c, live, switching, onSession }) {
   const kind = kindMeta(c.kind)
@@ -113,7 +129,7 @@ function CheckpointCard({ checkpoint: c, live, switching, onSession }) {
   const pct = progressPct(c.scanCount, c.expected)
   // Dimmed when no marshal can scan it today and never will again without a hand on it.
   const dimmed = c.state === 'Closed' || c.state === 'Ended'
-  const session = c.kind === 'Entry' && state.canToggle
+  const session = onSession && c.kind === 'Entry' && state.canToggle
   const busy = switching === c.id
 
   return (

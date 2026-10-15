@@ -136,7 +136,6 @@ export default function AppRoutes() {
           <Route element={<CheckInAdminRoute />}>
             {/* Checkpoints, the desk list and (for admins) staff: one page, one tab each. */}
             <Route path="admin/checkin" element={<CheckInPage />} />
-            <Route path="admin/checkin/checkpoints/new" element={<NewCheckpointPage />} />
             <Route path="admin/checkin/checkpoints/:id" element={<CheckpointDetailPage />} />
             {/* Where they lived before the merge. */}
             <Route path="admin/checkpoints" element={<OldCheckpoints />} />
@@ -145,6 +144,8 @@ export default function AppRoutes() {
             <Route path="admin/checkin/desk" element={<Navigate to="/dashboard/admin/checkin?tab=desk" replace />} />
           </Route>
           <Route element={<AdminRoute />}>
+            {/* Adding a checkpoint is an admin's, like opening one (ATOP, 2026-10-15). */}
+            <Route path="admin/checkin/checkpoints/new" element={<NewCheckpointPage />} />
             <Route path="admin/reviewers" element={<ReviewerAdminPage />} />
             <Route path="admin/assessors" element={<AssessorAdminPage />} />
             <Route path="admin/scoring" element={<ScoringResultsPage />} />
