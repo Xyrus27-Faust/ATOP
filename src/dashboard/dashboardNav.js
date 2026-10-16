@@ -150,9 +150,9 @@ const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map
 const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
 // Convention check-in, its own sidebar section, two links. One scanner for everyone (full-screen,
 // outside the dashboard — the desk and the kit table are posts on it), and the secretariat's one page
-// of who's been where: checkpoints, the desk list and, for admins, staff, each a tab.
+// of who's been where: attendance, registration, checkpoints and, for admins, staff, each a tab.
 const SCAN = { to: '/scan', label: 'Scanner', icon: 'fa-qrcode' }
-const CHECKIN = { to: '/dashboard/admin/checkin', label: 'Checkpoints & desk', icon: 'fa-clipboard-list' }
+const CHECKIN = { to: '/dashboard/admin/checkin', label: 'Check-in & attendance', icon: 'fa-clipboard-list' }
 // Who holds the Registration Admin role — granted and revoked here.
 const DESK_STAFF = { to: '/dashboard/admin/registration-admins', label: 'Registration Admins', icon: 'fa-id-card-clip' }
 // Award categories now live on the public marketing page (ungated). The dashboard

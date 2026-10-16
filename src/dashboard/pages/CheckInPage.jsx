@@ -7,9 +7,11 @@ import DeskListTab from '../components/desk/DeskListTab'
 import StaffTab from '../components/checkin/StaffTab'
 
 const TABS = [
-  { key: 'checkpoints', label: 'Checkpoints', icon: 'fa-door-open', Body: CheckpointsTab },
+  // Attendance first: during the convention it's what the secretariat opens most. Registration keeps
+  // its old ?tab=desk key so bookmarks still land on it.
   { key: 'attendance', label: 'Attendance', icon: 'fa-user-check', Body: AttendanceTab },
-  { key: 'desk', label: 'Desk list', icon: 'fa-clipboard-list', Body: DeskListTab },
+  { key: 'desk', label: 'Registration', icon: 'fa-clipboard-list', Body: DeskListTab },
+  { key: 'checkpoints', label: 'Checkpoints', icon: 'fa-door-open', Body: CheckpointsTab },
   { key: 'staff', label: 'Staff', icon: 'fa-user-shield', Body: StaffTab, adminOnly: true },
 ]
 
