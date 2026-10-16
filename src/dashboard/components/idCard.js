@@ -2,7 +2,8 @@
  * The convention ID front, in points, and the rules for setting the three lines on it.
  *
  * <p>Every number here is the matching constant in <c>IdCardRenderer</c> on the API — the card is
- * 246.75 × 156 pt (87 × 55 mm) and the positions were measured off ATOP-ID-87-x-55-mm.pdf. The
+ * 156 × 246.75 pt (55 × 87 mm), portrait since 2026-10-16 because it hangs upright in the jacket
+ * holder; the art is the API's front.png scaled down. The
  * fitting below mirrors that renderer's too, so {@link IdCardPreview} lays the lines out exactly
  * where the printer will. If the card art or the renderer changes, this changes with it or the
  * preview starts lying.</p>
@@ -13,17 +14,21 @@
  */
 
 /** The page. */
-export const CARD = { w: 246.75, h: 156 }
+export const CARD = { w: 156, h: 246.75 }
 
 /** The photo well: a rounded rectangle, very slightly taller than it is wide. */
-export const WELL = { x: 32.39, y: 56.38, w: 64.54, h: 66.70, r: 10.5 }
+export const WELL = { x: 45.99, y: 69.26, w: 84.37, h: 87.17, r: 13.65 }
 
-/** The column the three lines are centred in and fitted to. */
-export const COLUMN = 84
+/**
+ * The columns the lines are fitted to. The name sits above the pineapple and may use the card's
+ * width; the two lines under it sit beside the pineapple and are held narrower.
+ */
+export const NAME_COLUMN = 118
+export const COLUMN = 80
 
-export const NAME = { cx: 157.2, baseline: 77.73, max: 10.6, minSingle: 8, twoLineMax: 9, min: 6.5 }
-export const CLASSIFICATION = { cx: 157.2, baseline: 88.05, size: 7.4 }
-export const ID_NO = { cx: 158.6, baseline: 109.88, size: 9.6 }
+export const NAME = { cx: 88.05, baseline: 181, max: 10.6, minSingle: 8, twoLineMax: 9, min: 6.5 }
+export const CLASSIFICATION = { cx: 88.05, baseline: 192, size: 7.4 }
+export const ID_NO = { cx: 88.05, baseline: 212, size: 9.6 }
 
 /** The renderer steps the size down by this much looking for a fit. */
 const STEP = 0.2
@@ -61,9 +66,9 @@ function measure(text, size) {
 }
 
 /** The largest size from max down to min at which the text fits the column. */
-export function fit(text, max, min) {
+export function fit(text, max, min, column = COLUMN) {
   let size = max
-  while (size > min && measure(text, size) > COLUMN) size -= STEP
+  while (size > min && measure(text, size) > column) size -= STEP
   return size
 }
 
@@ -77,12 +82,12 @@ export function layoutName(name) {
   if (!name) return { lines: [], size: NAME.max }
 
   for (let size = NAME.max; size >= NAME.minSingle - 1e-9; size -= STEP) {
-    if (measure(name, size) <= COLUMN) return { lines: [name], size }
+    if (measure(name, size) <= NAME_COLUMN) return { lines: [name], size }
   }
 
   const [first, second] = splitNearMiddle(name)
   const longer = first.length >= second.length ? first : second
-  return { lines: [first, second].filter(Boolean), size: fit(longer, NAME.twoLineMax, NAME.min) }
+  return { lines: [first, second].filter(Boolean), size: fit(longer, NAME.twoLineMax, NAME.min, NAME_COLUMN) }
 }
 
 function splitNearMiddle(text) {

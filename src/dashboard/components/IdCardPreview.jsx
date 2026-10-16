@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import {
   CARD,
   CLASSIFICATION,
-  COLUMN,
   FAMILY,
   ID_NO,
   NAME,
+  NAME_COLUMN,
   NAME_LEADING,
   WELL,
   baselineFromTop,
@@ -17,9 +17,8 @@ import {
  * The convention ID front, drawn to scale, with whatever is passed as children living inside its
  * photo well.
  *
- * <p>The artwork is the same Canva export the printer uses, with its sample text ("CARDHOLDER",
- * "NATIONAL BOARD", "ID NO: ____") painted out, so the three lines drawn here land where the printed
- * ones do. See {@link ./idCard.js} for the geometry and the rules both sides share.</p>
+ * <p>The artwork is the printer's own front.png (portrait, no sample text), scaled down, so the
+ * three lines drawn here land where the printed ones do. See {@link ./idCard.js} for the geometry and the rules both sides share.</p>
  */
 export default function IdCardPreview({ width, name, classification, idNo, children }) {
   const scale = width / CARD.w
@@ -65,7 +64,7 @@ export default function IdCardPreview({ width, name, classification, idNo, child
           bottom:
             pt(CARD.h - NAME.baseline)
             - pt(nameLayout.size) * (NAME_LEADING - baselineFromTop(NAME_LEADING)),
-          width: pt(COLUMN),
+          width: pt(NAME_COLUMN),
           fontSize: pt(nameLayout.size),
           lineHeight: NAME_LEADING,
         }}

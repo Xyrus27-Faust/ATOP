@@ -31,11 +31,11 @@ const VIEW = 264
 const MAX_INPUT_BYTES = 25 * 1024 * 1024
 
 /**
- * Width the card preview is drawn at, in CSS pixels. Matched to {@link VIEW} rather than chosen for
- * its own sake: the crop square is what decides how narrow a phone the dialog survives, and a card
- * wider than it would quietly move that floor.
+ * Width the card preview is drawn at, in CSS pixels. The card is portrait, so at the crop square's
+ * width it would stand 1.6× taller than the square; 200 keeps it close to the square's height while
+ * the photo in it stays big enough to judge.
  */
-const IP_CARD_WIDTH = VIEW
+const IP_CARD_WIDTH = 200
 
 export default function IdPhotoCropper({ registrationId, delegate, onClose, onSaved }) {
   const [image, setImage] = useState(null)
