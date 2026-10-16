@@ -10,7 +10,7 @@ export function OldCheckpoints() {
   const tab = params.get('tab')
   if (tab === 'marshals') return <Navigate to={`${HOME}?tab=staff`} replace />
   if (tab === 'secretariat') return <Navigate to={`${HOME}?tab=staff&who=secretariat`} replace />
-  return <Navigate to={HOME} replace />
+  return <Navigate to={`${HOME}?tab=checkpoints`} replace />
 }
 
 /** /admin/checkpoints/:id */
