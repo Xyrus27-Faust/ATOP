@@ -17,18 +17,18 @@
 export const CARD = { w: 156, h: 246.75 }
 
 /** The photo well: a rounded rectangle, very slightly taller than it is wide. */
-export const WELL = { x: 45.99, y: 69.26, w: 84.37, h: 87.17, r: 13.65 }
+export const WELL = { x: 35.91, y: 69.26, w: 84.37, h: 87.17, r: 13.65 }
 
 /**
  * The columns the lines are fitted to. The name sits above the pineapple and may use the card's
  * width; the two lines under it sit beside the pineapple and are held narrower.
  */
-export const NAME_COLUMN = 118
+export const NAME_COLUMN = 108
 export const COLUMN = 80
 
-export const NAME = { cx: 88.05, baseline: 181, max: 10.6, minSingle: 8, twoLineMax: 9, min: 6.5 }
-export const CLASSIFICATION = { cx: 88.05, baseline: 192, size: 7.4 }
-export const ID_NO = { cx: 88.05, baseline: 212, size: 9.6 }
+export const NAME = { cx: 78, baseline: 181, max: 10.6, minSingle: 8, twoLineMax: 9, min: 6.5 }
+export const CLASSIFICATION = { cx: 78, baseline: 192, size: 7.4 }
+export const ID_NO = { cx: 78, baseline: 212, size: 9.6 }
 
 /** The renderer steps the size down by this much looking for a fit. */
 const STEP = 0.2
@@ -74,7 +74,7 @@ export function fit(text, max, min, column = COLUMN) {
 
 /**
  * One line while it fits at a legible size; otherwise two, split at the space nearest the middle and
- * capped below the one-line size so they do not crowd the logo above. A name too long even at the
+ * capped below the one-line size so they do not crowd the photo above. A name too long even at the
  * smallest size overflows the column rather than splitting further — which is what the renderer
  * does, and seeing it overflow is the point.
  */
@@ -86,8 +86,11 @@ export function layoutName(name) {
   }
 
   const [first, second] = splitNearMiddle(name)
-  const longer = first.length >= second.length ? first : second
-  return { lines: [first, second].filter(Boolean), size: fit(longer, NAME.twoLineMax, NAME.min, NAME_COLUMN) }
+  // Sized by the wider line, not the one with more letters — as the renderer does.
+  const size = Math.min(
+    fit(first, NAME.twoLineMax, NAME.min, NAME_COLUMN),
+    fit(second, NAME.twoLineMax, NAME.min, NAME_COLUMN))
+  return { lines: [first, second].filter(Boolean), size }
 }
 
 function splitNearMiddle(text) {
