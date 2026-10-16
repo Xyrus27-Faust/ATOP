@@ -5,6 +5,7 @@ import CheckpointsTab from '../components/checkin/CheckpointsTab'
 import AttendanceTab from '../components/checkin/AttendanceTab'
 import DeskListTab from '../components/desk/DeskListTab'
 import StaffTab from '../components/checkin/StaffTab'
+import ActivityTab from '../components/checkin/ActivityTab'
 
 const TABS = [
   // Attendance first: during the convention it's what the secretariat opens most. Registration keeps
@@ -13,6 +14,7 @@ const TABS = [
   { key: 'desk', label: 'Registration', icon: 'fa-clipboard-list', Body: DeskListTab },
   { key: 'checkpoints', label: 'Checkpoints', icon: 'fa-door-open', Body: CheckpointsTab },
   { key: 'staff', label: 'Staff', icon: 'fa-user-shield', Body: StaffTab, adminOnly: true },
+  { key: 'activity', label: 'Activity log', icon: 'fa-clock-rotate-left', Body: ActivityTab, adminOnly: true },
 ]
 
 /**

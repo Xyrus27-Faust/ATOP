@@ -197,6 +197,10 @@ export const deskCard = (eventId, delegateId) =>
 // Every pass holder and how far each has got at the desk.
 export const deskRoster = (eventId) => api.get(`/desk/events/${eventId}/roster`, { auth: true })
 
+// Admin only: one scanning day's timeline of everything staff did at check-in. No day means today.
+export const checkInActivity = (eventId, day) =>
+  api.get(`/admin/events/${eventId}/activity${day ? `?day=${day}` : ''}`, { auth: true })
+
 // A checkpoint on a delegate's trail (the desk card), as the API names its standing there.
 export const TRAIL_STATUS = {
   Scanned: { label: 'Scanned', icon: 'fa-circle-check', tone: 'is-scanned' },
