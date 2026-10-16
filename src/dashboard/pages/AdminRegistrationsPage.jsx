@@ -6,7 +6,7 @@ import { Loading, ErrorState } from '../components/states'
 import { Field, ctl } from '../components/form'
 import Modal from '../components/Modal'
 import MasterListButton from '../components/MasterListButton'
-import IdCardsButton from '../components/IdCardsButton'
+import IdCardRunsButton from '../components/IdCardRunsButton'
 import { formatDate } from '@/lib/pearlAwards'
 import { REGIONS } from '@/lib/pearlAwards'
 import {
@@ -98,8 +98,8 @@ export default function AdminRegistrationsPage() {
         </div>
         {/* The whole list, not the page on screen — the filters and paging here do not apply. */}
         <div className="ar-head-actions">
-          {/* Follows the region dropdown below: the print run, one region at a time. */}
-          <IdCardsButton eventId={event.id} region={region} />
+          {/* Print runs, drawn off the API; follows the region dropdown below when one is picked. */}
+          <IdCardRunsButton eventId={event.id} region={region} />
           <MasterListButton eventId={event.id} />
         </div>
       </div>
