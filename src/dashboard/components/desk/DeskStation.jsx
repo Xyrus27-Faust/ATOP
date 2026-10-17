@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { registrationStatusMeta } from '@/lib/events'
-import { deskScan, deskSearch, deskCard, isBadgeCode, formatVenueTime, sessionLine, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
+import { deskScan, deskSearch, deskCard, isBadgeCode, arrivalNote, sessionLine, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
 import QrViewfinder from '../checkin/QrViewfinder'
@@ -142,13 +142,6 @@ export default function DeskStation({ touch }) {
       <style>{DSK_CSS}</style>
     </div>
   )
-}
-
-/** The line above a scanned card: whether this scan checked them in, or someone already had. */
-function arrivalNote(r) {
-  if (r.justCheckedIn) return 'Checked in just now.'
-  const at = r.card?.checkIn
-  return at ? `Already checked in at ${formatVenueTime(at.at)} by ${at.by}.` : null
 }
 
 /**

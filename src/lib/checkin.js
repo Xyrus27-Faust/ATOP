@@ -171,6 +171,17 @@ export function sessionLine(session) {
   return session.counted ? `Counted for ${session.label}` : `Welcome back · already counted for ${session.label}`
 }
 
+/**
+ * The line above a desk card, from a scan or a Check in tap: whether this checked them in, someone
+ * already had (and who), or nobody has yet — the card's own button and face check say what to do.
+ */
+export function arrivalNote(r) {
+  if (r.justCheckedIn) return 'Checked in just now.'
+  if (r.result === 'pending') return 'Not checked in yet.'
+  const at = r.card?.checkIn
+  return at ? `Already checked in at ${formatVenueTime(at.at)} by ${at.by}.` : null
+}
+
 /** "On board 12 · Booked 38/40" — the bus as the marshal needs it at the door. */
 export const busLine = (b) => `On board ${b.onBoard} · Booked ${b.reserved}/${b.capacity}`
 

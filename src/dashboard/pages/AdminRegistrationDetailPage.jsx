@@ -45,18 +45,20 @@ export default function AdminRegistrationDetailPage() {
     const events = await api.get('/events/')
     const event = events[0]
     if (!event) return { event: null, reg: null }
-    const [reg, dietOptions, tours] = await Promise.all([
+    const [reg, dietOptions] = await Promise.all([
       api.get(`/admin/events/${event.id}/registrations/${id}`, { auth: true }),
       api.get('/dietary-options'),
-      api.get(`/admin/registrations/${id}/tours`, { auth: true }),
     ])
-    return { event, reg, dietOptions, tours }
+    return { event, reg, dietOptions }
   }, [id])
+  // Its own request: tours failing to load costs the Tour and Shirt rows, not the whole booking.
+  const toursState = useAsync(() => api.get(`/admin/registrations/${id}/tours`, { auth: true }), [id])
 
   if (loading) return <Loading />
-  if (error) return <ErrorState error={error} onRetry={reload} />
+  if (error) return <ErrorState error={error} onRetry={() => { reload(); toursState.reload() }} />
 
-  const { reg, dietOptions, tours } = data
+  const { reg, dietOptions } = data
+  const tours = toursState.data
   if (!reg) {
     return (
       <div className="dash-card dash-empty">
@@ -166,6 +168,21 @@ export default function AdminRegistrationDetailPage() {
         </h2>
         {cardError && (
           <p className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {cardError.message || 'The ID card could not be made.'}</p>
+        )}
+        {/* Tours load on their own: one notice for the booking while they load or if they fail. */}
+        {live.some((d) => d.attendanceMode === 'InPerson') && (toursState.loading || toursState.error) && (
+          <div className="ard-tours-note">
+            {toursState.error ? (
+              <>
+                <span className="ard-tour-error" role="alert">Tours and shirt sizes didn't load.</span>
+                <button type="button" className="dash-btn is-ghost is-sm" onClick={toursState.reload}>
+                  <i className="fas fa-rotate-right" aria-hidden="true" /> Retry
+                </button>
+              </>
+            ) : (
+              <span className="dash-help"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Loading tours and shirt sizes…</span>
+            )}
+          </div>
         )}
 
         <div className="ard-grid">
@@ -351,6 +368,8 @@ export default function AdminRegistrationDetailPage() {
         .ard-diet-label { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-500); font-weight: 700; }
         .ard-diet .dash-btn { margin-left: auto; }
         .ard-tour { font-size: 0.86rem; color: var(--navy); font-weight: 600; }
+        .ard-tour-error { font-size: 0.86rem; color: var(--bad); }
+        .ard-tours-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 12px; }
         .ard-shirt { width: auto; min-width: 7.5rem; padding-block: 6px; font-size: 0.86rem; }
         .ard-shirt-error { flex-basis: 100%; font-size: 0.82rem; color: var(--bad); }
         ${mcStyles}
