@@ -46,11 +46,13 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
   const over = boarding ? overCapacityLine(boarding) : null
   const action = response.result === 'pending' && onAct ? PENDING_ACTION[response.reasonCode] : null
   const calm = meta.tone === 'ok' || meta.tone === 'pend'
+  // Per result, not per tone: a tap that turns "pending" into "ok" is a new result in the same calm
+  // tone, and it still needs its buzz and the focus moved off the action that just went away.
   useEffect(() => {
     navigator.vibrate?.(calm ? 80 : [90, 60, 90])
     // Focus the one action, so a keyboard or a screen reader lands on it.
     ;(actButton.current || button.current)?.focus()
-  }, [calm])
+  }, [response, calm])
 
   // The sheet closes on any tap; the action buttons are the taps that don't.
   const act = async (event) => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/apiClient'
 import { formatPeso } from '@/lib/events'
-import { deskCard, deskShirtSize, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, formatVenueTime, formatDay, kindMeta, sessionLine, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
+import { deskCard, deskShirtSize, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, arrivalNote, formatVenueTime, formatDay, kindMeta, sessionLine, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
 import DelegateFace from '../checkin/DelegateFace'
 import DietStrip from '../checkin/DietStrip'
 
@@ -18,7 +18,8 @@ import DietStrip from '../checkin/DietStrip'
  * onto the new figure, so the cashier just counts again. Cash that cancels the group's online link
  * names the others on it who still owe, so the cashier can tell them to pay here.</p>
  *
- * <p>{@code note} is the line above the card: "Checked in just now", or "Already checked in";
+ * <p>{@code note} is the line above the card: "Checked in just now", "Already checked in", or "Not
+ * checked in yet" (which the Check in tap replaces);
  * {@code session} the one under it — "Counted for Opening Ceremony" — when a session is open.
  * {@code code} is the badge scanned to open the card, if one was: the Check in tap sends it, so the
  * session's log says scanned rather than found by name.</p>
@@ -26,8 +27,9 @@ import DietStrip from '../checkin/DietStrip'
  * <p>An ID or kit already handed over folds to one "released ✓" line (its undo stays on it), so the
  * card's height goes to what is still to do.</p>
  */
-export default function DeskCardView({ card: initial, note, session: initialSession, code, onDone }) {
+export default function DeskCardView({ card: initial, note: initialNote, session: initialSession, code, onDone }) {
   const [card, setCard] = useState(initial)
+  const [note, setNote] = useState(initialNote)
   const [session, setSession] = useState(initialSession)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -45,6 +47,13 @@ export default function DeskCardView({ card: initial, note, session: initialSess
 
   useEffect(() => { done.current?.focus() }, [])
 
+  // The note speaks of the check-in as it was. A card whose check-in has since changed — an undo, or
+  // a reload that finds another phone's tap — drops it rather than contradict itself.
+  function showCard(next) {
+    if (Boolean(next.checkIn) !== Boolean(card.checkIn)) setNote(null)
+    setCard(next)
+  }
+
   async function run(call) {
     setBusy(true)
     setError(null)
@@ -55,8 +64,13 @@ export default function DeskCardView({ card: initial, note, session: initialSess
       // refusal; every other step answers with the card itself.
       if (res?.result === 'denied') throw new Error(res.reason || 'The desk can’t check this delegate in.')
       const updated = res?.card ?? res
-      if (res?.card) setSession(sessionLine(res.session))
-      setCard(updated)
+      if (res?.card) {
+        setSession(sessionLine(res.session))
+        setNote(arrivalNote(res))
+        setCard(updated)
+      } else {
+        showCard(updated)
+      }
       // A link can't drop one person, so cash here cancels the whole link the group was sent.
       const others = updated.cancelledLinkAlsoBilled ?? []
       if (others.length > 0)
@@ -75,7 +89,7 @@ export default function DeskCardView({ card: initial, note, session: initialSess
   async function catchUp(err) {
     try {
       const fresh = await deskCard(card.eventId, card.id)
-      setCard(fresh)
+      showCard(fresh)
       const owesNow = fresh.balance > 0 && !fresh.idRelease
       setNotice(owesNow
         ? `An online payment just came in. The balance is now ${formatPeso(fresh.balance)}. Collect that instead.`
