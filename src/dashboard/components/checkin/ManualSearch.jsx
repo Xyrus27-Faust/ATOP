@@ -147,7 +147,8 @@ function ConfirmCard({ checkpoint, row, onBack, onResult }) {
     setSaving(true)
     setError(null)
     try {
-      onResult(await logManually(checkpoint.id, row.id, note.trim()))
+      // At a bus this writes nothing yet — the sheet's Board tap does, and carries the note there.
+      onResult(await logManually(checkpoint.id, row.id, note.trim()), note.trim())
     } catch (err) {
       // Stay on the card: the guard still has the person in front of them and can try again.
       setError(err)
@@ -201,7 +202,9 @@ function ConfirmCard({ checkpoint, row, onBack, onResult }) {
         <button type="button" className="dash-btn is-primary msr-log" onClick={log} disabled={saving || detail.loading}>
           {saving
             ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Logging…</>
-            : <><i className="fas fa-check" aria-hidden="true" /> Log {checkpoint.label}</>}
+            : checkpoint.kind === 'Tour'
+              ? <><i className="fas fa-bus" aria-hidden="true" /> Show their booking</>
+              : <><i className="fas fa-check" aria-hidden="true" /> Log {checkpoint.label}</>}
         </button>
       </div>
       <style>{MSR_CSS}</style>

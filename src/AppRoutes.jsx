@@ -132,6 +132,8 @@ export default function AppRoutes() {
             <Route path="admin/registrations" element={<AdminRegistrationsPage />} />
             <Route path="admin/tallies" element={<AdminTalliesPage />} />
             <Route path="admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
+            {/* The booker's picker, as the secretariat: past the deadline, on any booking. */}
+            <Route path="admin/registrations/:id/tours/:delegateId" element={<TourPickerPage staff />} />
           </Route>
           <Route element={<CheckInAdminRoute />}>
             {/* Checkpoints, the desk list and (for admins) staff: one page, one tab each. */}

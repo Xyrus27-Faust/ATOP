@@ -25,6 +25,16 @@ export const getDelegate = (checkpointId, delegateId) =>
 export const logManually = (checkpointId, delegateId, note) =>
   api.post(`/marshal/checkpoints/${checkpointId}/manual`, { delegateId, note: note || null }, { auth: true })
 
+// At a bus a scan only shows where their booking stands ({@code boarding}); this tap boards them.
+// {@code from} is the bus they were booked on when the marshal saw the sheet (null for none): if the
+// booking changed since, the API boards nobody and says scan again. Boarding someone booked elsewhere
+// moves their booking here and frees their old seat; a full bus still boards, and the log says so.
+// One of {@code code} (scanned) or {@code delegateId} (found by name, face already checked).
+export const boardDelegate = (checkpointId, { code, delegateId, from, note }) =>
+  api.post(`/marshal/checkpoints/${checkpointId}/board`,
+    { code: code ? badgeCode(code) : null, delegateId: delegateId || null, from: from || null, note: note || null },
+    { auth: true })
+
 // Matches the API: fewer characters than this is refused as too broad to show a guard.
 export const SEARCH_MIN_CHARS = 3
 
@@ -128,10 +138,12 @@ export const REASON_MAX = 200
 
 // ---- Main gate -------------------------------------------------------------
 
-// Checks the delegate in (once — the same badge comes through every morning) and says which desk to
-// go to: lane 'A', 'B', or 'Done' (go straight in), with what they still owe. While a session is open
-// the check-in also counts them there (`session`). Someone with no seat is a 200 with result 'denied',
-// named, and sent to Desk B — and counted nowhere.
+// Shows who it is and which desk they go to: lane 'A', 'B', or 'Done' (go straight in), with what they
+// still owe. Someone not yet checked in comes back 'pending' — nothing written until the marshal checks
+// the face and taps Check in (gateCheckIn). Someone already in, with a session open they're not counted
+// at yet, comes back 'pending' too, reason 'count_in': the same tap counts them there (ATOP, 2026-10-17).
+// Anyone else already in answers 'ok' at once and writes nothing. Someone with no seat is a 200 with
+// result 'denied', named, and sent to Desk B — and counted nowhere.
 export const gateScan = (eventId, code) =>
   api.post(`/gate/events/${eventId}/scan`, { code: badgeCode(code) }, { auth: true })
 
@@ -139,9 +151,10 @@ export const gateScan = (eventId, code) =>
 export const gateSearch = (eventId, q) =>
   api.get(`/gate/events/${eventId}/delegates?q=${encodeURIComponent(q)}`, { auth: true })
 
-// The confirm tap on a name from the search: the same check-in a scan does.
-export const gateCheckIn = (eventId, delegateId) =>
-  api.post(`/gate/events/${eventId}/delegates/${delegateId}/check-in`, null, { auth: true })
+// The Check in tap, after a scan or on a name from the search. {@code code} is the badge scanned, so the
+// session's log records a scan; without it (found by name) it records a manual find.
+export const gateCheckIn = (eventId, delegateId, code) =>
+  api.post(`/gate/events/${eventId}/delegates/${delegateId}/check-in`, { code: code ? badgeCode(code) : null }, { auth: true })
 
 // The session open right now — the one every gate and desk check-in is counted at — or null when
 // none is (the API answers 204). Today's only; the admin opens and closes it on the Check-in page.
@@ -158,6 +171,26 @@ export function sessionLine(session) {
   if (!session) return null
   return session.counted ? `Counted for ${session.label}` : `Welcome back · already counted for ${session.label}`
 }
+
+/**
+ * The line above a desk card, from a scan or a Check in tap: whether this checked them in, someone
+ * already had (and who), or nobody has yet — the card's own button and face check say what to do.
+ * Already in but not yet counted at the open session ('count_in') reads as already in; the card's
+ * Count in prompt says the rest.
+ */
+export function arrivalNote(r) {
+  if (r.justCheckedIn) return 'Checked in just now.'
+  if (r.result === 'pending' && r.reasonCode !== 'count_in') return 'Not checked in yet.'
+  const at = r.card?.checkIn
+  return at ? `Already checked in at ${formatVenueTime(at.at)} by ${at.by}.` : null
+}
+
+/** "On board 12 · Booked 38/40" — the bus as the marshal needs it at the door. */
+export const busLine = (b) => `On board ${b.onBoard} · Booked ${b.reserved}/${b.capacity}`
+
+/** Null unless boarding them would put the bus over: then "Full 40/40 — this makes 41". */
+export const overCapacityLine = (b) =>
+  b.overCapacity ? `Full ${b.reserved}/${b.capacity} — this makes ${b.reserved + 1}` : null
 
 /**
  * What a delegate still owes, as the scanner says it: { tone, text }. Null for someone with no seat
@@ -180,8 +213,8 @@ export const GATE_LANE = {
 
 // ---- Secretariat desk ------------------------------------------------------
 
-// A scan returns the delegate's card, checking them in if the gate didn't (once — four desk phones may
-// read the same badge). Like a marshal's scan, a refusal is a 200 with result 'denied', not an error,
+// A scan returns the delegate's card. Someone the gate didn't check in comes back 'pending' with the
+// card, and the card's Check in tap does it (deskStep, with the code scanned). Like a marshal's scan, a refusal is a 200 with result 'denied', not an error,
 // and carries the booking behind the seat. Scans are per event: last year's pass reads as unknown.
 export const deskScan = (eventId, code) =>
   api.post(`/desk/events/${eventId}/scan`, { code: badgeCode(code) }, { auth: true })
@@ -194,6 +227,10 @@ export const deskSearch = (eventId, q) =>
 // it names the event: an id from another event's card answers 404.
 export const deskCard = (eventId, delegateId) =>
   api.get(`/desk/events/${eventId}/delegates/${delegateId}`, { auth: true })
+// Desk C fills in a shirt size nobody gave; it answers with the card. Fill-only: a size already
+// given answers 409 'shirt_size_set' — changing one is an Admin's, on the booking page.
+export const deskShirtSize = (card, shirtSize) =>
+  api.put(`/desk/events/${card.eventId}/delegates/${card.id}/shirt-size`, { shirtSize }, { auth: true })
 // Every pass holder and how far each has got at the desk.
 export const deskRoster = (eventId) => api.get(`/desk/events/${eventId}/roster`, { auth: true })
 
@@ -217,9 +254,10 @@ const DESK_ACTION = { CheckIn: 'check-in', Id: 'release-id', Kit: 'release-kit' 
  * took. If the seat owes anything else by now (an online payment landed meanwhile) the API records
  * nothing and answers 'balance_changed'.
  */
-export const deskStep = (card, step) =>
+export const deskStep = (card, step, code) =>
   api.post(`/desk/events/${card.eventId}/delegates/${card.id}/${DESK_ACTION[step]}`,
-    step === 'Id' && card.balance > 0 ? { amount: card.balance } : {}, { auth: true })
+    step === 'Id' && card.balance > 0 ? { amount: card.balance }
+      : step === 'CheckIn' && code ? { code: badgeCode(code) } : {}, { auth: true })
 
 /**
  * Take back one step, with a reason. The API refuses one that something later still stands on: the
@@ -276,7 +314,7 @@ export const revokeStaffRole = (userId, role) =>
 export const CHECKPOINT_KIND = {
   Entry: { label: 'Session', icon: 'fa-door-open', blurb: 'A programme session — e.g. “Opening Ceremony”. One is open at a time: opening it closes the day’s other session, and every check-in at the gate or desk while it’s open counts for it.' },
   Meal: { label: 'Meal', icon: 'fa-utensils', blurb: 'One plate per delegate. A second scan of the same badge is refused.' },
-  Tour: { label: 'Tour', icon: 'fa-bus', blurb: 'One bus — a tour batch. Only the delegates booked on it board; anyone else is told which bus is theirs.' },
+  Tour: { label: 'Tour', icon: 'fa-bus', blurb: 'One bus — a tour batch. A scan shows their booking; the marshal taps Board. Someone booked elsewhere or on no tour can board here instead, which moves their booking. One tour per person a day.' },
 }
 
 export const kindMeta = (kind) => CHECKPOINT_KIND[kind] || { label: kind, icon: 'fa-location-dot', blurb: '' }
@@ -309,6 +347,8 @@ export const tallyVerb = (kind) => ({ Meal: 'claimed', Tour: 'boarded' }[kind] |
 // checkpoint, so there is no in-between: a balance is a refusal that sends them to Desk B.
 export const RESULT = {
   ok: { tone: 'ok', icon: 'fa-circle-check', entry: 'Let in', meal: 'Meal claimed', tour: 'Boarded' },
+  // Not a verdict yet: the scan showed who it is, and a staff tap decides.
+  pending: { tone: 'pend', icon: 'fa-hand-pointer', entry: 'Check the face', meal: 'Check the face', tour: 'Check the face' },
   denied: { tone: 'bad', icon: 'fa-circle-xmark', entry: 'Not let in', meal: 'Not served', tour: 'Not boarded' },
 }
 
@@ -322,17 +362,39 @@ const DENIED_HEADLINE = {
   no_pass: 'No seat',
   balance_due: 'Balance not paid',
   not_checked_in: 'Main gate first',
-  no_tour: 'Not on a tour',
-  wrong_tour: 'Wrong bus',
+  boarded_elsewhere: 'Already on a bus today',
+  booking_changed: 'Booking changed · scan again',
+  board_failed: 'Not boarded',
   checkpoint_inactive: 'Checkpoint closed',
   not_today: 'Not today’s checkpoint',
   no_show: 'Marked no-show',
   confirm_required: 'Check the face first',
 }
 
+// The pending sheets, by what the tap will do.
+const PENDING_HEADLINE = {
+  check_in: 'Not checked in yet',
+  count_in: 'Already checked in',
+  board_own: 'Booked on this bus',
+  board_none: 'No tour booked',
+  board_other: 'Booked on another bus',
+}
+
+// The one tap a pending sheet offers. A move asks once more before it happens.
+export const PENDING_ACTION = {
+  check_in: { label: 'Check in', icon: 'fa-check' },
+  count_in: { label: 'Count in', icon: 'fa-door-open' },
+  board_own: { label: 'Board', icon: 'fa-bus' },
+  board_none: { label: 'Board here', icon: 'fa-bus' },
+  board_other: { label: 'Board here instead', icon: 'fa-right-left', confirm: true },
+}
+
 export function resultHeadline(response, kind) {
   const which = kind === 'Meal' ? 'meal' : kind === 'Tour' ? 'tour' : 'entry'
   if (response.reasonCode === 'reentry') return 'Welcome back'
+  if (response.result === 'pending') return PENDING_HEADLINE[response.reasonCode] || RESULT.pending[which]
+  if (response.reasonCode === 'added') return 'Boarded · booked here'
+  if (response.reasonCode === 'moved') return 'Boarded · moved here'
   if (response.result === 'denied') {
     const line = DENIED_HEADLINE[response.reasonCode]
     return (typeof line === 'string' ? line : line?.[which]) || RESULT.denied[which]
