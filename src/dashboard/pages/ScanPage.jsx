@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/lib/apiClient'
 import {
-  listMarshalCheckpoints, scanCode, formatDay, kindMeta, isPostGone, progressPct, readPost, writePost, isBadgeCode,
+  listMarshalCheckpoints, scanCode, boardDelegate, formatDay, kindMeta, isPostGone, progressPct, readPost, writePost, isBadgeCode,
   tallyVerb, CAMERA_TROUBLE, GATE_POST, DESK_POST,
 } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
@@ -27,7 +27,8 @@ import { DASH_CSS } from '../DashboardLayout'
  * Everything below is the checkpoint side.</p>
  *
  * <p>At a checkpoint, each code goes to the API, which returns a
- * verdict — green, amber or red with a reason — and the result sheet shows it over the camera.
+ * verdict — green, amber or red with a reason — and the result sheet shows it over the camera. At a
+ * bus the scan is only a look: the sheet shows their booking and the marshal's Board tap boards them.
  * When a badge won't read, the bar at the bottom opens a search by name. There is no offline mode:
  * a verdict needs the server, and a guard without signal sends people to the Secretariat desk.</p>
  */
@@ -49,6 +50,9 @@ export default function ScanPage() {
   const [cameraKey, setCameraKey] = useState(0)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
+  // How the person on the sheet was found — { code } scanned or { delegateId } by name — so the Board
+  // tap sends the same.
+  const [source, setSource] = useState(null)
   const [counts, setCounts] = useState({})
   // The checkpoint the server just refused as closed or not today's, and the list it was refused
   // against. That list stays on screen while a fresh one loads, so the refused tile is left off it by
@@ -101,6 +105,7 @@ export default function ScanPage() {
       return
     }
     setBusy(true)
+    setSource({ code })
     try {
       show(await scanCode(checkpoint.id, code), checkpoint.id)
     } catch (err) {
@@ -120,9 +125,20 @@ export default function ScanPage() {
 
   const next = useCallback(() => {
     setResult(null)
+    setSource(null)
     setBusy(false)
     setMode('scan')
   }, [])
+
+  // The Board tap, with the booking the marshal was shown: if it changed since, the API boards nobody.
+  const board = async () => {
+    touch()
+    try {
+      show(await boardDelegate(checkpoint.id, { ...source, from: result.boarding?.bookedBatchId }), checkpoint.id)
+    } catch (err) {
+      setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
+    }
+  }
 
   let body
   // Before the checkpoint list: the gate and the desk don't need it, and shouldn't wait on it or fail with it.
@@ -148,7 +164,7 @@ export default function ScanPage() {
       <ManualSearch
         checkpoint={checkpoint}
         onClose={() => setMode('scan')}
-        onResult={(r) => show(r, checkpoint.id)}
+        onResult={(r, note) => { setSource({ delegateId: r.delegate?.id, note }); show(r, checkpoint.id) }}
         onGone={() => { setGone({ id: checkpoint.id, list: checkpoints }); change() }}
       />
     )
@@ -233,7 +249,14 @@ export default function ScanPage() {
         </div>
       )}
 
-      {result && <ScanResultSheet response={result} kind={checkpoint?.kind} onNext={stale ? change : next} />}
+      {result && (
+        <ScanResultSheet
+          response={result}
+          kind={checkpoint?.kind}
+          onNext={stale ? change : next}
+          onAct={checkpoint?.kind === 'Tour' && source ? board : undefined}
+        />
+      )}
 
       <style>{DASH_CSS}</style>
       <style>{SCN_CSS}</style>

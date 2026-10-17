@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/apiClient'
 import { formatPeso } from '@/lib/events'
-import { deskCard, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, formatVenueTime, formatDay, kindMeta, sessionLine, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
+import { deskCard, deskShirtSize, deskStep, deskUndo, DESK_STEPS, canUndoDeskStep, formatVenueTime, formatDay, kindMeta, sessionLine, TRAIL_STATUS, REASON_MAX } from '@/lib/checkin'
 import DelegateFace from '../checkin/DelegateFace'
+import DietStrip from '../checkin/DietStrip'
 
 /**
  * One delegate at the Secretariat desk: which desk they're at, what they owe, and where they are with
@@ -18,9 +19,14 @@ import DelegateFace from '../checkin/DelegateFace'
  * names the others on it who still owe, so the cashier can tell them to pay here.</p>
  *
  * <p>{@code note} is the line above the card: "Checked in just now", or "Already checked in";
- * {@code session} the one under it — "Counted for Opening Ceremony" — when a session is open.</p>
+ * {@code session} the one under it — "Counted for Opening Ceremony" — when a session is open.
+ * {@code code} is the badge scanned to open the card, if one was: the Check in tap sends it, so the
+ * session's log says scanned rather than found by name.</p>
+ *
+ * <p>An ID or kit already handed over folds to one "released ✓" line (its undo stays on it), so the
+ * card's height goes to what is still to do.</p>
  */
-export default function DeskCardView({ card: initial, note, session: initialSession, onDone }) {
+export default function DeskCardView({ card: initial, note, session: initialSession, code, onDone }) {
   const [card, setCard] = useState(initial)
   const [session, setSession] = useState(initialSession)
   const [busy, setBusy] = useState(false)
@@ -79,7 +85,8 @@ export default function DeskCardView({ card: initial, note, session: initialSess
     }
   }
 
-  const doNext = () => run(() => deskStep(card, next.step))
+  const doNext = () => run(() => deskStep(card, next.step, code))
+  const fillShirt = (size) => run(() => deskShirtSize(card, size))
 
   const startUndo = (s) => {
     setUndoing(s)
@@ -93,7 +100,7 @@ export default function DeskCardView({ card: initial, note, session: initialSess
   }
 
   // Another phone moved this delegate on since the card loaded: the fix is the fresh card.
-  const stale = error instanceof ApiError && ['not_last_step', 'nothing_to_undo', 'step_refused', 'balance_changed'].includes(error.raw?.reasonCode)
+  const stale = error instanceof ApiError && ['not_last_step', 'nothing_to_undo', 'step_refused', 'balance_changed', 'shirt_size_set'].includes(error.raw?.reasonCode)
 
   return (
     <div className="dsk-card">
@@ -120,13 +127,29 @@ export default function DeskCardView({ card: initial, note, session: initialSess
         </div>
       </div>
 
+      {card.diet && <DietStrip diet={card.diet} />}
+
       <dl className="dsk-facts">
         <div><dt>Fee</dt><dd>{card.complimentary ? 'Waived' : formatPeso(card.amount)}</dd></div>
         <div><dt>Paid</dt><dd>{formatPeso(card.amountPaid)}</dd></div>
         <div className={owes ? 'is-owed' : ''}><dt>Balance</dt><dd>{formatPeso(card.balance)}</dd></div>
-        {card.shirtSize && <div><dt>Shirt</dt><dd>{card.shirtSize}</dd></div>}
+        <div className={card.shirtSizeChoices ? 'is-missing' : ''}><dt>Shirt</dt><dd>{card.shirtSize || 'None given'}</dd></div>
         {card.tour && <div className="is-wide"><dt>Tour</dt><dd>{card.tour}</dd></div>}
       </dl>
+
+      {/* A prompt, not a gate: ask them now, and the kit still goes out if they can't say. */}
+      {card.shirtSizeChoices && (
+        <div className="dsk-shirt" role="group" aria-label="Record their shirt size">
+          <p><i className="fas fa-shirt" aria-hidden="true" /> No shirt size on file. Ask them, then tap it:</p>
+          <div className="dsk-shirt-sizes">
+            {card.shirtSizeChoices.map((size) => (
+              <button key={size} type="button" className="dash-btn is-ghost" disabled={busy} onClick={() => fillShirt(size)}>
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <ol className="dsk-steps">
         {DESK_STEPS.map((s) => {
@@ -135,16 +158,20 @@ export default function DeskCardView({ card: initial, note, session: initialSess
           if (s.step === 'Payment' && !at) return null
           const due = s.step === next?.step
           const released = s.step === 'Id' || s.step === 'Kit'
+          // Handed over: one short line, so what is still to do stays in view.
+          const folded = released && at
           return (
-            <li key={s.step} className={at ? 'is-done' : due ? 'is-next' : ''}>
+            <li key={s.step} className={folded ? 'is-done is-folded' : at ? 'is-done' : due ? 'is-next' : ''}>
               <i className={`fas ${at ? 'fa-circle-check' : due ? 'fa-circle-dot' : 'fa-circle'}`} aria-hidden="true" />
-              <span className="dsk-step-label">{released && at ? `${s.label} released` : s.label}</span>
+              <span className="dsk-step-label">
+                {folded ? <>{s.label} released ✓ <small>{formatVenueTime(at.at)}</small></> : s.label}
+              </span>
               {at && canUndoDeskStep(card, s.step) && undoing?.step !== s.step && (
                 <button type="button" className="dsk-step-undo" disabled={busy} onClick={() => startUndo(s)}>
                   Undo
                 </button>
               )}
-              {at && (
+              {at && !folded && (
                 <span className="dsk-step-when">
                   {formatVenueTime(at.at)} · {at.by}{at.amount != null && <> · {formatPeso(at.amount)}</>}
                 </span>
@@ -275,7 +302,12 @@ const DSK_CARD_CSS = `
   @media (min-width: 420px) { .dsk-facts { grid-template-columns: repeat(3, 1fr); } }
   .dsk-facts > div { padding: 10px 12px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); min-width: 0; }
   .dsk-facts > div.is-wide { grid-column: 1 / -1; }
-  .dsk-facts > div.is-owed { border-color: var(--warn); background: var(--warn-bg); }
+  .dsk-facts > div.is-owed, .dsk-facts > div.is-missing { border-color: var(--warn); background: var(--warn-bg); }
+  .dsk-shirt { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--warn); border-radius: var(--radius-sm); background: var(--white); }
+  .dsk-shirt p { margin: 0 0 8px; font-family: var(--font-heading); font-weight: 700; font-size: 0.9rem; color: var(--navy); }
+  .dsk-shirt p i { color: var(--warn); margin-right: 4px; }
+  .dsk-shirt-sizes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dsk-shirt-sizes .dash-btn { min-width: 52px; min-height: 44px; justify-content: center; font-weight: 800; }
   .dsk-facts dt { font-family: var(--font-heading); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-600); }
   .dsk-facts dd { margin: 2px 0 0; font-family: var(--font-heading); font-weight: 800; color: var(--navy); overflow-wrap: anywhere; }
 
@@ -285,6 +317,9 @@ const DSK_CARD_CSS = `
   .dsk-steps li.is-done { color: var(--ok); }
   .dsk-steps li.is-next { color: var(--gold-dark); }
   .dsk-step-label { font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
+  .dsk-steps li.is-folded { min-height: 32px; }
+  .dsk-steps li.is-folded .dsk-step-label { font-size: 0.9rem; color: var(--ok); }
+  .dsk-step-label small { font-family: var(--font-body); font-weight: 400; font-size: 0.8rem; color: var(--gray-600); margin-left: 4px; }
   .dsk-steps li:not(.is-done):not(.is-next) .dsk-step-label { color: var(--gray-400); }
   .dsk-step-undo {
     grid-column: 3; grid-row: 1; min-height: 44px; padding: 0 12px; background: none; border: 0; cursor: pointer;
