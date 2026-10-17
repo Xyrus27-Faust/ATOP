@@ -14,8 +14,9 @@ import { useLiveSession } from '../../useLiveSession'
 /**
  * The Secretariat desk, as one post on the scanner: where the main gate sends every delegate.
  *
- * <p>A badge scanned here opens the delegate's card — checking them in too if they walked round the
- * gate; a second phone scanning the same badge changes nothing. The card says Desk A (fully paid) or
+ * <p>A badge scanned here opens the delegate's card; if they walked round the gate, its Check in tap
+ * checks them in, after a look at the face — a scan alone never does (ATOP, 2026-10-16). A second
+ * phone scanning the same badge changes nothing. The card says Desk A (fully paid) or
  * Desk B (balance to pay in cash), where handing over the ID & OR records the cash in the same tap;
  * then Desk C hands over the kit. Every desk runs this same screen. A name search only opens the card; the Confirm tap on it is the check-in, after a
  * look at the photo.</p>
@@ -38,7 +39,7 @@ export default function DeskStation({ touch }) {
   const [camera, setCamera] = useState('ok')
   const [cameraKey, setCameraKey] = useState(0)
   const [busy, setBusy] = useState(false)
-  // What's on screen instead of the camera: { card, note } | { denied } | { failed }. Each new one
+  // What's on screen instead of the camera: { card, note, code } | { denied } | { failed }. Each new one
   // gets a fresh key, so a card left half-confirmed never carries over to the next delegate.
   const [view, setView] = useState(null)
   const show = useCallback((v) => setView({ ...v, key: Date.now() }), [])
@@ -56,7 +57,7 @@ export default function DeskStation({ touch }) {
     setBusy(true)
     try {
       const r = await deskScan(event.id, code)
-      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r), session: sessionLine(r.session) })
+      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r), session: sessionLine(r.session), code })
     } catch (err) {
       show({ failed: `${err.message} Scan again, or search by name.` })
     } finally {
@@ -95,7 +96,7 @@ export default function DeskStation({ touch }) {
       </div>
     )
   } else if (view?.card) {
-    body = <DeskCardView key={view.key} card={view.card} note={view.note} session={view.session} onDone={nextDelegate} />
+    body = <DeskCardView key={view.key} card={view.card} note={view.note} session={view.session} code={view.code} onDone={nextDelegate} />
   } else if (view) {
     body = <Refused view={view} onDone={nextDelegate} />
   } else if (mode === 'search') {

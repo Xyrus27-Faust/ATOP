@@ -75,9 +75,9 @@ export function nextStep(pass, phase) {
   // ID & OR at Desk A or B (B takes the balance with it), then the kit at Desk C.
   if (pass.owes)
     return { tone: 'warn', icon: 'fa-receipt', title: 'Please drop by Desk B', body: 'Settle your balance at Desk B and collect your ID & OR there, then get your kit at Desk C.' }
-  if ((pass.desk === 'A' || pass.desk === 'B') && !pass.idReleased)
+  if ((pass.desk === 'A' || pass.desk === 'B') && !pass.idReleasedAt)
     return { tone: 'go', icon: 'fa-id-badge', title: `Collect your ID & OR at Desk ${pass.desk}`, body: 'Then get your kit at Desk C. Show this same QR at each desk.' }
-  if (pass.desk === 'C' && !pass.kitReleased)
+  if (pass.desk === 'C' && !pass.kitReleasedAt)
     return { tone: 'go', icon: 'fa-box-open', title: 'Collect your kit at Desk C', body: 'Show this same QR at the desk.' }
   if (live)
     return { tone: 'go', icon: 'fa-door-open', title: `${live.label} is on now`, body: 'Show your QR at the door to be counted in.' }
@@ -91,6 +91,9 @@ export function nextStep(pass, phase) {
 export function moments(pass) {
   const list = []
   if (pass.checkedInAt) list.push({ key: `in:${pass.checkedInAt}`, kind: 'checkin', at: pass.checkedInAt })
+  // A release undone and done again has a new time, so it is news again — rightly.
+  if (pass.idReleasedAt) list.push({ key: `id:${pass.idReleasedAt}`, kind: 'id', at: pass.idReleasedAt })
+  if (pass.kitReleasedAt) list.push({ key: `kit:${pass.kitReleasedAt}`, kind: 'kit', at: pass.kitReleasedAt })
   for (const s of pass.sessions)
     if (s.attendedAt) list.push({ key: `s:${s.id}`, kind: 'session', at: s.attendedAt, label: s.label })
   if (pass.tour?.boardedAt)
@@ -98,20 +101,39 @@ export function moments(pass) {
   return list
 }
 
-/** What the overlay says for the moments just scanned — a gate scan in a session is one welcome, not two. */
+// Where the gate's lane sends them for the ID & OR. Desk B is where balances are settled, but the
+// line never says so: the delegate is often not the one paying, and their LGU may not want it on
+// their screen (ATOP, 2026-10-17). The cashier says the rest.
+const ID_DESK_LINE = {
+  A: 'Head to Desk A for your ID & OR.',
+  B: 'Please go to Desk B for your ID & OR.',
+}
+
+/**
+ * What the overlay says for the moments just seen — one overlay, however many landed together, and
+ * it names the newest step: a phone unlocked after the gate and Desk A both says "Desk C next".
+ */
 export function welcomeFor(pass, fresh) {
   const city = hostCityName(pass.event)
   const name = pass.greetingName
-  const checkin = fresh.find((m) => m.kind === 'checkin')
-  const session = fresh.find((m) => m.kind === 'session')
-  const tour = fresh.find((m) => m.kind === 'tour')
+  const has = (kind) => fresh.find((m) => m.kind === kind)
+  const checkin = has('checkin')
+  const session = has('session')
+  const tour = has('tour')
+  const welcome = `Welcome to ${city}, ${name}!`
 
   if (tour)
     return { title: `All aboard, ${name}!`, line: `You're on ${tour.label} — ${pass.tour.package}. Enjoy the tour.` }
-  if (checkin)
+  if (has('kit'))
+    return { title: `You're all set, ${name}!`, line: 'Kit collected. Enjoy the convention — keep this page handy, it is your pass all week.' }
+  if (has('id'))
     return {
-      title: `Welcome to ${city}, ${name}!`,
-      line: session ? `You're checked in and counted at ${session.label}.` : "You're checked in. We're so glad you're here.",
+      title: checkin ? welcome : 'Next stop: Desk C',
+      line: 'Your ID & OR are out. Collect your convention kit at Desk C.',
     }
+  if (checkin) {
+    const counted = session ? ` and counted at ${session.label}` : ''
+    return { title: welcome, line: `You're checked in${counted}. ${ID_DESK_LINE[pass.desk] ?? "We're so glad you're here."}` }
+  }
   return { title: `Welcome back, ${name}!`, line: `You're counted at ${session.label}.` }
 }

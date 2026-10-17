@@ -12,10 +12,11 @@ import { useLiveSession } from '../../useLiveSession'
 /**
  * The main gate, as one post on the scanner: every delegate's first stop.
  *
- * <p>A badge scanned here checks the delegate in and says where to go — Desk A (paid in full), Desk B
- * (a balance to pay) or Go in (ID and kit already collected) — with their photo, name, LGU and what
- * they still owe. Someone with no seat (never paid, cancelled, online) is not checked in: the sheet
- * names them and says Desk B.</p>
+ * <p>A badge scanned here shows the delegate — photo, name, LGU, what they still owe — and waits:
+ * nobody is checked in until the marshal looks at the face and taps Check in (ATOP, 2026-10-16). The
+ * tap answers where to go — Desk A (paid in full), Desk B (a balance to pay) or Go in (ID and kit
+ * already collected). Someone already in gets that answer straight from the scan. Someone with no
+ * seat (never paid, cancelled, online) is never checked in: the sheet names them and says Desk B.</p>
  *
  * <p>While the admin has a session open, every check-in here also counts them there — a balance
  * doesn't stop that, a refusal does. The bar on top says which session, so the marshal knows what
@@ -38,6 +39,8 @@ export default function GateStation({ touch }) {
   const [result, setResult] = useState(null)
   // A row picked from the search, waiting for the Confirm tap.
   const [picked, setPicked] = useState(null)
+  // The badge behind a pending scan, sent with its Check in tap so the session logs a scan.
+  const [scanned, setScanned] = useState(null)
 
   const handleCode = useCallback(async (code) => {
     touch()
@@ -46,6 +49,7 @@ export default function GateStation({ touch }) {
       return
     }
     setBusy(true)
+    setScanned(code)
     try {
       setResult(await gateScan(event.id, code))
     } catch (err) {
@@ -66,6 +70,17 @@ export default function GateStation({ touch }) {
       setBusy(false)
       setPicked(null)
       setMode('scan')
+      refreshSession()
+    }
+  }
+
+  // The Check in tap on a scanned badge. A failure replaces the sheet, so they can search by name.
+  const checkInScanned = async () => {
+    try {
+      setResult(await gateCheckIn(event.id, result.delegate.id, scanned))
+    } catch (err) {
+      setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
+    } finally {
       refreshSession()
     }
   }
@@ -146,7 +161,7 @@ export default function GateStation({ touch }) {
         </div>
       )}
 
-      {result && <ScanResultSheet response={result} onNext={next} />}
+      {result && <ScanResultSheet response={result} onNext={next} onAct={result.result === 'pending' ? checkInScanned : undefined} />}
 
       <style>{GTE_CSS}</style>
     </div>
