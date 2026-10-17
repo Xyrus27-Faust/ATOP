@@ -24,13 +24,18 @@ import DietStrip from '../checkin/DietStrip'
  * {@code code} is the badge scanned to open the card, if one was: the Check in tap sends it, so the
  * session's log says scanned rather than found by name.</p>
  *
+ * <p>{@code countIn} is the scan's prompt when they're checked in already but not yet counted at the
+ * open session (ATOP, 2026-10-17): the scan wrote nothing, and its own Count in button — the check-in
+ * tap again, which only counts them — does it.</p>
+ *
  * <p>An ID or kit already handed over folds to one "released ✓" line (its undo stays on it), so the
  * card's height goes to what is still to do.</p>
  */
-export default function DeskCardView({ card: initial, note: initialNote, session: initialSession, code, onDone }) {
+export default function DeskCardView({ card: initial, note: initialNote, session: initialSession, countIn: initialCountIn, code, onDone }) {
   const [card, setCard] = useState(initial)
   const [note, setNote] = useState(initialNote)
   const [session, setSession] = useState(initialSession)
+  const [countIn, setCountIn] = useState(initialCountIn)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
@@ -65,6 +70,7 @@ export default function DeskCardView({ card: initial, note: initialNote, session
       if (res?.result === 'denied') throw new Error(res.reason || 'The desk can’t check this delegate in.')
       const updated = res?.card ?? res
       if (res?.card) {
+        setCountIn(null)
         setSession(sessionLine(res.session))
         setNote(arrivalNote(res))
         setCard(updated)
@@ -100,6 +106,7 @@ export default function DeskCardView({ card: initial, note: initialNote, session
   }
 
   const doNext = () => run(() => deskStep(card, next.step, code))
+  const doCountIn = () => run(() => deskStep(card, 'CheckIn', code))
   const fillShirt = (size) => run(() => deskShirtSize(card, size))
 
   const startUndo = (s) => {
@@ -131,6 +138,14 @@ export default function DeskCardView({ card: initial, note: initialNote, session
 
       {note && <p className="dsk-note">{note}</p>}
       {session && <p className="dsk-note dsk-session"><i className="fas fa-door-open" aria-hidden="true" /> {session}</p>}
+      {countIn && (
+        <div className="dsk-countin">
+          <p className="dsk-note">{countIn}</p>
+          <button type="button" className="dash-btn is-primary dsk-countin-go" disabled={busy} onClick={doCountIn}>
+            <i className={`fas ${busy ? 'fa-spinner fa-spin' : 'fa-door-open'}`} aria-hidden="true" /> Count in
+          </button>
+        </div>
+      )}
 
       <div className="dsk-person">
         <DelegateFace name={card.fullName} photoUrl={card.photoUrl} size={96} />
@@ -304,6 +319,8 @@ const DSK_CARD_CSS = `
   .dsk-desk-why { font-weight: 700; font-size: 1rem; }
   .dsk-note { font-family: var(--font-heading); font-weight: 700; color: var(--navy); }
   .dsk-session i { color: var(--ok); margin-right: 4px; }
+  .dsk-countin { display: flex; flex-direction: column; gap: 8px; }
+  .dsk-countin-go { width: 100%; min-height: 56px; justify-content: center; font-size: 1rem; }
 
   .dsk-person { display: flex; align-items: center; gap: 14px; }
   .dsk-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
