@@ -57,7 +57,7 @@ export default function DeskStation({ touch }) {
     setBusy(true)
     try {
       const r = await deskScan(event.id, code)
-      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r), session: sessionLine(r.session), code })
+      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r), session: sessionLine(r.session), countIn: r.reasonCode === 'count_in' ? r.reason : null, code })
     } catch (err) {
       show({ failed: `${err.message} Scan again, or search by name.` })
     } finally {
@@ -96,7 +96,7 @@ export default function DeskStation({ touch }) {
       </div>
     )
   } else if (view?.card) {
-    body = <DeskCardView key={view.key} card={view.card} note={view.note} session={view.session} code={view.code} onDone={nextDelegate} />
+    body = <DeskCardView key={view.key} card={view.card} note={view.note} session={view.session} countIn={view.countIn} code={view.code} onDone={nextDelegate} />
   } else if (view) {
     body = <Refused view={view} onDone={nextDelegate} />
   } else if (mode === 'search') {
