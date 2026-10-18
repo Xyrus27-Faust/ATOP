@@ -1,16 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { formatPeso } from '@/lib/events'
-import { deskRoster, formatDay, formatVenueTime } from '@/lib/checkin'
+import { deskRoster, formatDay, formatVenueTime, scanningDay, venueDate, csvStamp, fold } from '@/lib/checkin'
 import { downloadCsv, datedFilename } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
-
-// Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
-const fold = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
-// The day someone arrived, "YYYY-MM-DD" in Manila — the same day the desk's wall calendar says.
-const venueDay = (instant) => new Date(instant).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
 
 // Desk B is everyone who came to the desk owing, paid or not yet; the rest never pay at the desk.
 const paysAtDesk = (r) => r.balance > 0 || !!r.payment
@@ -45,6 +39,11 @@ export default function DeskListTab() {
   const [missing, setMissing] = useState(null)
   const [arrivedOn, setArrivedOn] = useState('all')
   const [q, setQ] = useState('')
+  // Each row's arrival day, worked out once per load rather than per row per keystroke. The scanning
+  // day, as the API and the Activity tab count it: a 1:30 AM arrival is the night before's.
+  const arrivedDay = useMemo(
+    () => new Map((data?.rows ?? []).filter((r) => r.checkIn).map((r) => [r.id, scanningDay(r.checkIn.at)])),
+    [data])
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -60,11 +59,11 @@ export default function DeskListTab() {
   }
 
   const step = STEPS.find((s) => s.key === missing)
-  const arrivalDays = [...new Set(rows.filter((r) => r.checkIn).map((r) => venueDay(r.checkIn.at)))].sort()
+  const arrivalDays = [...new Set(arrivedDay.values())].sort()
   const term = fold(q.trim())
   const shown = rows.filter((r) =>
     (!step || (step.applies(r) && !step.done(r)))
-    && (arrivedOn === 'all' || (r.checkIn && venueDay(r.checkIn.at) === arrivedOn))
+    && (arrivedOn === 'all' || arrivedDay.get(r.id) === arrivedOn)
     && (!term || fold(r.fullName).includes(term) || fold(r.lgu).includes(term) || fold(r.referenceCode).includes(term)))
 
   const exportCsv = () => downloadCsv(datedFilename('atop-registration'), [
@@ -73,8 +72,8 @@ export default function DeskListTab() {
       'Kit released', 'Kit released by'],
     ...shown.map((r) => [
       r.referenceCode, r.fullName, r.lgu ?? '', r.designation, r.desk, r.balance, r.complimentary ? 'Yes' : '',
-      stamp(r.checkIn), r.checkIn?.by ?? '', stamp(r.payment), r.payment?.amount ?? '', r.payment?.by ?? '',
-      stamp(r.idRelease), r.idRelease?.by ?? '', stamp(r.kit), r.kit?.by ?? '',
+      csvStamp(r.checkIn?.at), r.checkIn?.by ?? '', csvStamp(r.payment?.at), r.payment?.amount ?? '', r.payment?.by ?? '',
+      csvStamp(r.idRelease?.at), r.idRelease?.by ?? '', csvStamp(r.kit?.at), r.kit?.by ?? '',
     ]),
   ])
 
@@ -115,7 +114,7 @@ export default function DeskListTab() {
           <p className="dkl-step-head">Arrived on</p>
           <div className="dkl-filters" role="tablist" aria-label="Arrived on">
             {[{ key: 'all', label: 'Any day', count: rows.length },
-              ...arrivalDays.map((d) => ({ key: d, label: formatDay(d), count: rows.filter((r) => r.checkIn && venueDay(r.checkIn.at) === d).length }))]
+              ...arrivalDays.map((d) => ({ key: d, label: formatDay(d), count: rows.filter((r) => arrivedDay.get(r.id) === d).length }))]
               .map((f) => (
                 <button
                   key={f.key}
@@ -211,10 +210,6 @@ export default function DeskListTab() {
   )
 }
 
-/** "2026-11-18 09:14" in Manila for the CSV — sortable in a spreadsheet. */
-const stamp = (step) =>
-  step ? new Date(step.at).toLocaleString('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' }) : ''
-
 function DeskBadge({ row: r }) {
   if (r.desk === 'B' && r.balance > 0) return <span className="dash-badge tone-warn">B · owes {formatPeso(r.balance)}</span>
   return <span className={`dash-badge ${r.desk === 'B' ? 'tone-warn' : 'tone-success'}`}>{r.complimentary ? 'A · Comp' : `Desk ${r.desk}`}</span>
@@ -227,7 +222,7 @@ function Done({ at }) {
     <span className="dkl-box is-yes">
       <i className="fas fa-circle-check" aria-hidden="true" /> Done
       {at.amount != null && <> · {formatPeso(at.amount)}</>}
-      <small>{formatDay(venueDay(at.at))}, {formatVenueTime(at.at)}{at.by ? ` · ${at.by}` : ''}</small>
+      <small>{formatDay(venueDate(at.at))}, {formatVenueTime(at.at)}{at.by ? ` · ${at.by}` : ''}</small>
     </span>
   )
 }

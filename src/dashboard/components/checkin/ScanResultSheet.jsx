@@ -70,8 +70,10 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
     }
   }
 
+  // While a tap is with the server the sheet stays: closing it would bring the camera back, and the
+  // reply would land on whoever is scanned next.
   return (
-    <div className={`srs tone-${meta.tone}`} role="status" aria-live="assertive" onClick={onNext}>
+    <div className={`srs tone-${meta.tone}`} role="status" aria-live="assertive" onClick={acting ? undefined : onNext}>
       <div className={`srs-head${lane ? ' is-lane' : ''}`}>
         <i className={`fas ${meta.icon}`} aria-hidden="true" />
         <span>{isError ? 'Scan failed' : lane ? lane.headline : resultHeadline(response, kind)}</span>

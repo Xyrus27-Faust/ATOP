@@ -5,6 +5,9 @@ import { deskCard, deskShirtSize, deskStep, deskUndo, DESK_STEPS, canUndoDeskSte
 import DelegateFace from '../checkin/DelegateFace'
 import DietStrip from '../checkin/DietStrip'
 
+// Read out at Desk C as the kit goes over: the last thing they hear at the desk (ATOP, 2026-10-19).
+const SEND_OFF = 'Enjoy ATOP-ORMOC 2026.'
+
 /**
  * One delegate at the Secretariat desk: which desk they're at, what they owe, and where they are with
  * check-in → ID & OR (Desk A, or Desk B where it is the payment) → kit (Desk C).
@@ -31,6 +34,11 @@ import DietStrip from '../checkin/DietStrip'
  *
  * <p>An ID or kit already handed over folds to one "released ✓" line (its undo stays on it), so the
  * card's height goes to what is still to do.</p>
+ *
+ * <p>Every desk runs this screen, so the card tells them apart by what was tapped on it: the desk that
+ * just released the ID sends them on to Desk C; a card opened with the ID already out is Desk C's, and
+ * says nothing about sending anyone. The kit tapped here ends on the send-off, for the staffer to say
+ * or turn the screen round; a card reopened later just says it's all done.</p>
  */
 export default function DeskCardView({ card: initial, note: initialNote, session: initialSession, countIn: initialCountIn, code, onDone }) {
   const [card, setCard] = useState(initial)
@@ -43,6 +51,8 @@ export default function DeskCardView({ card: initial, note: initialNote, session
   // The step whose undo form is open, or null.
   const [undoing, setUndoing] = useState(null)
   const [reason, setReason] = useState('')
+  // The steps released from this card, as opposed to found already done when it opened.
+  const [doneHere, setDoneHere] = useState({})
   const done = useRef(null)
 
   // The big button does whatever is next; the order is the API's.
@@ -60,7 +70,8 @@ export default function DeskCardView({ card: initial, note: initialNote, session
     setCard(next)
   }
 
-  async function run(call) {
+  // `after` runs once the call succeeds.
+  async function run(call, after) {
     setBusy(true)
     setError(null)
     setNotice(null)
@@ -84,6 +95,7 @@ export default function DeskCardView({ card: initial, note: initialNote, session
         setNotice(`Their group's online payment link was cancelled. ${others.join(', ')} still owe${others.length === 1 ? 's' : ''}. Ask them to pay here.`)
       setUndoing(null)
       setReason('')
+      after?.()
     } catch (err) {
       if (err instanceof ApiError && err.raw?.reasonCode === 'balance_changed') await catchUp(err)
       else setError(err)
@@ -106,7 +118,10 @@ export default function DeskCardView({ card: initial, note: initialNote, session
     }
   }
 
-  const doNext = () => run(() => deskStep(card, next.step, code))
+  const doNext = () => {
+    const step = next.step
+    run(() => deskStep(card, step, code), () => setDoneHere((h) => ({ ...h, [step]: true })))
+  }
   const doCountIn = () => run(() => deskStep(card, 'CheckIn', code))
   const fillShirt = (size) => run(() => deskShirtSize(card, size))
 
@@ -118,7 +133,8 @@ export default function DeskCardView({ card: initial, note: initialNote, session
   const undo = (e) => {
     e.preventDefault()
     if (!reason.trim()) return
-    run(() => deskUndo(card, undoing.step, reason.trim()))
+    const step = undoing.step
+    run(() => deskUndo(card, step, reason.trim()), () => setDoneHere((h) => ({ ...h, [step]: false })))
   }
 
   // Another phone moved this delegate on since the card loaded: the fix is the fresh card.
@@ -235,11 +251,17 @@ export default function DeskCardView({ card: initial, note: initialNote, session
               ? <><i className="fas fa-money-bill-wave" aria-hidden="true" /> Release ID & OR · {formatPeso(card.balance)} paid</>
               : <><i className="fas fa-check" aria-hidden="true" /> {next.step === 'CheckIn' ? next.action : `Release ${next.label}`}</>}
         </button>
+      ) : card.idRelease && card.kit && doneHere.Kit ? (
+        <div className="dsk-send-off" role="status">
+          <i className="fas fa-champagne-glasses" aria-hidden="true" />
+          <strong>You&rsquo;re all set!</strong>
+          <span>{SEND_OFF}</span>
+        </div>
       ) : card.idRelease && card.kit ? (
         <p className="dsk-all-done"><i className="fas fa-circle-check" aria-hidden="true" /> All done at the desk.</p>
       ) : null}
       {next?.step === 'Id' && owes && <p className="dash-help dsk-face">Take the {formatPeso(card.balance)} first. The tap records it as paid.</p>}
-      {next?.step === 'Kit' && <p className="dash-help dsk-face">Send them to Desk C for their kit.</p>}
+      {next?.step === 'Kit' && doneHere.Id && <p className="dash-help dsk-face">Send them to Desk C for their kit.</p>}
       {next?.step === 'CheckIn' && <p className="dash-help dsk-face">Check the face against the person first.</p>}
 
       {undoing && (
@@ -364,6 +386,16 @@ const DSK_CARD_CSS = `
   .dsk-row { display: flex; gap: 10px; }
   .dsk-row .dash-btn { flex: 1; min-height: 48px; justify-content: center; }
   .dsk-all-done { font-family: var(--font-heading); font-weight: 800; color: var(--ok); text-align: center; padding: 8px; }
+  /* Big enough to read from across the desk, for the delegate as much as the staffer. */
+  .dsk-send-off {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 16px; text-align: center;
+    background: var(--ok-bg); color: var(--ok); border-radius: var(--radius-sm); animation: dsk-pop 0.25s ease-out;
+  }
+  .dsk-send-off i { font-size: 2.2rem; }
+  .dsk-send-off strong { font-family: var(--font-heading); font-weight: 900; font-size: 1.6rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .dsk-send-off span { font-family: var(--font-heading); font-weight: 800; font-size: 1.15rem; color: var(--navy); }
+  @keyframes dsk-pop { from { transform: scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .dsk-send-off { animation: none; } }
   .dsk-face { text-align: center; }
   .dsk-undo { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
   .dsk-undo .dash-input { font-size: 16px; min-height: 48px; }

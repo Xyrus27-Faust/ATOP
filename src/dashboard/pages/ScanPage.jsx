@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/lib/apiClient'
 import {
@@ -58,6 +58,9 @@ export default function ScanPage() {
   // against. That list stays on screen while a fresh one loads, so the refused tile is left off it by
   // hand — but only off that list: the fresh one is the server's word, including on a reopened checkpoint.
   const [gone, setGone] = useState(null)
+  // Bumped whenever the sheet changes hands — a new scan, Next, Change — so a Board reply that comes
+  // back after that is dropped rather than shown over someone else.
+  const sheet = useRef(0)
 
   // A remembered checkpoint the secretariat has since closed simply isn't in the list any more.
   const checkpoint = checkpoints?.find((c) => c.id === postId) || null
@@ -77,6 +80,7 @@ export default function ScanPage() {
   }
 
   const change = () => {
+    sheet.current += 1
     writePost(null)
     setPostId(null)
     setResult(null)
@@ -104,6 +108,7 @@ export default function ScanPage() {
       setResult({ result: 'error', reason: 'That isn’t an ATOP badge. Scan the QR on their pass, or search by name.' })
       return
     }
+    sheet.current += 1
     setBusy(true)
     setSource({ code })
     try {
@@ -124,6 +129,7 @@ export default function ScanPage() {
   const stale = isPostGone(result?.reasonCode)
 
   const next = useCallback(() => {
+    sheet.current += 1
     setResult(null)
     setSource(null)
     setBusy(false)
@@ -133,10 +139,15 @@ export default function ScanPage() {
   // The Board tap, with the booking the marshal was shown: if it changed since, the API boards nobody.
   const board = async () => {
     touch()
+    const mine = sheet.current
     try {
-      show(await boardDelegate(checkpoint.id, { ...source, from: result.boarding?.bookedBatchId }), checkpoint.id)
+      const reply = await boardDelegate(checkpoint.id, { ...source, from: result.boarding?.bookedBatchId })
+      if (mine === sheet.current) show(reply, checkpoint.id)
     } catch (err) {
-      setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
+      if (mine !== sheet.current) return
+      // The bus checkpoint was deleted while the sheet was up: back to the picker, as a scan does.
+      if (err instanceof ApiError && err.status === 404) change()
+      else setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
     }
   }
 
