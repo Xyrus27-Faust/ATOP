@@ -1,20 +1,17 @@
 import { useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { checkInActivity, formatDay, formatVenueTime } from '@/lib/checkin'
+import { checkInActivity, formatDay, formatVenueTime, venueDate, csvStamp, fold } from '@/lib/checkin'
 import { formatPeso } from '@/lib/events'
 import { downloadCsv } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
-
-// Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
-const fold = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 // What each action is called on the page, in words a non-technical admin reads at a glance. `tone`
 // colours the corrections: red for something taken back, amber for someone added by hand.
 const ACTIONS = {
   CheckedIn: { label: 'Checked in', icon: 'fa-door-open', group: 'desk' },
   PaidAtDesk: { label: 'Paid cash at Desk B', icon: 'fa-money-bill-wave', group: 'desk' },
-  IdReleased: { label: 'ID & receipt given', icon: 'fa-id-card', group: 'desk' },
+  IdReleased: { label: 'ID & OR given', icon: 'fa-id-card', group: 'desk' },
   KitReleased: { label: 'Kit given', icon: 'fa-box-open', group: 'desk' },
   Scanned: { label: 'Scanned', icon: 'fa-qrcode', group: 'scans' },
   ManualLog: { label: 'Logged by name', icon: 'fa-keyboard', group: 'scans' },
@@ -114,9 +111,9 @@ function DayLog({ log, loading, reload }) {
     ['Time', 'What happened', 'Name', 'LGU / Organisation', 'Where', 'Done by', 'Amount', 'Reason / note',
       'Taken back later', 'Originally done by', 'Originally done at'],
     ...shown.map((r) => [
-      stamp(r.at), actionOf(r.action).label + (r.undid ? `: ${actionOf(r.undid).label}` : ''), r.fullName, r.lgu ?? '',
+      csvStamp(r.at), actionOf(r.action).label + (r.undid ? `: ${actionOf(r.undid).label}` : ''), r.fullName, r.lgu ?? '',
       r.where ?? '', r.by, r.amount ?? '', r.note ?? '', r.reversed ? 'Yes' : '', r.originalBy ?? '',
-      r.originalAt ? stamp(r.originalAt) : '',
+      csvStamp(r.originalAt),
     ]),
   ])
 
@@ -266,7 +263,7 @@ function Detail({ row: r, table = false }) {
       <span key="undid">
         Took back <b>{actionOf(r.undid).label.toLowerCase()}</b>
         {r.originalBy && <> by {r.originalBy}</>}
-        {r.originalAt && <>, {formatDay(venueDay(r.originalAt))} {formatVenueTime(r.originalAt)}</>}
+        {r.originalAt && <>, {formatDay(venueDate(r.originalAt))} {formatVenueTime(r.originalAt)}</>}
       </span>,
     )
   }
@@ -274,13 +271,6 @@ function Detail({ row: r, table = false }) {
   if (lines.length === 0) return table ? <span className="act-none">—</span> : null
   return <span className="act-detail">{lines}</span>
 }
-
-/** The Manila calendar day of an instant, "YYYY-MM-DD", for formatDay. */
-const venueDay = (instant) => new Date(instant).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
-
-/** "2026-10-20 17:02" in Manila — sortable in a spreadsheet. */
-const stamp = (instant) =>
-  new Date(instant).toLocaleString('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' })
 
 const ACT_CSS = `
   .act-intro {

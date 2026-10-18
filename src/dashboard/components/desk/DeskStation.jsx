@@ -69,7 +69,10 @@ export default function DeskStation({ touch }) {
   const pick = async (row) => {
     setBusy(true)
     try {
-      show({ card: await deskCard(event.id, row.id), note: null })
+      // The card carries the Check in for today prompt when a scan would have, so a delegate without
+      // their badge still gets counted at the open session.
+      const card = await deskCard(event.id, row.id)
+      show({ card, note: null, countIn: card.countIn ?? null })
     } catch (err) {
       // 409: someone the desk turns away. Shown like a refused scan, with the name read back.
       const code = err.raw?.reasonCode

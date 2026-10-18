@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { gateScan, gateSearch, gateCheckIn, isBadgeCode, CAMERA_TROUBLE } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
@@ -41,6 +41,9 @@ export default function GateStation({ touch }) {
   const [picked, setPicked] = useState(null)
   // The badge behind a pending scan, sent with its Check in tap so the session logs a scan.
   const [scanned, setScanned] = useState(null)
+  // Bumped on each new scan and on Next, so a Check in reply that comes back after that is dropped
+  // rather than shown over the next delegate.
+  const sheet = useRef(0)
 
   const handleCode = useCallback(async (code) => {
     touch()
@@ -48,6 +51,7 @@ export default function GateStation({ touch }) {
       setResult({ result: 'error', reason: 'That isn’t an ATOP badge. Scan the QR on their pass, or search by name.' })
       return
     }
+    sheet.current += 1
     setBusy(true)
     setScanned(code)
     try {
@@ -76,16 +80,21 @@ export default function GateStation({ touch }) {
 
   // The Check in tap on a scanned badge. A failure replaces the sheet, so they can search by name.
   const checkInScanned = async () => {
+    const mine = sheet.current
     try {
-      setResult(await gateCheckIn(event.id, result.delegate.id, scanned))
+      const reply = await gateCheckIn(event.id, result.delegate.id, scanned)
+      if (mine === sheet.current) setResult(reply)
     } catch (err) {
-      setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
+      if (mine === sheet.current) setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
     } finally {
       refreshSession()
     }
   }
 
-  const next = useCallback(() => setResult(null), [])
+  const next = useCallback(() => {
+    sheet.current += 1
+    setResult(null)
+  }, [])
 
   let body
   if (loading && !event) body = <Loading />

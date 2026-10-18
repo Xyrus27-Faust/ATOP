@@ -437,13 +437,34 @@ export function formatVenueTime(instant) {
 // The scanning day turns over at 4 AM Manila, not midnight — the API's CheckInDesk.DayTurnsOverAt.
 const DAY_TURNS_OVER_MS = 4 * 3_600_000
 
+// One formatter, built once: a list of a thousand rows calls these on every keystroke.
+const MANILA_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' })
+const MANILA_STAMP = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' })
+
+/**
+ * The scanning day an instant belongs to, "YYYY-MM-DD" in Manila: a check-in at 1:30 AM on the 21st
+ * is the 20th's, as the API and the Activity tab count it.
+ */
+export function scanningDay(instant) {
+  return MANILA_DATE.format(new Date(Date.parse(instant) - DAY_TURNS_OVER_MS))
+}
+
 /**
  * Today as the scanner reads it, "YYYY-MM-DD" in Manila: the earliest day a checkpoint can be set
  * on, since the API refuses a past one.
  */
 export function scanningToday(now = Date.now()) {
-  return new Date(now - DAY_TURNS_OVER_MS).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+  return MANILA_DATE.format(new Date(now - DAY_TURNS_OVER_MS))
 }
+
+/** The Manila calendar day of an instant, "YYYY-MM-DD" — for showing beside a time, not for grouping. */
+export const venueDate = (instant) => MANILA_DATE.format(new Date(instant))
+
+/** "2026-10-20 17:02" in Manila, for a CSV: sortable in a spreadsheet. */
+export const csvStamp = (instant) => (instant ? MANILA_STAMP.format(new Date(instant)) : '')
+
+/** Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City". */
+export const fold = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /**
  * The convention's days as "YYYY-MM-DD", read at the venue (Manila). Offered as quick picks for a

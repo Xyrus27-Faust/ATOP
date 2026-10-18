@@ -1,14 +1,11 @@
 import { useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import {
-  listCheckpoints, getCheckpointScans, deskRoster, groupByDay, formatDay, formatVenueTime, scanningToday, kindMeta,
+  listCheckpoints, getCheckpointScans, deskRoster, groupByDay, formatDay, formatVenueTime, scanningToday, kindMeta, csvStamp, fold,
 } from '@/lib/checkin'
 import { downloadCsv } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
-
-// Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
-const fold = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 // What each kind says on the list, in words as well as colour: Present / Absent for a session,
 // Ate / No meal for a meal. A checkpoint still Open or Upcoming says "Not yet" instead — calling
@@ -126,9 +123,9 @@ function DayAttendance({ event, day, checkpoints }) {
     ['Reference', 'Name', 'LGU / Organisation', 'Designation', 'Arrived at the convention',
       ...columns.map((c) => c.label), ...(buses.length > 0 ? ['Bus'] : [])],
     ...shown.map((r) => [
-      r.referenceCode, r.fullName, r.lgu ?? '', r.designation, r.checkIn ? stamp(r.checkIn.at) : 'Not yet',
+      r.referenceCode, r.fullName, r.lgu ?? '', r.designation, r.checkIn ? csvStamp(r.checkIn.at) : 'Not yet',
       ...columns.map((c) => csvBox(c, scanOf(r, c))),
-      ...(buses.length > 0 ? [busOf(r) ? `${busOf(r).label} ${stamp(scanOf(r, busOf(r)).scannedAt)}` : ''] : []),
+      ...(buses.length > 0 ? [busOf(r) ? `${busOf(r).label} ${csvStamp(scanOf(r, busOf(r)).scannedAt)}` : ''] : []),
     ]),
   ])
 
@@ -299,13 +296,9 @@ function BusBox({ bus, scan }) {
   )
 }
 
-/** "2026-10-20 17:02" in Manila — sortable in a spreadsheet. */
-const stamp = (instant) =>
-  new Date(instant).toLocaleString('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' })
-
 function csvBox(c, scan) {
   const words = WORDS[c.kind] || WORDS.Entry
-  if (scan) return `${words.yes} ${stamp(scan.scannedAt)}${scan.method === 'Marked' ? ' (added by staff)' : ''}`
+  if (scan) return `${words.yes} ${csvStamp(scan.scannedAt)}${scan.method === 'Marked' ? ' (added by staff)' : ''}`
   return isOver(c) ? words.no : 'Not yet'
 }
 
