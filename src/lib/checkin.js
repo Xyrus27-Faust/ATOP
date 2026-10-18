@@ -141,7 +141,8 @@ export const REASON_MAX = 200
 // Shows who it is and which desk they go to: lane 'A', 'B', or 'Done' (go straight in), with what they
 // still owe. Someone not yet checked in comes back 'pending' — nothing written until the marshal checks
 // the face and taps Check in (gateCheckIn). Someone already in, with a session open they're not counted
-// at yet, comes back 'pending' too, reason 'count_in': the same tap counts them there (ATOP, 2026-10-17).
+// at yet, comes back 'pending' too, reason 'count_in': the same tap counts them there (ATOP, 2026-10-17),
+// and the sheet reads "Check in for today", never "already checked in" — that read as done (2026-10-19).
 // Anyone else already in answers 'ok' at once and writes nothing. Someone with no seat is a 200 with
 // result 'denied', named, and sent to Desk B — and counted nowhere.
 export const gateScan = (eventId, code) =>
@@ -175,12 +176,13 @@ export function sessionLine(session) {
 /**
  * The line above a desk card, from a scan or a Check in tap: whether this checked them in, someone
  * already had (and who), or nobody has yet — the card's own button and face check say what to do.
- * Already in but not yet counted at the open session ('count_in') reads as already in; the card's
- * Count in prompt says the rest.
+ * Already in but not yet counted at the open session ('count_in') gets no line: the card's Check in
+ * prompt says when they arrived and which session is today, and "already checked in" read as done.
  */
 export function arrivalNote(r) {
   if (r.justCheckedIn) return 'Checked in just now.'
-  if (r.result === 'pending' && r.reasonCode !== 'count_in') return 'Not checked in yet.'
+  if (r.reasonCode === 'count_in') return null
+  if (r.result === 'pending') return 'Not checked in yet.'
   const at = r.card?.checkIn
   return at ? `Already checked in at ${formatVenueTime(at.at)} by ${at.by}.` : null
 }
@@ -374,7 +376,7 @@ const DENIED_HEADLINE = {
 // The pending sheets, by what the tap will do.
 const PENDING_HEADLINE = {
   check_in: 'Not checked in yet',
-  count_in: 'Already checked in',
+  count_in: 'Check in for today',
   board_own: 'Booked on this bus',
   board_none: 'No tour booked',
   board_other: 'Booked on another bus',
@@ -383,7 +385,7 @@ const PENDING_HEADLINE = {
 // The one tap a pending sheet offers. A move asks once more before it happens.
 export const PENDING_ACTION = {
   check_in: { label: 'Check in', icon: 'fa-check' },
-  count_in: { label: 'Count in', icon: 'fa-door-open' },
+  count_in: { label: 'Check in', icon: 'fa-check' },
   board_own: { label: 'Board', icon: 'fa-bus' },
   board_none: { label: 'Board here', icon: 'fa-bus' },
   board_other: { label: 'Board here instead', icon: 'fa-right-left', confirm: true },
