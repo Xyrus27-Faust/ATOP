@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { checkInActivity, formatDay, formatVenueTime, venueDate, csvStamp, fold } from '@/lib/checkin'
 import { formatPeso } from '@/lib/events'
@@ -88,16 +88,105 @@ export default function ActivityTab() {
   )
 }
 
+// Steps one delegate had done within this long of each other read as one visit: "Checked in → ID & OR →
+// Kit" on one line, not four. Wider than a desk queue, narrower than "came back after lunch".
+const VISIT_GAP_MS = 10 * 60 * 1000
+// Rows drawn per hour before "Show more": a busy hour at 1,000 delegates is several hundred.
+const PAGE = 50
+// The order of steps taken in the same tap (a gate check-in and its session scan share a timestamp).
+const STEP_ORDER = ['CheckedIn', 'Scanned', 'ManualLog', 'PaidAtDesk', 'IdReleased', 'KitReleased']
+const stepRank = (action) => { const i = STEP_ORDER.indexOf(action); return i < 0 ? STEP_ORDER.length : i }
+
+const MANILA_HOUR = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', hourCycle: 'h23' })
+const hourOf = (instant) => Number(MANILA_HOUR.format(new Date(instant))) % 24
+const clock = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`
+function hourLabel(h) {
+  const [from, to] = [clock(h), clock((h + 1) % 24)]
+  return from.slice(-2) === to.slice(-2) ? `${from.slice(0, -3)}–${to}` : `${from}–${to}`
+}
+
+/**
+ * The day's rows as visits, newest first: each delegate's back-to-back steps folded into one entry
+ * (corrections always stand alone, so a void or undo is never buried inside a visit). Rows come in
+ * newest first; an entry keeps growing backwards while that delegate's next older row is within
+ * {@link VISIT_GAP_MS} of the entry's oldest step.
+ */
+function visitsOf(rows) {
+  const entries = []
+  const open = new Map()
+  for (const r of rows) {
+    const mergeable = actionOf(r.action).group !== 'fixes'
+    const last = open.get(r.delegateId)
+    if (mergeable && last?.mergeable && Date.parse(last.oldest) - Date.parse(r.at) <= VISIT_GAP_MS) {
+      last.steps.push(r)
+      last.oldest = r.at
+      continue
+    }
+    const entry = { key: `${r.delegateId}-${r.at}-${r.action}-${entries.length}`, at: r.at, oldest: r.at, mergeable, steps: [r] }
+    entries.push(entry)
+    open.set(r.delegateId, entry)
+  }
+  for (const e of entries) {
+    e.steps.sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || stepRank(a.action) - stepRank(b.action))
+    const by = new Set(e.steps.map((s) => s.by))
+    e.by = by.size === 1 ? e.steps[0].by : null
+  }
+  return entries
+}
+
+/** Entries bucketed by the venue hour of their latest step, newest hour first. */
+function hoursOf(entries) {
+  const hours = []
+  for (const e of entries) {
+    const h = hourOf(e.at)
+    const day = venueDate(e.at)
+    const last = hours[hours.length - 1]
+    if (last && last.h === h && last.day === day) last.entries.push(e)
+    else hours.push({ key: `${day}-${h}`, h, day, entries: [e] })
+  }
+  for (const g of hours) g.count = g.entries.reduce((n, e) => n + e.steps.length, 0)
+  return hours
+}
+
+/** What each staff member did that day: the "who did what" answer without reading the feed. */
+function staffOf(rows) {
+  const by = new Map()
+  for (const r of rows) {
+    const s = by.get(r.by) || { name: r.by, in: 0, id: 0, kit: 0, cash: 0, scans: 0, fixes: 0, total: 0 }
+    s.total++
+    if (actionOf(r.action).group === 'fixes') s.fixes++
+    else if (!r.reversed) {
+      if (r.action === 'CheckedIn') s.in++
+      else if (r.action === 'IdReleased') s.id++
+      else if (r.action === 'KitReleased') s.kit++
+      else if (r.action === 'PaidAtDesk') s.cash += r.amount
+      else s.scans++
+    }
+    by.set(r.by, s)
+  }
+  return [...by.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+}
+
 function DayLog({ log, loading, reload }) {
   const [filter, setFilter] = useState('all')
   const [q, setQ] = useState('')
+  const [staff, setStaff] = useState(null)
+  // Hours the admin opened or closed by hand; the rest follow the default (newest open).
+  const [toggled, setToggled] = useState({})
+  const [limits, setLimits] = useState({})
+  const [allStaff, setAllStaff] = useState(false)
 
   const rows = log.rows
   const test = (FILTERS.find((f) => f.key === filter) || FILTERS[0]).test
   const term = fold(q.trim())
-  const shown = rows.filter((r) => test(r)
+  const shown = useMemo(() => rows.filter((r) => test(r) && (!staff || r.by === staff)
     && (!term || fold(r.fullName).includes(term) || fold(r.lgu).includes(term)
-      || fold(r.by).includes(term) || fold(r.originalBy).includes(term) || fold(r.where).includes(term)))
+      || fold(r.by).includes(term) || fold(r.originalBy).includes(term) || fold(r.where).includes(term))),
+  [rows, test, staff, term])
+  const hours = useMemo(() => hoursOf(visitsOf(shown)), [shown])
+  const people = useMemo(() => staffOf(rows), [rows])
+  // A narrowed list is short enough to read whole; the full day opens on its latest hour only.
+  const narrowed = filter !== 'all' || !!staff || !!term
 
   // Cash the day's cashiers still hold: payments not handed back. A payment undone the same day
   // shows as taken back and is left out; one undone on a later day is counted here and on that day's undo.
@@ -107,6 +196,7 @@ function DayLog({ log, loading, reload }) {
   const cashTotal = [...cashBy.values()].reduce((a, b) => a + b, 0)
   const fixes = rows.filter((r) => actionOf(r.action).group === 'fixes').length
 
+  // The download is the audit record: every row on its own, never folded into visits.
   const exportCsv = () => downloadCsv(`atop-activity-${log.day}.csv`, [
     ['Time', 'What happened', 'Name', 'LGU / Organisation', 'Where', 'Done by', 'Amount', 'Reason / note',
       'Taken back later', 'Originally done by', 'Originally done at'],
@@ -116,6 +206,8 @@ function DayLog({ log, loading, reload }) {
       csvStamp(r.originalAt),
     ]),
   ])
+
+  const listedStaff = allStaff ? people : people.slice(0, 8)
 
   return (
     <>
@@ -144,11 +236,46 @@ function DayLog({ log, loading, reload }) {
           <b>{formatPeso(cashTotal)}</b>
           {cashBy.size > 0 && (
             <span className="act-sum-split">
-              {[...cashBy].map(([by, amount]) => `${by} ${formatPeso(amount)}`).join(' · ')}
+              {cashBy.size <= 3
+                ? [...cashBy].map(([by, amount]) => `${by} ${formatPeso(amount)}`).join(' · ')
+                : `${cashBy.size} cashiers · each one’s total is under By staff`}
             </span>
           )}
         </button>
       </div>
+
+      {people.length > 0 && (
+        <section className="dash-card act-staff" aria-label="By staff">
+          <p className="act-staff-title">By staff <span>· tap a name to see only theirs</span></p>
+          <ul>
+            {listedStaff.map((s) => (
+              <li key={s.name}>
+                <button
+                  type="button"
+                  className={`act-staff-row${staff === s.name ? ' is-on' : ''}`}
+                  aria-pressed={staff === s.name}
+                  onClick={() => setStaff(staff === s.name ? null : s.name)}
+                >
+                  <strong>{s.name}</strong>
+                  <span className="act-staff-stats">
+                    {s.in > 0 && <span><b>{s.in}</b> checked in</span>}
+                    {s.id > 0 && <span><b>{s.id}</b> IDs</span>}
+                    {s.kit > 0 && <span><b>{s.kit}</b> kits</span>}
+                    {s.cash > 0 && <span><b>{formatPeso(s.cash)}</b> cash</span>}
+                    {s.scans > 0 && <span><b>{s.scans}</b> scans</span>}
+                    {s.fixes > 0 && <span className="is-bad"><b>{s.fixes}</b> {s.fixes === 1 ? 'correction' : 'corrections'}</span>}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {people.length > 8 && (
+            <button type="button" className="dash-btn is-ghost is-sm act-more" onClick={() => setAllStaff(!allStaff)}>
+              {allStaff ? 'Show fewer' : `Show all ${people.length} staff`}
+            </button>
+          )}
+        </section>
+      )}
 
       <div className="act-chips" role="tablist" aria-label="Filter">
         {FILTERS.map((f) => (
@@ -186,56 +313,92 @@ function DayLog({ log, loading, reload }) {
         </button>
       </div>
 
-      {shown.length === 0 ? (
+      {staff && (
+        <button type="button" className="act-only" onClick={() => setStaff(null)} aria-label={`Only ${staff}. Show everyone`}>
+          Only {staff} <i className="fas fa-xmark" aria-hidden="true" />
+        </button>
+      )}
+
+      {hours.length === 0 ? (
         <div className="dash-card dash-empty">
           <p>{rows.length === 0 ? `Nothing was done at check-in on ${formatDay(log.day)}.` : 'Nothing here matches.'}</p>
         </div>
       ) : (
-        <>
-          <ul className="act-cards">
-            {shown.map((r, i) => (
-              <li key={`${r.action}-${r.delegateId}-${r.at}-${i}`} className={`dash-card act-card${r.reversed ? ' is-reversed' : ''}`}>
-                <div className="act-card-top">
-                  <What row={r} />
-                  <span className="act-time">{formatVenueTime(r.at)}</span>
-                </div>
-                <strong className="act-name">{r.fullName}</strong>
-                {r.lgu && <span className="act-sub">{r.lgu}</span>}
-                <Detail row={r} />
-              </li>
-            ))}
-          </ul>
-
-          <div className="dash-card act-table-wrap">
-            <table className="act-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>What happened</th>
-                  <th>Delegate</th>
-                  <th>Done by</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((r, i) => (
-                  <tr key={`${r.action}-${r.delegateId}-${r.at}-${i}`} className={r.reversed ? 'is-reversed' : ''}>
-                    <td className="act-time">{formatVenueTime(r.at)}</td>
-                    <td><What row={r} /></td>
-                    <td>
-                      <strong>{r.fullName}</strong>
-                      {r.lgu && <span className="act-sub">{r.lgu}</span>}
-                    </td>
-                    <td>{r.by}</td>
-                    <td><Detail row={r} table /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <div className="act-hours">
+          {hours.map((g, i) => {
+            const isOpen = toggled[g.key] ?? (narrowed || i === 0)
+            const limit = limits[g.key] ?? PAGE
+            return (
+              <section key={g.key} className="act-hour">
+                <button
+                  type="button"
+                  className="act-hour-head"
+                  aria-expanded={isOpen}
+                  onClick={() => setToggled({ ...toggled, [g.key]: !isOpen })}
+                >
+                  <span>{hourLabel(g.h)}{g.day !== log.day && <small> · {formatDay(g.day)}</small>}</span>
+                  <span className="act-hour-count">{g.count} {g.count === 1 ? 'thing' : 'things'}</span>
+                  <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'}`} aria-hidden="true" />
+                </button>
+                {isOpen && (
+                  <>
+                    <ul className="act-visits">
+                      {g.entries.slice(0, limit).map((e) => <Visit key={e.key} entry={e} />)}
+                    </ul>
+                    {g.entries.length > limit && (
+                      <button type="button" className="dash-btn is-ghost act-more" onClick={() => setLimits({ ...limits, [g.key]: limit + PAGE })}>
+                        Show {Math.min(PAGE, g.entries.length - limit)} more of {g.entries.length - limit}
+                      </button>
+                    )}
+                  </>
+                )}
+              </section>
+            )
+          })}
+        </div>
       )}
     </>
+  )
+}
+
+/**
+ * One delegate's visit: who, then what each staff member did, in order — a run of steps by the same
+ * person on one line ("Checked in · Scanned — 10:58 AM · by Marshall 5"), so a gate-then-desk visit
+ * is two lines, not five. Staff named once at the foot when it was one person; times only when the
+ * minute moved on.
+ */
+function Visit({ entry: e }) {
+  const who = e.steps[0]
+  const runs = []
+  for (const r of e.steps) {
+    const last = runs[runs.length - 1]
+    if (last && last.by === r.by) last.steps.push(r)
+    else runs.push({ by: r.by, steps: [r] })
+  }
+  return (
+    <li className={`act-visit${e.mergeable ? '' : ' is-fix'}`}>
+      <span className="act-time">{formatVenueTime(e.at)}</span>
+      <div className="act-who">
+        <strong className="act-name">{who.fullName}</strong>
+        {who.lgu && <span className="act-sub">{who.lgu}</span>}
+      </div>
+      <ol className="act-steps">
+        {runs.map((run, i) => {
+          const [from, to] = [formatVenueTime(run.steps[0].at), formatVenueTime(run.steps[run.steps.length - 1].at)]
+          const prev = i ? formatVenueTime(runs[i - 1].steps[runs[i - 1].steps.length - 1].at) : formatVenueTime(e.at)
+          const time = from === to ? (from === prev ? null : from) : `${from.replace(/ [AP]M$/, '')}–${to}`
+          return (
+            <li key={`${run.by}-${run.steps[0].at}`}>
+              <span className="act-run">
+                {run.steps.map((r, j) => <What key={`${r.action}-${j}`} row={r} />)}
+              </span>
+              <Detail steps={run.steps} time={time} by={e.by ? null : run.by} />
+            </li>
+          )
+        })}
+      </ol>
+      {e.by && <span className="act-by">By <b>{e.by}</b></span>}
+    </li>
   )
 }
 
@@ -243,7 +406,7 @@ function DayLog({ log, loading, reload }) {
 function What({ row: r }) {
   const a = actionOf(r.action)
   return (
-    <span className="act-what">
+    <span className={`act-what${r.reversed ? ' is-reversed' : ''}`}>
       <span className={`act-pill${a.tone ? ` is-${a.tone}` : ''}`}>
         <i className={`fas ${a.icon}`} aria-hidden="true" /> {a.label}
       </span>
@@ -252,24 +415,34 @@ function What({ row: r }) {
   )
 }
 
-/** Where, how much, who did it (on the phone card), what a correction reversed, and the reason. */
-function Detail({ row: r, table = false }) {
-  const lines = []
-  if (!table) lines.push(<span key="by">By <b>{r.by}</b></span>)
-  if (r.where) lines.push(<span key="where">At <b>{r.where}</b></span>)
-  if (r.amount != null) lines.push(<span key="amount">Amount <b>{formatPeso(r.amount)}</b></span>)
-  if (r.undid) {
-    lines.push(
-      <span key="undid">
-        Took back <b>{actionOf(r.undid).label.toLowerCase()}</b>
-        {r.originalBy && <> by {r.originalBy}</>}
-        {r.originalAt && <>, {formatDay(venueDate(r.originalAt))} {formatVenueTime(r.originalAt)}</>}
-      </span>,
-    )
-  }
-  if (r.note) lines.push(<span key="note" className="act-note">&ldquo;{r.note}&rdquo;</span>)
-  if (lines.length === 0) return table ? <span className="act-none">—</span> : null
-  return <span className="act-detail">{lines}</span>
+/** A run's time, who did it (when the visit had more than one), where, how much, what it reversed, and the reason. */
+function Detail({ steps, time, by }) {
+  const places = [...new Set(steps.map((r) => r.where).filter(Boolean))]
+  const meta = [
+    time,
+    by && `by ${by}`,
+    places.length > 0 && `at ${places.join(', ')}`,
+    ...steps.filter((r) => r.amount != null).map((r) => formatPeso(r.amount)),
+  ].filter(Boolean)
+  const fixes = steps.filter((r) => r.undid || r.note)
+  if (meta.length === 0 && fixes.length === 0) return null
+  return (
+    <span className="act-detail">
+      {meta.length > 0 && <span>{meta.join(' · ')}</span>}
+      {fixes.map((r, i) => (
+        <span key={i} className="act-fix">
+          {r.undid && (
+            <span>
+              Took back <b>{actionOf(r.undid).label.toLowerCase()}</b>
+              {r.originalBy && <> by {r.originalBy}</>}
+              {r.originalAt && <>, {formatDay(venueDate(r.originalAt))} {formatVenueTime(r.originalAt)}</>}
+            </span>
+          )}
+          {r.note && <span className="act-note">&ldquo;{r.note}&rdquo;</span>}
+        </span>
+      ))}
+    </span>
+  )
 }
 
 const ACT_CSS = `
@@ -324,9 +497,59 @@ const ACT_CSS = `
   .act-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-400); pointer-events: none; }
   .act-search .dash-input { padding-left: 40px; min-height: 48px; font-size: 16px; }
 
-  .act-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-  .act-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-  .act-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .act-staff { margin-top: 12px; padding: 12px; }
+  .act-staff ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .act-staff-title {
+    margin: 0 4px 8px; font-family: var(--font-heading); font-weight: 800; font-size: 0.75rem;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600);
+  }
+  .act-staff-title span { text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .act-staff-row {
+    width: 100%; min-height: 48px; padding: 8px; border: 0; border-radius: 10px; background: none; cursor: pointer;
+    display: flex; flex-direction: column; gap: 2px; text-align: left; color: var(--navy); font-family: var(--font-body);
+  }
+  .act-staff li + li .act-staff-row { border-top: 1px solid var(--gray-100); border-radius: 0; }
+  .act-staff-row:hover { background: var(--gray-100); }
+  .act-staff-row.is-on { background: var(--navy); color: var(--white); border-radius: 10px; }
+  .act-staff-row strong { font-family: var(--font-heading); font-weight: 800; overflow-wrap: anywhere; }
+  .act-staff-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.9rem; color: var(--gray-600); }
+  .act-staff-row.is-on .act-staff-stats { color: var(--gold-light); }
+  .act-staff-stats b { color: var(--navy); }
+  .act-staff-row.is-on .act-staff-stats b { color: var(--white); }
+  .act-staff-stats .is-bad, .act-staff-stats .is-bad b { color: var(--bad); }
+  .act-more { width: 100%; justify-content: center; margin-top: 8px; }
+
+  .act-only {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 10px; padding: 0 14px;
+    border-radius: 999px; border: 0; background: var(--navy); color: var(--white); cursor: pointer;
+    font-family: var(--font-heading); font-weight: 700;
+  }
+
+  .act-hours { display: flex; flex-direction: column; gap: 10px; }
+  .act-hour { display: flex; flex-direction: column; gap: 8px; }
+  .act-hour-head {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 0 14px; cursor: pointer;
+    border: 1px solid var(--gray-200); border-radius: 12px; background: var(--white); color: var(--navy);
+    font-family: var(--font-heading); font-weight: 800; font-size: 1rem; text-align: left;
+  }
+  .act-hour-head > span:first-child { flex: 1; }
+  .act-hour-head small { font-weight: 700; color: var(--gray-600); }
+  .act-hour-count { font-size: 0.9rem; font-weight: 700; color: var(--gray-600); }
+
+  .act-visits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .act-visit {
+    display: grid; grid-template-columns: 1fr auto; grid-template-areas: "who time" "steps steps" "by by";
+    gap: 6px 10px; padding: 12px 14px; border-radius: 12px; background: var(--white); border: 1px solid var(--gray-200);
+  }
+  .act-visit.is-fix { border-left: 4px solid var(--bad); }
+  .act-visit > .act-time { grid-area: time; }
+  .act-who { grid-area: who; min-width: 0; }
+  .act-steps { grid-area: steps; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .act-steps > li { display: flex; flex-direction: column; gap: 3px; }
+  .act-run { display: flex; flex-wrap: wrap; gap: 4px; }
+  .act-fix { display: flex; flex-direction: column; gap: 2px; }
+  .act-by { grid-area: by; font-family: var(--font-body); font-size: 0.9rem; color: var(--gray-600); }
+  .act-by b { color: var(--navy); }
   .act-name { font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem; color: var(--navy); overflow-wrap: anywhere; }
   .act-sub { display: block; font-family: var(--font-body); font-size: 0.9rem; color: var(--gray-600); }
   .act-time { font-family: var(--font-heading); font-weight: 800; color: var(--navy); white-space: nowrap; }
@@ -343,22 +566,11 @@ const ACT_CSS = `
   .is-reversed .act-pill:not(.is-gone) { text-decoration: line-through; opacity: 0.7; }
 
   .act-detail {
-    display: flex; flex-direction: column; gap: 2px; margin-top: 4px;
-    font-family: var(--font-body); font-size: 0.92rem; color: var(--gray-800);
+    display: flex; flex-direction: column; gap: 2px; padding-left: 2px;
+    font-family: var(--font-body); font-size: 0.85rem; color: var(--gray-600);
   }
   .act-detail b { color: var(--navy); }
   .act-note { font-style: italic; color: var(--gray-600); overflow-wrap: anywhere; }
-  .act-none { color: var(--gray-400); }
-
-  .act-table-wrap { display: none; overflow-x: auto; padding: 0; }
-  .act-table { width: 100%; border-collapse: collapse; font-family: var(--font-body); font-size: 0.95rem; }
-  .act-table th {
-    text-align: left; padding: 12px 14px; font-family: var(--font-heading); font-size: 0.8rem; font-weight: 800;
-    color: var(--navy); border-bottom: 2px solid var(--gray-200); vertical-align: bottom;
-  }
-  .act-table td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); vertical-align: top; }
-  .act-table td strong { display: block; font-family: var(--font-heading); font-size: 1rem; color: var(--navy); min-width: 180px; }
-  .act-table .act-detail { margin-top: 0; }
 
   @media (min-width: 640px) {
     .act-sums { grid-template-columns: repeat(3, 1fr); }
@@ -366,7 +578,9 @@ const ACT_CSS = `
     .act-bar .dash-btn { flex: 0 0 auto; }
   }
   @media (min-width: 900px) {
-    .act-cards { display: none; }
-    .act-table-wrap { display: block; }
+    .act-staff ul { display: grid; grid-template-columns: repeat(2, 1fr); column-gap: 16px; }
+    .act-staff li + li .act-staff-row { border-top: 0; border-radius: 10px; }
+    .act-visit { grid-template-columns: 80px minmax(180px, 240px) 1fr minmax(140px, 200px); grid-template-areas: "time who steps by"; align-items: start; }
+    .act-by { text-align: right; }
   }
 `
