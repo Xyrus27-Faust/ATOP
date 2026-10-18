@@ -25,8 +25,9 @@ import DietStrip from '../checkin/DietStrip'
  * session's log says scanned rather than found by name.</p>
  *
  * <p>{@code countIn} is the scan's prompt when they're checked in already but not yet counted at the
- * open session (ATOP, 2026-10-17): the scan wrote nothing, and its own Count in button — the check-in
- * tap again, which only counts them — does it.</p>
+ * open session (ATOP, 2026-10-17): the scan wrote nothing, and its own Check in button — the check-in
+ * tap again, which only counts them — does it. Named Check in, not Count in (2026-10-19): it is what
+ * volunteers say at the door.</p>
  *
  * <p>An ID or kit already handed over folds to one "released ✓" line (its undo stays on it), so the
  * card's height goes to what is still to do.</p>
@@ -142,7 +143,7 @@ export default function DeskCardView({ card: initial, note: initialNote, session
         <div className="dsk-countin">
           <p className="dsk-note">{countIn}</p>
           <button type="button" className="dash-btn is-primary dsk-countin-go" disabled={busy} onClick={doCountIn}>
-            <i className={`fas ${busy ? 'fa-spinner fa-spin' : 'fa-door-open'}`} aria-hidden="true" /> Count in
+            <i className={`fas ${busy ? 'fa-spinner fa-spin' : 'fa-check'}`} aria-hidden="true" /> Check in for today
           </button>
         </div>
       )}
