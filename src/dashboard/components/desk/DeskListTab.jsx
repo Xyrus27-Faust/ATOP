@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { formatPeso } from '@/lib/events'
 import { deskRoster, formatDay, formatVenueTime, scanningDay, venueDate, csvStamp, fold } from '@/lib/checkin'
 import { downloadCsv, datedFilename } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
+import { pageOf } from '../../paging'
 import { Loading, ErrorState } from '../states'
+import Pager from '../Pager'
 
 // Desk B is everyone who came to the desk owing, paid or not yet; the rest never pay at the desk.
 const paysAtDesk = (r) => r.balance > 0 || !!r.payment
@@ -39,6 +41,8 @@ export default function DeskListTab() {
   const [missing, setMissing] = useState(null)
   const [arrivedOn, setArrivedOn] = useState('all')
   const [q, setQ] = useState('')
+  const [at, setAt] = useState({ key: '', page: 1 })
+  const top = useRef(null)
   // Each row's arrival day, worked out once per load rather than per row per keystroke. The scanning
   // day, as the API and the Activity tab count it: a 1:30 AM arrival is the night before's.
   const arrivedDay = useMemo(
@@ -65,6 +69,13 @@ export default function DeskListTab() {
     (!step || (step.applies(r) && !step.done(r)))
     && (arrivedOn === 'all' || arrivedDay.get(r.id) === arrivedOn)
     && (!term || fold(r.fullName).includes(term) || fold(r.lgu).includes(term) || fold(r.referenceCode).includes(term)))
+  // 50 at a time: the whole convention at once is too much to draw. The boxes and the download stay on the whole list.
+  const pageKey = `${missing}|${arrivedOn}|${term}`
+  const paged = pageOf(shown, at, pageKey)
+  const turn = (page) => {
+    setAt({ key: pageKey, page })
+    top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const exportCsv = () => downloadCsv(datedFilename('atop-registration'), [
     ['Reference', 'Name', 'LGU / Organisation', 'Designation', 'Desk', 'Balance', 'Complimentary',
@@ -170,9 +181,9 @@ export default function DeskListTab() {
           <p>{rows.length === 0 ? 'Nobody holds a pass yet.' : step && !term ? 'Everyone has done this step.' : 'Nobody here matches.'}</p>
         </div>
       ) : (
-        <>
+        <div ref={top} className="dkl-list">
           <ul className="dkl-cards">
-            {shown.map((r) => (
+            {paged.rows.map((r) => (
               <li key={r.id} className="dash-card dkl-card">
                 <div className="dkl-card-top">
                   <strong>{r.fullName}</strong>
@@ -194,7 +205,7 @@ export default function DeskListTab() {
                 <tr><th>Name</th><th>Desk</th>{STEPS.map((s) => <th key={s.key}>{s.label}</th>)}</tr>
               </thead>
               <tbody>
-                {shown.map((r) => (
+                {paged.rows.map((r) => (
                   <tr key={r.id}>
                     <td><strong>{r.fullName}</strong><span className="dkl-sub">{r.lgu || r.designation}</span><span className="dkl-ref">{r.referenceCode}</span></td>
                     <td><DeskBadge row={r} /></td>
@@ -204,7 +215,8 @@ export default function DeskListTab() {
               </tbody>
             </table>
           </div>
-        </>
+          <Pager paged={paged} onPage={turn} />
+        </div>
       )}
     </>
   )
@@ -274,6 +286,7 @@ const DKL_CSS = `
   .dkl-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-400); pointer-events: none; }
   .dkl-search .dash-input { padding-left: 40px; min-height: 48px; font-size: 16px; }
 
+  .dkl-list { scroll-margin-top: 16px; }
   .dkl-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .dkl-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
   .dkl-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
