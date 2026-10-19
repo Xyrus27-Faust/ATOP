@@ -204,7 +204,7 @@ export default function RegistrationDetailPage() {
         <div className="dash-banner rd-banner-ok">
           <i className="fas fa-circle-check" aria-hidden="true" />
           <span>
-            {reg.isComplimentary
+            {reg.isComplimentary && Number(reg.balance) <= 0
               ? <>Issued complimentary by the Secretariat{reg.compReason ? ` — ${reg.compReason}` : ''}.</>
               : reg.isRegionalAllocation
               ? <>Paid on your region’s allocation. Each paid delegate’s reference code below is their check-in code.</>
@@ -274,7 +274,7 @@ export default function RegistrationDetailPage() {
                           <span className="rd-del-owing">{formatPeso(d.balance)} due</span>
                         )}
                         {!cancelled && Number(d.balance) <= 0 && (
-                          <span className="rd-del-settled"><i className="fas fa-check" aria-hidden="true" /> paid</span>
+                          <span className="rd-del-settled"><i className="fas fa-check" aria-hidden="true" /> {d.isComplimentary ? 'complimentary' : 'paid'}</span>
                         )}
                         {!cancelled && Number(d.amountPaid) === 0 && Number(d.balance) > 0 && (
                           <span className="rd-del-unpaid">

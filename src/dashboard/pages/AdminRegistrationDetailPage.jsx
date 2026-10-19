@@ -165,7 +165,7 @@ export default function AdminRegistrationDetailPage() {
           {live.map((d) => {
             const dm = modeMeta(d.attendanceMode)
             const ds = delegateStatusMeta(d.status)
-            const paid = Number(d.amountPaid) > 0
+            const paid = d.hasCheckInPass // paid for, or comped
             return (
               <article key={d.id} className="dash-card ard-del">
                 <div className="ard-del-head">
@@ -196,7 +196,7 @@ export default function AdminRegistrationDetailPage() {
                   <Fact label="Participant" value={PARTICIPANT_TYPE_LABELS[d.participantType] || d.participantType} />
                   <Fact label="Seat" value={formatPeso(d.amount)} />
                   <Fact label="Paid" value={formatPeso(d.amountPaid)} />
-                  <Fact label="Due" value={formatPeso(d.balance)} />
+                  <Fact label="Due" value={d.isComplimentary ? 'Complimentary' : formatPeso(d.balance)} />
                   {d.substitutedFromName && <Fact label="Replaced" value={d.substitutedFromName} />}
                   {d.checkedInAt && <Fact label="Checked in" value={formatDate(d.checkedInAt)} />}
                 </dl>
