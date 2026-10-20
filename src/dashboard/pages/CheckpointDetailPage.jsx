@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getCheckpointScans, getCheckpointNotYet, updateCheckpoint, deleteCheckpoint, voidScan, markAttended, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, scanningToday, fold, SCAN_METHOD, REASON_MAX } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
+import { pageOf } from '../paging'
 import { Loading, ErrorState } from '../components/states'
+import Pager from '../components/Pager'
 import { isAdmin } from '../dashboardNav'
 
 /**
@@ -33,6 +35,8 @@ export default function CheckpointDetailPage() {
   const [toggleError, setToggleError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [q, setQ] = useState('')
+  const [at, setAt] = useState({ key: '', page: 1 })
+  const top = useRef(null)
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -52,6 +56,14 @@ export default function CheckpointDetailPage() {
   const waiting = list === 'notyet'
   const rows = waiting ? notYet : scans
   const shown = term ? rows.filter((s) => fold(s.fullName).includes(term) || fold(s.lgu).includes(term)) : rows
+  // 50 at a time, as on the Registration and Attendance tabs: a session expects the whole convention.
+  // Print still takes the whole list.
+  const pageKey = `${list}|${term}`
+  const paged = pageOf(shown, at, pageKey)
+  const turn = (page) => {
+    setAt({ key: pageKey, page })
+    top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   async function toggle() {
     setToggling(true)
@@ -193,14 +205,19 @@ export default function CheckpointDetailPage() {
         <div className="dash-card dash-empty">
           <p>No one {waiting ? 'still to come' : 'scanned here'} matches &ldquo;{q.trim()}&rdquo;.</p>
         </div>
-      ) : waiting ? (
-        <ul className="dash-card ckd-list">
-          {shown.map((d) => <NotYetRow key={d.delegateId} person={d} checkpointId={c.id} canMark={canMark} onMarked={reload} />)}
-        </ul>
       ) : (
-        <ul className="dash-card ckd-list">
-          {shown.map((s) => <ScanRow key={s.id} scan={s} onVoided={reload} />)}
-        </ul>
+        <div ref={top} className="ckd-paged">
+          {waiting ? (
+            <ul className="dash-card ckd-list">
+              {paged.rows.map((d) => <NotYetRow key={d.delegateId} person={d} checkpointId={c.id} canMark={canMark} onMarked={reload} />)}
+            </ul>
+          ) : (
+            <ul className="dash-card ckd-list">
+              {paged.rows.map((s) => <ScanRow key={s.id} scan={s} onVoided={reload} />)}
+            </ul>
+          )}
+          <Pager paged={paged} onPage={turn} />
+        </div>
       )}
 
       {!waiting && voids.length > 0 && (
@@ -447,6 +464,7 @@ const CKD_CSS = `
   .ckd-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 6px 0 10px; }
   .ckd-tabs { margin: 0; flex: 1 1 100%; }
   .ckd-tabs .dash-tab { min-height: 44px; }
+  .ckd-paged { scroll-margin-top: 16px; }
   .ckd-tab-n { margin-left: 4px; padding: 0 7px; border-radius: 999px; background: var(--gray-100); color: var(--gray-600); font-size: 0.78rem; }
   .ckd-head h2 { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--navy); white-space: nowrap; }
   .ckd-head-actions { display: flex; gap: 8px; }
