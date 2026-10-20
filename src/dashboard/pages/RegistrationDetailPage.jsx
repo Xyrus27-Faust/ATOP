@@ -278,7 +278,8 @@ export default function RegistrationDetailPage() {
                         )}
                         {!cancelled && Number(d.amountPaid) === 0 && Number(d.balance) > 0 && (
                           <span className="rd-del-unpaid">
-                            {reg.isRegionalAllocation ? `${formatPeso(d.balance)} to pay` : 'not paid yet'}
+                            {d.isComplimentary ? `complimentary · ${formatPeso(d.balance)} to pay at the desk`
+                              : reg.isRegionalAllocation ? `${formatPeso(d.balance)} to pay` : 'not paid yet'}
                           </span>
                         )}
                       </div>

@@ -220,7 +220,7 @@ export default function AdminRegistrationDetailPage() {
                   <Fact label="Participant" value={PARTICIPANT_TYPE_LABELS[d.participantType] || d.participantType} />
                   <Fact label="Seat" value={formatPeso(d.amount)} />
                   <Fact label="Paid" value={formatPeso(d.amountPaid)} />
-                  <Fact label="Due" value={d.isComplimentary ? 'Complimentary' : formatPeso(d.balance)} />
+                  <Fact label="Due" value={d.isComplimentary && Number(d.balance) <= 0 ? 'Complimentary' : formatPeso(d.balance)} />
                   {d.substitutedFromName && <Fact label="Replaced" value={d.substitutedFromName} />}
                   {d.checkedInAt && <Fact label="Checked in" value={formatDate(d.checkedInAt)} />}
                 </dl>

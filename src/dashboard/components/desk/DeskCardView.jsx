@@ -146,7 +146,7 @@ export default function DeskCardView({ card: initial, note: initialNote, session
         <span className="dsk-desk-name">Desk {station}</span>
         <span className="dsk-desk-why">
           {station === 'C' ? 'Kit'
-            : card.complimentary ? 'Complimentary'
+            : card.complimentary && !owes ? 'Complimentary'
             : owes ? `Balance ${formatPeso(card.balance)}`
               : card.payment ? 'Paid at the desk'
                 : 'Fully paid'}
@@ -176,7 +176,7 @@ export default function DeskCardView({ card: initial, note: initialNote, session
       {card.diet && <DietStrip diet={card.diet} />}
 
       <dl className="dsk-facts">
-        <div><dt>Fee</dt><dd>{card.complimentary ? 'Waived' : formatPeso(card.amount)}</dd></div>
+        <div><dt>Fee</dt><dd>{formatPeso(card.amount)}{card.complimentary ? ' · comp' : ''}</dd></div>
         <div><dt>Paid</dt><dd>{formatPeso(card.amountPaid)}</dd></div>
         <div className={owes ? 'is-owed' : ''}><dt>Balance</dt><dd>{formatPeso(card.balance)}</dd></div>
         <div className={card.shirtSizeChoices ? 'is-missing' : ''}><dt>Shirt</dt><dd>{card.shirtSize || 'None given'}</dd></div>

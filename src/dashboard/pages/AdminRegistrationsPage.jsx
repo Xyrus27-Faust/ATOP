@@ -415,12 +415,14 @@ function RowMenu({ registration: r, onComp }) {
 }
 
 /**
- * Issue a booking free of charge. The only route to Confirmed that doesn't go
+ * Issue a booking's passes without a payment. The only route to Confirmed that doesn't go
  * through the gateway, so it records who did it and why — which is exactly why
- * the reason is mandatory rather than a nicety.
+ * the reason is mandatory rather than a nicety. A comp waives no fee (ATOP, 2026-10-20):
+ * Desk B collects it, unless the delegation paid ATOP directly.
  */
 function CompModal({ registration, onClose, onDone }) {
   const [reason, setReason] = useState('')
+  const [paidOffline, setPaidOffline] = useState(false)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
 
@@ -429,7 +431,7 @@ function CompModal({ registration, onClose, onDone }) {
     setSaving(true)
     setError(null)
     try {
-      await api.post(`/admin/registrations/${registration.id}/comp`, { reason: reason.trim() }, { auth: true })
+      await api.post(`/admin/registrations/${registration.id}/comp`, { reason: reason.trim(), paidOffline }, { auth: true })
       onDone()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not issue this registration.')
@@ -441,7 +443,8 @@ function CompModal({ registration, onClose, onDone }) {
     <Modal title={`Issue ${registration.referenceCode} complimentary`} onClose={onClose}>
       <p className="dash-help" style={{ marginBottom: 14 }}>
         This confirms every delegate on this booking who hasn’t paid anything, without a payment.
-        Delegates who already paid a downpayment keep their balance. It’s recorded against your account.
+        Their fees are still owed and collected at Desk B, and delegates who already paid a
+        downpayment keep their balance. It’s recorded against your account.
       </p>
       <Field label="Reason" htmlFor="compReason" required error={error}>
         <textarea
@@ -453,6 +456,10 @@ function CompModal({ registration, onClose, onDone }) {
           onChange={(e) => { setReason(e.target.value); setError(null) }}
         />
       </Field>
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+        <input type="checkbox" checked={paidOffline} onChange={(e) => setPaidOffline(e.target.checked)} />
+        Paid ATOP directly — clear their balance
+      </label>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
         <button type="button" className="dash-btn" onClick={onClose}>Cancel</button>
         <button type="button" className="dash-btn is-primary" onClick={save} disabled={saving}>
