@@ -6,6 +6,7 @@ import {
 import { downloadCsv } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
 import { pageOf } from '../../paging'
+import { SORTS, newest, latestFirst } from '../../listOrder'
 import { Loading, ErrorState } from '../states'
 import Pager from '../Pager'
 
@@ -102,6 +103,7 @@ function DayAttendance({ event, day, checkpoints }) {
   }, [])
   const [filter, setFilter] = useState('all')
   const [q, setQ] = useState('')
+  const [sort, setSort] = useState('latest')
   const [at, setAt] = useState({ key: '', page: 1 })
   const top = useRef(null)
 
@@ -120,11 +122,16 @@ function DayAttendance({ event, day, checkpoints }) {
     : filter === 'complete' ? presentAll
     : () => true
   const term = fold(q.trim())
-  const shown = roster.filter((r) => test(r)
+  const matched = roster.filter((r) => test(r)
     && (!term || fold(r.fullName).includes(term) || fold(r.lgu).includes(term) || fold(r.referenceCode).includes(term)))
+  // Latest first: by their last scan this day at any session, meal or bus, so whoever just came
+  // through is on top. Those not scanned yet today keep A–Z below them. The download follows suit.
+  const shown = sort === 'latest'
+    ? latestFirst(matched, (r) => newest(...[...(seen.get(r.id)?.values() ?? [])].map((s) => s.scannedAt)))
+    : matched
   // 50 at a time: a box per session for 1,000 people is too much to draw at once. The counts and the
   // download stay on the whole list.
-  const pageKey = `${filter}|${term}`
+  const pageKey = `${filter}|${term}|${sort}`
   const paged = pageOf(shown, at, pageKey)
   const turn = (page) => {
     setAt({ key: pageKey, page })
@@ -221,6 +228,21 @@ function DayAttendance({ event, day, checkpoints }) {
         <button type="button" className="dash-btn is-ghost" onClick={exportCsv} disabled={shown.length === 0}>
           <i className="fas fa-file-arrow-down" aria-hidden="true" /> Download (Excel)
         </button>
+      </div>
+
+      <div className="att-chips att-sort" role="radiogroup" aria-label="Sort">
+        {SORTS.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            role="radio"
+            aria-checked={o.key === sort}
+            className={`att-chip${o.key === sort ? ' is-on' : ''}`}
+            onClick={() => setSort(o.key)}
+          >
+            {o.label}
+          </button>
+        ))}
       </div>
 
       {shown.length === 0 ? (
@@ -348,6 +370,7 @@ const ATT_CSS = `
   .att-sum.is-on .att-sum-cta { color: var(--navy); }
 
   .att-chips { margin: 16px 0 4px; }
+  .att-chips.att-sort { margin: 0 0 12px; }
   .att-chip {
     flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
     border: 1px solid var(--gray-200); background: var(--white); color: var(--navy);

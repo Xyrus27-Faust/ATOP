@@ -5,6 +5,7 @@ import { deskRoster, formatDay, formatVenueTime, scanningDay, venueDate, csvStam
 import { downloadCsv, datedFilename } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
 import { pageOf } from '../../paging'
+import { SORTS, newest, latestFirst } from '../../listOrder'
 import { Loading, ErrorState } from '../states'
 import Pager from '../Pager'
 
@@ -41,6 +42,7 @@ export default function DeskListTab() {
   const [missing, setMissing] = useState(null)
   const [arrivedOn, setArrivedOn] = useState('all')
   const [q, setQ] = useState('')
+  const [sort, setSort] = useState('latest')
   const [at, setAt] = useState({ key: '', page: 1 })
   const top = useRef(null)
   // Each row's arrival day, worked out once per load rather than per row per keystroke. The scanning
@@ -65,12 +67,17 @@ export default function DeskListTab() {
   const step = STEPS.find((s) => s.key === missing)
   const arrivalDays = [...new Set(arrivedDay.values())].sort()
   const term = fold(q.trim())
-  const shown = rows.filter((r) =>
+  const matched = rows.filter((r) =>
     (!step || (step.applies(r) && !step.done(r)))
     && (arrivedOn === 'all' || arrivedDay.get(r.id) === arrivedOn)
     && (!term || fold(r.fullName).includes(term) || fold(r.lgu).includes(term) || fold(r.referenceCode).includes(term)))
+  // Latest first: by the newest of their four steps, so whoever the desk just served is on top —
+  // someone back for their kit at 10 isn't buried among the 7:56 arrivals. The download follows suit.
+  const shown = sort === 'latest'
+    ? latestFirst(matched, (r) => newest(r.checkIn?.at, r.payment?.at, r.idRelease?.at, r.kit?.at))
+    : matched
   // 50 at a time: the whole convention at once is too much to draw. The boxes and the download stay on the whole list.
-  const pageKey = `${missing}|${arrivedOn}|${term}`
+  const pageKey = `${missing}|${arrivedOn}|${term}|${sort}`
   const paged = pageOf(shown, at, pageKey)
   const turn = (page) => {
     setAt({ key: pageKey, page })
@@ -176,6 +183,21 @@ export default function DeskListTab() {
         </button>
       </div>
 
+      <div className="dkl-filters dkl-sort" role="radiogroup" aria-label="Sort">
+        {SORTS.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            role="radio"
+            aria-checked={o.key === sort}
+            className={`dkl-chip${o.key === sort ? ' is-on' : ''}`}
+            onClick={() => setSort(o.key)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+
       {shown.length === 0 ? (
         <div className="dash-card dash-empty">
           <p>{rows.length === 0 ? 'Nobody holds a pass yet.' : step && !term ? 'Everyone has done this step.' : 'Nobody here matches.'}</p>
@@ -272,6 +294,7 @@ const DKL_CSS = `
   .dkl-chip span { margin-left: 4px; color: var(--gray-600); font-weight: 600; }
   .dkl-chip.is-on { background: var(--navy); border-color: var(--navy); color: var(--white); }
   .dkl-chip.is-on span { color: var(--gold-light); }
+  .dkl-sort { margin-bottom: 12px; }
 
   .dkl-showing {
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
