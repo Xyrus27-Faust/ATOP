@@ -10,18 +10,39 @@
  * ever be behind the digits rather than over them; and the value's size is worked out from the
  * tile's width and <c>--stat-len</c>, the only thing this component has to supply.</p>
  */
-export default function Stat({ icon, label, value, className = '' }) {
+export default function Stat({ icon, label, value, className = '', breakdown = null }) {
   const text = value === null || value === undefined ? '' : String(value)
 
-  return (
+  const tile = (
     <div
-      className={`dash-card dash-stat ${className}`.trim()}
+      className={`dash-card dash-stat ${breakdown ? 'has-breakdown' : ''} ${className}`.replace(/\s+/g, ' ').trim()}
       style={{ '--stat-len': Math.max(text.length, 1) }}
     >
       <div className="dash-stat-icon"><i className={`fas ${icon}`} aria-hidden="true" /></div>
       <div>
         <div className="dash-stat-value">{text}</div>
         <div className="dash-stat-label">{label}</div>
+      </div>
+    </div>
+  )
+  if (!breakdown?.length) return tile
+
+  // How the figure is made, on hover — or on focus, so a keyboard or a tap reaches it too. It sits
+  // beside the tile rather than in it: the tile clips its overflow to keep the watermark inside.
+  return (
+    <div className="dash-stat-wrap" tabIndex={0} aria-label={`${label}: ${text}. ${breakdown.map((r) => `${r.label} ${r.value}`).join('; ')}`}>
+      {tile}
+      <div className="dash-stat-tip" role="tooltip">
+        <table>
+          <tbody>
+            {breakdown.map((row) => (
+              <tr key={row.label} className={row.total ? 'is-total' : ''}>
+                <th scope="row">{row.label}</th>
+                <td>{row.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

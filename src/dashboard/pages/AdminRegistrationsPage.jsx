@@ -26,6 +26,32 @@ const PAGE_SIZE = 50
  * way" — a mixed delegation matches both filters, which is the useful behaviour
  * when you're chasing headcounts for catering or for stream licences.
  */
+const seatsOf = (n) => `${n.toLocaleString()} ${n === 1 ? 'seat' : 'seats'}`
+
+// The parts behind the Received tile: online gross, less Altatech's ₱350 per online seat, plus
+// Desk B cash in full. Null (no tooltip) when the API predates the breakdown.
+function receivedRows(b, total) {
+  if (!b) return null
+  return [
+    { label: `Paid online · ${seatsOf(b.onlineSeats)}`, value: formatPeso(b.onlineGross) },
+    { label: `Less ₱350 per online seat`, value: `− ${formatPeso(b.platformFee)}` },
+    { label: `Desk B cash · ${seatsOf(b.deskSeats)}`, value: `+ ${formatPeso(b.deskCash)}` },
+    { label: 'Received', value: formatPeso(total ?? 0), total: true },
+  ]
+}
+
+// Every seat on the board at its rate, less the ₱350 that is Altatech's.
+function expectedRows(b, total) {
+  if (!b) return null
+  return [
+    { label: `Seats on the board · ${seatsOf(b.seats)}`, value: formatPeso(b.gross) },
+    { label: 'Less ₱350 per seat', value: `− ${formatPeso(b.platformFee)}` },
+    { label: 'Expected', value: formatPeso(total ?? 0), total: true },
+    { label: `of which comped (pay at Desk B)`, value: seatsOf(b.compedSeats) },
+    { label: `of which paid to ATOP directly`, value: seatsOf(b.paidOfflineSeats) },
+  ]
+}
+
 export default function AdminRegistrationsPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
@@ -115,8 +141,18 @@ export default function AdminRegistrationsPage() {
           value={capacity == null ? inPerson : `${inPerson} / ${capacity}`}
         />
         <Stat icon="fa-video" label="Online · confirmed" value={totals.virtualConfirmed ?? 0} />
-        <Stat icon="fa-peso-sign" label="Received" value={formatPeso(totals.received ?? 0)} />
-        <Stat icon="fa-bullseye" label="Expected Amount" value={formatPeso(totals.expected ?? 0)} />
+        <Stat
+          icon="fa-peso-sign"
+          label="Received"
+          value={formatPeso(totals.received ?? 0)}
+          breakdown={receivedRows(totals.receivedBreakdown, totals.received)}
+        />
+        <Stat
+          icon="fa-bullseye"
+          label="Expected Amount"
+          value={formatPeso(totals.expected ?? 0)}
+          breakdown={expectedRows(totals.expectedBreakdown, totals.expected)}
+        />
         <Stat
           icon="fa-list-check"
           label={filtered ? 'Records · matching filters' : 'Records · all bookings'}

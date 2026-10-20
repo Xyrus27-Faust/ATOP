@@ -440,6 +440,16 @@ export const DASH_CSS = `
   .dash-stat-value { font-family: var(--font-heading); font-size: min(2rem, calc((100cqi - 36px) / (var(--stat-len, 4) * 0.58))); font-weight: 800; color: var(--navy); line-height: 1; }
   .dash-stat-label { font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); }
   .dash-stat-icon { position: absolute; right: -8px; top: -8px; font-size: 3.4rem; color: var(--gray-100); z-index: 0; pointer-events: none; }
+  .dash-stat-wrap { position: relative; outline: none; }
+  .dash-stat-wrap > .dash-stat { height: 100%; }
+  .dash-stat.has-breakdown { cursor: help; }
+  .dash-stat-wrap:focus-visible > .dash-stat { box-shadow: 0 0 0 3px var(--gold-light); }
+  .dash-stat-tip { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px)); background: var(--navy); color: #fff; border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.18); opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity 0.15s, transform 0.15s, visibility 0.15s; pointer-events: none; }
+  .dash-stat-wrap:hover .dash-stat-tip, .dash-stat-wrap:focus .dash-stat-tip, .dash-stat-wrap:focus-within .dash-stat-tip { opacity: 1; visibility: visible; transform: none; }
+  .dash-stat-tip table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+  .dash-stat-tip th { text-align: left; font-weight: 500; padding: 3px 16px 3px 0; color: rgba(255,255,255,0.8); }
+  .dash-stat-tip td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding: 3px 0; }
+  .dash-stat-tip tr.is-total th, .dash-stat-tip tr.is-total td { border-top: 1px solid rgba(255,255,255,0.25); padding-top: 6px; font-weight: 700; color: #fff; }
 
   /* ---------- Readiness (signature element) ---------- */
   .dash-meter { height: 8px; border-radius: 999px; background: var(--gray-200); overflow: hidden; }
