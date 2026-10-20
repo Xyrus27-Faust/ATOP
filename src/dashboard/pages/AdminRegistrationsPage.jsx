@@ -329,14 +329,16 @@ function Money({ registration: r }) {
   // drafts are exactly this — someone opened the form and never added a delegate — and reading
   // "owes nothing" as "settled" put "Paid in full" on every one of them.
   const priced = total > 0
-  const settled = r.isComplimentary || (priced && due <= 0)
+  // Comps are per seat: a booking with some seats comped and others downpaid still shows what it owes.
+  const fullyComped = r.isComplimentary && due <= 0
+  const settled = fullyComped || (priced && due <= 0)
   const pct = priced ? Math.min(100, Math.round((paid / total) * 100)) : 0
 
   return (
     <span className="ar-money">
       <span className="ar-total">{formatPeso(total)}</span>
 
-      {r.isComplimentary ? (
+      {fullyComped ? (
         <span className="ar-money-note is-comp">Complimentary</span>
       ) : !priced ? (
         <span className="ar-money-note is-unpaid">No seats yet</span>
@@ -438,8 +440,8 @@ function CompModal({ registration, onClose, onDone }) {
   return (
     <Modal title={`Issue ${registration.referenceCode} complimentary`} onClose={onClose}>
       <p className="dash-help" style={{ marginBottom: 14 }}>
-        This confirms {formatPeso(registration.totalAmount)} worth of delegates without a payment.
-        It’s recorded against your account.
+        This confirms every delegate on this booking who hasn’t paid anything, without a payment.
+        Delegates who already paid a downpayment keep their balance. It’s recorded against your account.
       </p>
       <Field label="Reason" htmlFor="compReason" required error={error}>
         <textarea

@@ -63,10 +63,11 @@ export const canCheckout = (status, balance = 0) =>
 // How a confirmed booking came to be confirmed. Not a status — both of these sit alongside
 // 'Confirmed' — but it is what a delegate needs told, because "confirmed" alone leaves someone
 // wondering whether anything is still owed. 'complimentary' owes nothing; 'allocation' was paid for
-// on a region's allocation and may still owe a balance.
+// on a region's allocation and may still owe a balance. A comp is per seat, so a booking reads as
+// complimentary only once nothing on it is owed — downpaid delegation-mates may still owe theirs.
 export function confirmedVia(reg) {
   if (!reg || reg.status !== 'Confirmed') return null
-  if (reg.isComplimentary) return 'complimentary'
+  if (reg.isComplimentary && Number(reg.balance) <= 0) return 'complimentary'
   if (reg.isRegionalAllocation) return 'allocation'
   return 'paid'
 }
@@ -228,7 +229,7 @@ export function registrationWindow(event, now = new Date()) {
 /** What a booking's money situation should be called, given it may be confirmed and still owe. */
 export function paymentStandingLabel(registration) {
   if (!registration) return ''
-  if (registration.isComplimentary) return 'Complimentary'
+  if (registration.isComplimentary && Number(registration.balance) <= 0) return 'Complimentary'
   if (Number(registration.balance) > 0 && Number(registration.amountPaid) > 0) return 'Balance due'
   if (Number(registration.balance) > 0) return 'Unpaid'
   return 'Paid in full'
