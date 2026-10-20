@@ -164,6 +164,7 @@ export default function ScanPage() {
         checkpoints={offered}
         onPick={pick}
         onPickPost={pickPost}
+        onBookTours={canDesk ? () => navigate('/scan/tours') : undefined}
         canGate={canGate}
         canDesk={canDesk}
         onRefresh={reload}

@@ -9,11 +9,12 @@ import { SCN_CSS } from '../components/checkin/scanShellCss'
 
 /**
  * The tour scanner (ATOP, 2026-10-20): delegates already in the venue are booked on a tour by badge
- * instead of on paper. Scan, ask which tour, tap the batch — one tap books or moves them, and a wrong
- * tap is fixed by tapping the right one.
+ * instead of on paper. Scan, ask which tour, tap the batch, then Save. The tap only selects: at a
+ * crowded desk a stray thumb would otherwise book the wrong bus and take someone else's seat.
  *
- * <p>Not linked from the scanner or the dashboard: only marshals who were briefed open it, at
- * /scan/tours. A full batch is refused and they go to the tech booth; nobody here books past capacity.</p>
+ * <p>Marshals aren't shown a way in; the ones who were briefed open /scan/tours. The secretariat and
+ * admins get a tile on the scanner's post list. A full batch is refused and they go to the tech booth;
+ * nobody here books past capacity.</p>
  */
 export default function TourScanPage() {
   const navigate = useNavigate()
@@ -23,6 +24,8 @@ export default function TourScanPage() {
   const [busy, setBusy] = useState(false)
   const [code, setCode] = useState(null)
   const [card, setCard] = useState(null)
+  // The batch tapped but not yet saved: { pkg, batch }.
+  const [picked, setPicked] = useState(null)
   const [savingId, setSavingId] = useState(null)
   const [notice, setNotice] = useState(null)
   const [booked, setBooked] = useState([])
@@ -43,6 +46,7 @@ export default function TourScanPage() {
       if (mine !== turn.current) return
       setCode(text)
       setCard(found)
+      setPicked(null)
     } catch (err) {
       if (mine !== turn.current) return
       setNotice({ tone: 'bad', text: err instanceof ApiError && err.status === 404
@@ -57,13 +61,22 @@ export default function TourScanPage() {
     turn.current += 1
     setCard(null)
     setCode(null)
+    setPicked(null)
     setNotice(null)
     setBusy(false)
     setSavingId(null)
   }
 
-  const book = async (pkg, batch) => {
+  const pick = (pkg, batch) => {
     if (savingId || batch.id === card.tourBatchId) return
+    touch()
+    setNotice(null)
+    setPicked({ pkg, batch })
+  }
+
+  const save = async () => {
+    if (savingId || !picked) return
+    const { pkg, batch } = picked
     touch()
     const mine = turn.current
     const from = card.tourBatchId ? `${card.tourPackageName} — ${card.tourBatchLabel}` : null
@@ -74,6 +87,7 @@ export default function TourScanPage() {
       const reply = await bookTour(code, batch.id)
       if (mine !== turn.current) return
       setCard(reply.scan)
+      setPicked(null)
       setNotice({ tone: 'good', text: reply.outcome === 'Moved' ? `Moved from ${from} to ${to}.` : `Booked on ${to}.` })
       setBooked((list) => [
         { id: `${reply.scan.delegateId}-${Date.now()}`, name: reply.scan.fullName, tour: to, moved: reply.outcome === 'Moved' },
@@ -81,6 +95,7 @@ export default function TourScanPage() {
       ].slice(0, 30))
     } catch (err) {
       if (mine !== turn.current) return
+      setPicked(null)
       setNotice({ tone: 'bad', text: err.message })
       // Seats moved under us: show the live counts.
       try {
@@ -123,27 +138,29 @@ export default function TourScanPage() {
               <p className="tsc-notice is-bad">{card.ineligibleReason || 'This delegate can’t join a tour.'} Send them to the tech booth.</p>
             ) : (
               <>
-                <p className="tsc-ask">Ask which tour, then tap it.</p>
+                <p className="tsc-ask">Ask which tour, tap it, then Save.</p>
                 {card.packages.map((pkg) => (
                   <section key={pkg.id} className="tsc-pkg">
                     <h3>{pkg.name}</h3>
                     {pkg.batches.map((b) => {
                       const current = b.id === card.tourBatchId
                       const full = b.isFull && !current
+                      const chosen = picked?.batch.id === b.id
                       return (
                         <button
                           key={b.id}
                           type="button"
-                          className={`tsc-batch${current ? ' is-current' : ''}`}
+                          className={`tsc-batch${current ? ' is-current' : ''}${chosen ? ' is-picked' : ''}`}
                           disabled={full || current || !!savingId}
-                          onClick={() => book(pkg, b)}
+                          aria-pressed={chosen}
+                          onClick={() => pick(pkg, b)}
                         >
                           <span className="tsc-batch-main">
                             <strong>{b.label}</strong>
                             <span>{[b.tourDate && formatDay(b.tourDate), b.session, b.assemblyTime].filter(Boolean).join(' · ')}</span>
                           </span>
                           <span className="tsc-batch-seats">
-                            {savingId === b.id ? 'Booking…' : current ? 'Booked' : full ? 'Full' : `${b.seatsLeft} left`}
+                            {savingId === b.id ? 'Saving…' : current ? 'Booked' : full ? 'Full' : chosen ? 'Selected' : `${b.seatsLeft} left`}
                           </span>
                         </button>
                       )
@@ -187,7 +204,16 @@ export default function TourScanPage() {
       </main>
 
       {card && (
-        <div className="scn-dock">
+        <div className="scn-dock tsc-dock">
+          {picked && (
+            <button type="button" className="tsc-save" onClick={save} disabled={!!savingId}>
+              {savingId
+                ? 'Saving…'
+                : card.tourBatchId
+                  ? `Move from ${card.tourPackageName} — ${card.tourBatchLabel} to ${picked.pkg.name} — ${picked.batch.label}`
+                  : `Save: ${picked.pkg.name} — ${picked.batch.label}`}
+            </button>
+          )}
           <button type="button" className="scn-search-btn" onClick={next}>
             <i className="fas fa-qrcode" aria-hidden="true" /> Next scan
           </button>
@@ -232,6 +258,15 @@ const TSC_CSS = `
   .tsc-batch-main span { color: var(--gray-600); font-size: 0.85rem; }
   .tsc-batch-seats { flex-shrink: 0; font-family: var(--font-heading); font-weight: 700; font-size: 0.85rem; color: var(--navy); }
   .tsc-batch.is-current .tsc-batch-seats { color: var(--ok); }
+  .tsc-batch.is-picked { border-color: var(--navy); background: var(--gold-light); box-shadow: inset 0 0 0 1.5px var(--navy); }
+  .tsc-dock { display: flex; flex-direction: column; gap: 8px; }
+  .tsc-save {
+    width: 100%; min-height: 56px; padding: 10px 16px; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+    background: var(--gold); color: var(--navy); box-shadow: var(--shadow-lg);
+    font-family: var(--font-heading); font-weight: 800; font-size: 1rem; line-height: 1.3;
+  }
+  .tsc-save:disabled { opacity: 0.7; cursor: default; }
+  .tsc-card { padding-bottom: 180px; }
   .tsc-log { width: min(100%, 480px); margin: 8px auto 0; background: rgba(255,255,255,0.08); border-radius: var(--radius-sm); padding: 12px 14px; }
   .tsc-log h3 { color: var(--gold-light); font-family: var(--font-heading); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
   .tsc-log ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
