@@ -10,8 +10,11 @@ import { groupByDay, formatDayHeader, kindMeta, progressPct, GATE_POST, DESK_POS
  * the secretariat ({@code canDesk}); an admin sees both. {@code onPickPost} is called with the one
  * picked. They're there whatever the day holds: the gate checks people in before any session or meal
  * opens.</p>
+ *
+ * <p>"Book a tour" opens the tour scanner when {@code onBookTours} is given: the secretariat's and
+ * admins' way in. Marshals reach it by the link they were briefed with (ATOP, 2026-10-20).</p>
  */
-export default function CheckpointPicker({ checkpoints, onPick, onPickPost, canGate, canDesk, onRefresh, refreshing }) {
+export default function CheckpointPicker({ checkpoints, onPick, onPickPost, onBookTours, canGate, canDesk, onRefresh, refreshing }) {
   // A button rather than "pull to refresh": a scanner saved to the home screen has no browser reload.
   const refresh = (
     <button type="button" className="dash-btn is-ghost ckpk-refresh" onClick={onRefresh} disabled={refreshing}>
@@ -40,6 +43,17 @@ export default function CheckpointPicker({ checkpoints, onPick, onPickPost, canG
             <span className="ckpk-tile-body">
               <span className="ckpk-tile-label">Secretariat desk</span>
               <span className="ckpk-tile-sub">Desk A / B: balance, ID &amp; receipt, kit</span>
+            </span>
+          </button>
+        </li>
+      )}
+      {onBookTours && (
+        <li>
+          <button type="button" className="ckpk-tile kind-desk" onClick={onBookTours}>
+            <i className="fas fa-bus" aria-hidden="true" />
+            <span className="ckpk-tile-body">
+              <span className="ckpk-tile-label">Book a tour</span>
+              <span className="ckpk-tile-sub">Scan a badge, put them on a bus</span>
             </span>
           </button>
         </li>

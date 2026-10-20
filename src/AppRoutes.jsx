@@ -44,6 +44,7 @@ import RegionalDelegatesPage from './dashboard/pages/RegionalDelegatesPage'
 import RegionalAllocationsPage from './dashboard/pages/RegionalAllocationsPage'
 import MarshalRoute from './auth/MarshalRoute'
 import ScanPage from './dashboard/pages/ScanPage'
+import TourScanPage from './dashboard/pages/TourScanPage'
 import CheckInPage from './dashboard/pages/CheckInPage'
 import { OldCheckpoints, OldCheckpoint, OldStaff } from './dashboard/pages/CheckInRedirects'
 import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
@@ -81,6 +82,8 @@ export default function AppRoutes() {
             its posts, offered to Secretariat and Admin only. */}
         <Route element={<MarshalRoute />}>
           <Route path="/scan" element={<ScanPage />} />
+          {/* Booking tours by badge (ATOP, 2026-10-20). Deliberately unlinked: briefed marshals only. */}
+          <Route path="/scan/tours" element={<TourScanPage />} />
         </Route>
         {/* The desk had its own page before it became a post on the scanner. Old links still land. */}
         <Route path="/desk" element={<Navigate to="/scan" replace />} />
