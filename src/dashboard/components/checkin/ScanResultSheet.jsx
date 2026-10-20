@@ -18,7 +18,8 @@ import {
  * <p>A {@code pending} result writes nothing yet: it shows who it is and offers the one tap that acts —
  * Check in at the gate, Board at a bus ({@code onAct}). At a bus it says where their booking stands
  * and how full the bus is; moving someone off another bus asks once more, so the marshal says it to
- * them before they sit down. A full bus still boards, with the warning in front of the marshal.</p>
+ * them before they sit down. A full bus still boards, with the warning in front of the marshal.
+ * Someone not yet checked in ({@code checksIn}) is checked in by that same tap, and the button says so.</p>
  *
  * <p>At the main gate the response carries a {@code lane} instead of a checkpoint verdict: Desk A,
  * Desk B, Desk C or Go in, in letters big enough to read from the queue. The gate keeps it lean — face, name,
@@ -154,7 +155,7 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
           {acting
             ? <i className="fas fa-spinner fa-spin" aria-hidden="true" />
             : <i className={`fas ${action.icon}`} aria-hidden="true" />}
-          {' '}{confirming ? 'Yes, move them here' : action.label}
+          {' '}{confirming ? 'Yes, move them here' : checkInAnd(action.label, response.checksIn)}
         </button>
       )}
 
@@ -165,6 +166,11 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
       <style>{SRS_CSS}</style>
     </div>
   )
+}
+
+/** "Board" becomes "Check in & board" for someone the tap will check in too. */
+function checkInAnd(label, checksIn) {
+  return checksIn ? `Check in & ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label
 }
 
 const SRS_CSS = `
