@@ -358,6 +358,8 @@ export const DASH_CSS = `
     display: flex; align-items: center; gap: 9px;
   }
   .dash-card-title i { color: var(--gold-dark); }
+  .dash-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 18px; font-size: 0.84rem; color: var(--gray-600); }
+  .dash-pager .dash-btn { min-height: 44px; }
 
   /* ---------- Buttons ---------- */
   .dash-btn {

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '@/lib/apiClient'
 import { useAsync } from '../useAsync'
+import { useAuth } from '@/auth/AuthContext'
+import { isAdmin } from '../dashboardNav'
 import { Loading, ErrorState } from '../components/states'
 import SeatQr from '../components/SeatQr'
 import SeatPassModal from '../components/SeatPassModal'
@@ -24,7 +26,8 @@ import {
  * needs is to *see*: who is coming, what they paid, and the pass each seat is entitled to.
  *
  * The one exception is meals, which has an admin endpoint of its own: dietary answers come in by
- * phone, and the secretariat has to be able to record them, after the cut-off too.
+ * phone, and the secretariat has to be able to record them, after the cut-off too. Tours are the
+ * other (ATOP, 2026-10-16): each in-person delegate's bus, and a link to the picker in staff mode.
  */
 export default function AdminRegistrationDetailPage() {
   const { id } = useParams()
@@ -33,6 +36,8 @@ export default function AdminRegistrationDetailPage() {
   const [cardFor, setCardFor] = useState(null)
   const [cardError, setCardError] = useState(null)
   const [dietSaved, setDietSaved] = useState({})
+  const [shirtSaved, setShirtSaved] = useState({})
+  const { user } = useAuth()
 
   const { loading, error, data, reload } = useAsync(async () => {
     // The admin route is nested under its event, and the list page resolves the event the same
@@ -46,11 +51,14 @@ export default function AdminRegistrationDetailPage() {
     ])
     return { event, reg, dietOptions }
   }, [id])
+  // Its own request: tours failing to load costs the Tour and Shirt rows, not the whole booking.
+  const toursState = useAsync(() => api.get(`/admin/registrations/${id}/tours`, { auth: true }), [id])
 
   if (loading) return <Loading />
-  if (error) return <ErrorState error={error} onRetry={reload} />
+  if (error) return <ErrorState error={error} onRetry={() => { reload(); toursState.reload() }} />
 
   const { reg, dietOptions } = data
+  const tours = toursState.data
   if (!reg) {
     return (
       <div className="dash-card dash-empty">
@@ -65,6 +73,7 @@ export default function AdminRegistrationDetailPage() {
   const live = (reg.delegates || []).filter((d) => d.status !== 'Cancelled')
   const cancelledSeats = (reg.delegates || []).filter((d) => d.status === 'Cancelled')
   const dietLabels = Object.fromEntries((dietOptions || []).map((o) => [o.code, o.label]))
+  const tourOf = Object.fromEntries((tours?.delegates || []).map((t) => [t.delegateId, t]))
   const dietOf = (d) => dietSaved[d.id] ?? ({
     delegateId: d.id,
     fullName: d.fullName,
@@ -160,6 +169,21 @@ export default function AdminRegistrationDetailPage() {
         {cardError && (
           <p className="dash-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> {cardError.message || 'The ID card could not be made.'}</p>
         )}
+        {/* Tours load on their own: one notice for the booking while they load or if they fail. */}
+        {live.some((d) => d.attendanceMode === 'InPerson') && (toursState.loading || toursState.error) && (
+          <div className="ard-tours-note">
+            {toursState.error ? (
+              <>
+                <span className="ard-tour-error" role="alert">Tours and shirt sizes didn't load.</span>
+                <button type="button" className="dash-btn is-ghost is-sm" onClick={toursState.reload}>
+                  <i className="fas fa-rotate-right" aria-hidden="true" /> Retry
+                </button>
+              </>
+            ) : (
+              <span className="dash-help"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Loading tours and shirt sizes…</span>
+            )}
+          </div>
+        )}
 
         <div className="ard-grid">
           {live.map((d) => {
@@ -227,6 +251,35 @@ export default function AdminRegistrationDetailPage() {
                       </button>
                     </div>
                   )
+                )}
+
+                {/* Tours: the bus they're on, and the picker as the secretariat. */}
+                {d.attendanceMode === 'InPerson' && tourOf[d.id] && (
+                  <div className="ard-diet">
+                    <span className="ard-diet-label">Tour</span>
+                    <span className="ard-tour">
+                      {tourOf[d.id].tourBatchId
+                        ? `${tourOf[d.id].tourPackageName} · ${tourOf[d.id].tourBatchLabel}`
+                        : tourOf[d.id].canChoose ? 'None chosen' : tourOf[d.id].ineligibleReason || 'Not eligible'}
+                    </span>
+                    {(tourOf[d.id].canChoose || tourOf[d.id].tourBatchId) && (
+                      <Link to={`/dashboard/admin/registrations/${reg.id}/tours/${d.id}`} className="dash-btn is-ghost is-sm">
+                        <i className="fas fa-bus" aria-hidden="true" /> {tourOf[d.id].tourBatchId ? 'Change' : 'Choose'}
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {/* Shirt: any staff fills a blank; a size already given is the delegate's, so only an Admin changes it. */}
+                {d.attendanceMode === 'InPerson' && tourOf[d.id] && (
+                  <ShirtRow
+                    url={`/admin/registrations/${reg.id}/delegates/${d.id}/shirt-size`}
+                    extras={tourOf[d.id]}
+                    size={d.id in shirtSaved ? shirtSaved[d.id] : tourOf[d.id].shirtSize}
+                    sizes={tours.shirtSizes}
+                    canChange={isAdmin(user?.roles)}
+                    onSaved={(size) => setShirtSaved((m) => ({ ...m, [d.id]: size }))}
+                  />
                 )}
 
                 <div className="ard-del-foot">
@@ -314,6 +367,11 @@ export default function AdminRegistrationDetailPage() {
         .ard-diet { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--gray-200); }
         .ard-diet-label { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-500); font-weight: 700; }
         .ard-diet .dash-btn { margin-left: auto; }
+        .ard-tour { font-size: 0.86rem; color: var(--navy); font-weight: 600; }
+        .ard-tour-error { font-size: 0.86rem; color: var(--bad); }
+        .ard-tours-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 12px; }
+        .ard-shirt { width: auto; min-width: 7.5rem; padding-block: 6px; font-size: 0.86rem; }
+        .ard-shirt-error { flex-basis: 100%; font-size: 0.82rem; color: var(--bad); }
         ${mcStyles}
         .ard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
         .ard-del { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -355,6 +413,53 @@ function Row({ label, value }) {
     <div className="ard-row">
       <span className="ard-row-label">{label}</span>
       <span className="ard-row-value">{value || '—'}</span>
+    </div>
+  )
+}
+
+/**
+ * The kit shirt, set from the booking page with no deadline. A blank is a select for any staff; a size
+ * already given reads as text unless the caller is an Admin, who may change or clear it (ATOP, 2026-10-16).
+ */
+function ShirtRow({ url, extras, size, sizes, canChange, onSaved }) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const editable = extras.canChoose && (!size || canChange)
+
+  async function save(value) {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await api.put(url, { shirtSize: value || null }, { auth: true })
+      onSaved(res.shirtSize)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="ard-diet">
+      <span className="ard-diet-label">Shirt</span>
+      {editable ? (
+        <select
+          className="dash-input ard-shirt"
+          aria-label="Shirt size"
+          value={size ?? ''}
+          disabled={saving}
+          onChange={(e) => save(e.target.value)}
+        >
+          {/* Only an Admin may clear a size once given; a blank offers the dash as its starting point. */}
+          {(!size || canChange) && <option value="">{size ? 'Clear' : 'None given'}</option>}
+          {sizes.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      ) : (
+        <span className="ard-tour">
+          {size || (extras.canChoose ? 'None given' : extras.ineligibleReason || 'No kit')}
+        </span>
+      )}
+      {error && <span className="ard-shirt-error" role="alert">{error.message}</span>}
     </div>
   )
 }

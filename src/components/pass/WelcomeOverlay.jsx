@@ -1,12 +1,13 @@
 import { useEffect, useMemo } from 'react'
 
-const SHOW_MS = 4_000
+const SHOW_MS = 8_000
 const CONFETTI = 28
 const COLOURS = ['#C8A84B', '#F0D78C', '#ffffff', '#9E7D2A', '#7dd3fc']
 
 /**
- * The moment the gate scans them: a full-screen welcome on their own phone. Four seconds, or until
- * they tap it — they are in a queue, and a screen that waits for a button holds it up.
+ * The moment a scan or a desk moves them on: a full-screen welcome on their own phone, saying where
+ * to go next. Eight seconds — long enough to read the desk off it (ATOP, 2026-10-17) — or until they
+ * tap it: they are in a queue, and a screen that waits for a button holds it up.
  *
  * The confetti is CSS only, and a phone set to reduce motion gets the words without it.
  */

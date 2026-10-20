@@ -1,13 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getCheckpointScans, getCheckpointNotYet, updateCheckpoint, deleteCheckpoint, voidScan, markAttended, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, scanningToday, SCAN_METHOD, REASON_MAX } from '@/lib/checkin'
+import { getCheckpointScans, getCheckpointNotYet, updateCheckpoint, deleteCheckpoint, voidScan, markAttended, formatDay, formatVenueTime, kindMeta, stateMeta, progressPct, tallyVerb, scanningToday, fold, SCAN_METHOD, REASON_MAX } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
 import { isAdmin } from '../dashboardNav'
-
-// Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
-const fold = (text) => (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
 /**
  * One checkpoint's two lists: who was scanned, when, by which marshal — newest first — and who it is

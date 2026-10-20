@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { registrationStatusMeta } from '@/lib/events'
-import { deskScan, deskSearch, deskCard, isBadgeCode, formatVenueTime, sessionLine, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
+import { deskScan, deskSearch, deskCard, isBadgeCode, arrivalNote, sessionLine, CAMERA_TROUBLE, DESK_REFUSAL } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
 import QrViewfinder from '../checkin/QrViewfinder'
@@ -14,8 +14,9 @@ import { useLiveSession } from '../../useLiveSession'
 /**
  * The Secretariat desk, as one post on the scanner: where the main gate sends every delegate.
  *
- * <p>A badge scanned here opens the delegate's card — checking them in too if they walked round the
- * gate; a second phone scanning the same badge changes nothing. The card says Desk A (fully paid) or
+ * <p>A badge scanned here opens the delegate's card; if they walked round the gate, its Check in tap
+ * checks them in, after a look at the face — a scan alone never does (ATOP, 2026-10-16). A second
+ * phone scanning the same badge changes nothing. The card says Desk A (fully paid) or
  * Desk B (balance to pay in cash), where handing over the ID & OR records the cash in the same tap;
  * then Desk C hands over the kit. Every desk runs this same screen. A name search only opens the card; the Confirm tap on it is the check-in, after a
  * look at the photo.</p>
@@ -38,7 +39,7 @@ export default function DeskStation({ touch }) {
   const [camera, setCamera] = useState('ok')
   const [cameraKey, setCameraKey] = useState(0)
   const [busy, setBusy] = useState(false)
-  // What's on screen instead of the camera: { card, note } | { denied } | { failed }. Each new one
+  // What's on screen instead of the camera: { card, note, code } | { denied } | { failed }. Each new one
   // gets a fresh key, so a card left half-confirmed never carries over to the next delegate.
   const [view, setView] = useState(null)
   const show = useCallback((v) => setView({ ...v, key: Date.now() }), [])
@@ -56,7 +57,7 @@ export default function DeskStation({ touch }) {
     setBusy(true)
     try {
       const r = await deskScan(event.id, code)
-      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r), session: sessionLine(r.session) })
+      show(r.result === 'denied' ? { denied: r } : { card: r.card, note: arrivalNote(r), session: sessionLine(r.session), countIn: r.reasonCode === 'count_in' ? r.reason : null, code })
     } catch (err) {
       show({ failed: `${err.message} Scan again, or search by name.` })
     } finally {
@@ -68,7 +69,10 @@ export default function DeskStation({ touch }) {
   const pick = async (row) => {
     setBusy(true)
     try {
-      show({ card: await deskCard(event.id, row.id), note: null })
+      // The card carries the Check in for today prompt when a scan would have, so a delegate without
+      // their badge still gets counted at the open session.
+      const card = await deskCard(event.id, row.id)
+      show({ card, note: null, countIn: card.countIn ?? null })
     } catch (err) {
       // 409: someone the desk turns away. Shown like a refused scan, with the name read back.
       const code = err.raw?.reasonCode
@@ -95,7 +99,7 @@ export default function DeskStation({ touch }) {
       </div>
     )
   } else if (view?.card) {
-    body = <DeskCardView key={view.key} card={view.card} note={view.note} session={view.session} onDone={nextDelegate} />
+    body = <DeskCardView key={view.key} card={view.card} note={view.note} session={view.session} countIn={view.countIn} code={view.code} onDone={nextDelegate} />
   } else if (view) {
     body = <Refused view={view} onDone={nextDelegate} />
   } else if (mode === 'search') {
@@ -141,13 +145,6 @@ export default function DeskStation({ touch }) {
       <style>{DSK_CSS}</style>
     </div>
   )
-}
-
-/** The line above a scanned card: whether this scan checked them in, or someone already had. */
-function arrivalNote(r) {
-  if (r.justCheckedIn) return 'Checked in just now.'
-  const at = r.card?.checkIn
-  return at ? `Already checked in at ${formatVenueTime(at.at)} by ${at.by}.` : null
 }
 
 /**
