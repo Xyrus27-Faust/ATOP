@@ -1,14 +1,13 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import {
-  listCheckpoints, getCheckpointScans, deskRoster, groupByDay, formatDay, formatVenueTime, scanningToday, kindMeta,
+  listCheckpoints, getCheckpointScans, deskRoster, groupByDay, formatDay, formatVenueTime, scanningToday, kindMeta, csvStamp, fold,
 } from '@/lib/checkin'
 import { downloadCsv } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
+import { pageOf } from '../../paging'
 import { Loading, ErrorState } from '../states'
-
-// Case- and accent-blind, so "pena" finds "Peña" and "QUEZON" finds "Quezon City".
-const fold = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+import Pager from '../Pager'
 
 // What each kind says on the list, in words as well as colour: Present / Absent for a session,
 // Ate / No meal for a meal. A checkpoint still Open or Upcoming says "Not yet" instead — calling
@@ -103,6 +102,8 @@ function DayAttendance({ event, day, checkpoints }) {
   }, [])
   const [filter, setFilter] = useState('all')
   const [q, setQ] = useState('')
+  const [at, setAt] = useState({ key: '', page: 1 })
+  const top = useRef(null)
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -121,14 +122,22 @@ function DayAttendance({ event, day, checkpoints }) {
   const term = fold(q.trim())
   const shown = roster.filter((r) => test(r)
     && (!term || fold(r.fullName).includes(term) || fold(r.lgu).includes(term) || fold(r.referenceCode).includes(term)))
+  // 50 at a time: a box per session for 1,000 people is too much to draw at once. The counts and the
+  // download stay on the whole list.
+  const pageKey = `${filter}|${term}`
+  const paged = pageOf(shown, at, pageKey)
+  const turn = (page) => {
+    setAt({ key: pageKey, page })
+    top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const exportCsv = () => downloadCsv(`atop-attendance-${day}.csv`, [
     ['Reference', 'Name', 'LGU / Organisation', 'Designation', 'Arrived at the convention',
       ...columns.map((c) => c.label), ...(buses.length > 0 ? ['Bus'] : [])],
     ...shown.map((r) => [
-      r.referenceCode, r.fullName, r.lgu ?? '', r.designation, r.checkIn ? stamp(r.checkIn.at) : 'Not yet',
+      r.referenceCode, r.fullName, r.lgu ?? '', r.designation, r.checkIn ? csvStamp(r.checkIn.at) : 'Not yet',
       ...columns.map((c) => csvBox(c, scanOf(r, c))),
-      ...(buses.length > 0 ? [busOf(r) ? `${busOf(r).label} ${stamp(scanOf(r, busOf(r)).scannedAt)}` : ''] : []),
+      ...(buses.length > 0 ? [busOf(r) ? `${busOf(r).label} ${csvStamp(scanOf(r, busOf(r)).scannedAt)}` : ''] : []),
     ]),
   ])
 
@@ -219,9 +228,9 @@ function DayAttendance({ event, day, checkpoints }) {
           <p>{roster.length === 0 ? 'Nobody holds a pass yet.' : missing ? `Everyone was at ${missing.label}.` : 'Nobody here matches.'}</p>
         </div>
       ) : (
-        <>
+        <div ref={top} className="att-list">
           <ul className="att-cards">
-            {shown.map((r) => (
+            {paged.rows.map((r) => (
               <li key={r.id} className="dash-card att-card">
                 <strong className="att-name">{r.fullName}</strong>
                 <span className="att-sub">{[r.designation, r.lgu].filter(Boolean).join(' · ')}</span>
@@ -254,7 +263,7 @@ function DayAttendance({ event, day, checkpoints }) {
                 </tr>
               </thead>
               <tbody>
-                {shown.map((r) => (
+                {paged.rows.map((r) => (
                   <tr key={r.id}>
                     <td>
                       <strong>{r.fullName}</strong>
@@ -268,7 +277,8 @@ function DayAttendance({ event, day, checkpoints }) {
               </tbody>
             </table>
           </div>
-        </>
+          <Pager paged={paged} onPage={turn} />
+        </div>
       )}
     </>
   )
@@ -299,13 +309,9 @@ function BusBox({ bus, scan }) {
   )
 }
 
-/** "2026-10-20 17:02" in Manila — sortable in a spreadsheet. */
-const stamp = (instant) =>
-  new Date(instant).toLocaleString('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' })
-
 function csvBox(c, scan) {
   const words = WORDS[c.kind] || WORDS.Entry
-  if (scan) return `${words.yes} ${stamp(scan.scannedAt)}${scan.method === 'Marked' ? ' (added by staff)' : ''}`
+  if (scan) return `${words.yes} ${csvStamp(scan.scannedAt)}${scan.method === 'Marked' ? ' (added by staff)' : ''}`
   return isOver(c) ? words.no : 'Not yet'
 }
 
@@ -364,6 +370,7 @@ const ATT_CSS = `
   .att-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-400); pointer-events: none; }
   .att-search .dash-input { padding-left: 40px; min-height: 48px; font-size: 16px; }
 
+  .att-list { scroll-margin-top: 16px; }
   .att-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .att-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
   .att-name { font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem; color: var(--navy); overflow-wrap: anywhere; }

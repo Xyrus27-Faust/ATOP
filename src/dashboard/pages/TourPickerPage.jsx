@@ -15,14 +15,19 @@ import { Loading, ErrorState } from '../components/states'
  * <p>Two steps: browse the six, then pick a batch. Selecting a batch is a genuine one-of-N choice,
  * so it is a genuine radio group — one confirm button for the page instead of a button per batch,
  * and screen readers get "radio, 2 of 4" for free.</p>
+ *
+ * <p>{@code staff}: the same picker for the secretariat on any booking (ATOP, 2026-10-16), from the
+ * admin booking page. Their endpoints skip the booker's deadline but not a full bus, and record the
+ * pick as theirs.</p>
  */
-export default function TourPickerPage() {
+export default function TourPickerPage({ staff = false }) {
   const { id, delegateId } = useParams()
   const navigate = useNavigate()
+  const base = staff ? `/admin/registrations/${id}` : `/registrations/${id}`
 
   const { loading, error, data, reload } = useAsync(
-    () => api.get(`/registrations/${id}/tours`, { auth: true }),
-    [id],
+    () => api.get(`${base}/tours`, { auth: true }),
+    [base],
   )
 
   // `undefined` means "the user hasn't touched this yet", which is different from "they backed out
@@ -53,13 +58,15 @@ export default function TourPickerPage() {
   if (error) return <ErrorState error={error} onRetry={reload} />
   if (!data || !delegate) return <ErrorState error={{ message: 'That delegate is not on this booking.' }} />
 
-  const backToBooking = () => navigate(`/convention/registrations/${id}`)
+  const backToBooking = () => navigate(staff ? `/dashboard/admin/registrations/${id}` : `/convention/registrations/${id}`)
+  // The deadline is the booker's; the secretariat books past it.
+  const open = staff || data.selectionOpen
 
   async function confirm() {
     setSaveError(null)
     setSaving(true)
     try {
-      await api.put(`/registrations/${id}/delegates/${delegateId}/tour`, { batchId }, { auth: true })
+      await api.put(`${base}/delegates/${delegateId}/tour`, { batchId }, { auth: true })
       backToBooking()
     } catch (err) {
       setSaveError(err)
@@ -75,7 +82,7 @@ export default function TourPickerPage() {
     setSaveError(null)
     setSaving(true)
     try {
-      await api.delete(`/registrations/${id}/delegates/${delegateId}/tour`, { auth: true })
+      await api.delete(`${base}/delegates/${delegateId}/tour`, { auth: true })
       backToBooking()
     } catch (err) {
       setSaveError(err)
@@ -105,7 +112,12 @@ export default function TourPickerPage() {
         </div>
       )}
 
-      {!data.selectionOpen && (
+      {staff ? (
+        <div className="tpp-closed">
+          Booking as the Secretariat: the deadline doesn’t apply, a full bus still does.
+          {!delegate.canChoose && delegate.ineligibleReason && <> {delegate.ineligibleReason}</>}
+        </div>
+      ) : !data.selectionOpen && (
         <div className="tpp-closed">
           Tour selection has closed. Contact the ATOP Secretariat for changes.
         </div>
@@ -122,7 +134,7 @@ export default function TourPickerPage() {
                 <button
                   type="button"
                   className={`tpp-tile${out ? ' is-out' : ''}${current ? ' is-current' : ''}`}
-                  disabled={out || !data.selectionOpen}
+                  disabled={out || !open}
                   onClick={() => { setChosenCode(p.code); setPickedBatch(current ? delegate.tourBatchId : null) }}
                 >
                   {/* Whole sheet, uncropped. Everything a delegate needs to decide is printed on it. */}
@@ -164,7 +176,7 @@ export default function TourPickerPage() {
 
             {/* A real radio group: one choice, one confirm. The itinerary lives on the poster
                 beside it, so these rows carry only what separates one batch from another. */}
-            <fieldset className="tpp-batches" disabled={!data.selectionOpen}>
+            <fieldset className="tpp-batches" disabled={!open}>
               <legend>Batch</legend>
 
               {pkg.batches.map((b) => {
@@ -203,7 +215,7 @@ export default function TourPickerPage() {
               <button
                 type="button"
                 className="tpp-confirm"
-                disabled={!batchId || batchId === delegate.tourBatchId || saving || !data.selectionOpen}
+                disabled={!batchId || batchId === delegate.tourBatchId || saving || !open}
                 onClick={confirm}
               >
                 {saving ? 'Saving…' : delegate.tourBatchId ? 'Move to this batch' : 'Confirm this batch'}

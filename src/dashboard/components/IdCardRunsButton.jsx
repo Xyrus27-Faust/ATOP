@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/apiClient'
 import { REGIONS, labelFor } from '@/lib/pearlAwards'
+import { useAsync } from '../useAsync'
+import { ErrorState } from './states'
 import Modal from './Modal'
 
 const POLL_MS = 4000
@@ -37,23 +39,14 @@ export default function IdCardRunsButton({ eventId, region }) {
 }
 
 function RunsModal({ eventId, region, onClose }) {
-  const [runs, setRuns] = useState(null)
   const [runId, setRunId] = useState(null)
   const [includeMissing, setIncludeMissing] = useState(false)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState(null)
-
-  // Bumped to list the runs again, after starting one or coming back from one.
-  const [listed, setListed] = useState(0)
-  const loadRuns = () => setListed((n) => n + 1)
-
-  useEffect(() => {
-    let cancelled = false
-    api.get(`/admin/events/${eventId}/id-card-runs`, { auth: true })
-      .then((next) => { if (!cancelled) setRuns(next) })
-      .catch((err) => { if (!cancelled) setError(err) })
-    return () => { cancelled = true }
-  }, [eventId, listed])
+  // Listed again after starting a run or coming back from one.
+  const listed = useAsync(() => api.get(`/admin/events/${eventId}/id-card-runs`, { auth: true }), [eventId])
+  const runs = listed.data
+  const loadRuns = listed.reload
 
   async function start() {
     setError(null)
@@ -89,7 +82,7 @@ function RunsModal({ eventId, region, onClose }) {
               <input type="checkbox" checked={includeMissing} onChange={(e) => setIncludeMissing(e.target.checked)} />
               Include delegates without a photo (their card prints with a silhouette)
             </label>
-            <button type="button" className="dash-btn dash-btn-primary" onClick={start} disabled={starting}>
+            <button type="button" className="dash-btn is-primary" onClick={start} disabled={starting}>
               <i className={`fas ${starting ? 'fa-spinner fa-spin' : 'fa-print'}`} aria-hidden="true" />
               {starting ? ' Starting…' : ' Start print run'}
             </button>
@@ -97,7 +90,9 @@ function RunsModal({ eventId, region, onClose }) {
           {error && <p className="dash-error">{error.message || 'Something went wrong.'}</p>}
 
           <h4 className="icr-h">Earlier runs</h4>
-          {runs == null ? (
+          {listed.error ? (
+            <ErrorState error={listed.error} onRetry={loadRuns} title="We couldn’t load the earlier runs" />
+          ) : runs == null ? (
             <p className="icr-muted">Loading…</p>
           ) : runs.length === 0 ? (
             <p className="icr-muted">No print runs yet.</p>
@@ -126,7 +121,7 @@ function RunsModal({ eventId, region, onClose }) {
 
 function RunState({ done, failed, pending }) {
   if (pending > 0) return <span className="dash-badge tone-progress"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> {done} done, {pending} drawing</span>
-  if (failed > 0) return <span className="dash-badge tone-error">{failed} failed</span>
+  if (failed > 0) return <span className="dash-badge tone-danger">{failed} failed</span>
   return <span className="dash-badge tone-success">Done</span>
 }
 
@@ -180,7 +175,7 @@ function RegionRow({ region: r }) {
       <header>
         <strong>{regionName(r.region)}</strong>
         {r.status === 'Pending' && <span className="dash-badge tone-progress"><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Drawing{r.cards != null && ` ${r.cards} cards`}…</span>}
-        {r.status === 'Failed' && <span className="dash-badge tone-error">Failed</span>}
+        {r.status === 'Failed' && <span className="dash-badge tone-danger">Failed</span>}
         {r.status === 'Done' && (
           <span className="icr-muted">
             {r.cards} cards · {r.withPhoto} with photo
