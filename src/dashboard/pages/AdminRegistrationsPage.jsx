@@ -107,7 +107,7 @@ export default function AdminRegistrationsPage() {
       {/* Seats are counted per delegate on CONFIRMED bookings — which includes anyone who has paid
           a downpayment, because that is what confirms a booking. Received is ATOP's share: online
           payments less ₱350 per online seat, plus Desk B cash. Expected is every seat on the board
-          at its full rate. */}
+          less the ₱350 — ₱7,000 a seat. */}
       <div className="dash-grid ar-stats">
         <Stat
           icon="fa-location-dot"
