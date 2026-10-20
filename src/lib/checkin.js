@@ -90,6 +90,13 @@ const BADGE_CODE = /^DLG\d{2}-[0-9A-Z]{5}$/
 const badgeCode = (text) => text.trim().toUpperCase()
 export const isBadgeCode = (text) => BADGE_CODE.test(badgeCode(text))
 
+// The tour scanner: who a badge is and their tour, then book or move them onto a batch.
+export const lookupTour = (code) =>
+  api.post('/marshal/tours/lookup', { code: badgeCode(code) }, { auth: true })
+
+export const bookTour = (code, batchId) =>
+  api.post('/marshal/tours/book', { code: badgeCode(code), batchId }, { auth: true })
+
 // ---- Booker ----------------------------------------------------------------
 
 // Their own delegates' scans: times only — no marshal names, no voided scans.
