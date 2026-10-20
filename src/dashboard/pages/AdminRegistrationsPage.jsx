@@ -105,8 +105,9 @@ export default function AdminRegistrationsPage() {
       </div>
 
       {/* Seats are counted per delegate on CONFIRMED bookings — which includes anyone who has paid
-          a downpayment, because that is what confirms a booking. Money is counted as money: what
-          has actually arrived, and what is still owed. */}
+          a downpayment, because that is what confirms a booking. Received is ATOP's share: online
+          payments less ₱350 per online seat, plus Desk B cash. Expected is every seat on the board
+          at its full rate. */}
       <div className="dash-grid ar-stats">
         <Stat
           icon="fa-location-dot"
@@ -114,8 +115,8 @@ export default function AdminRegistrationsPage() {
           value={capacity == null ? inPerson : `${inPerson} / ${capacity}`}
         />
         <Stat icon="fa-video" label="Online · confirmed" value={totals.virtualConfirmed ?? 0} />
-        <Stat icon="fa-peso-sign" label="Received" value={formatPeso(totals.collected ?? 0)} />
-        <Stat icon="fa-hourglass-half" label="Outstanding" value={formatPeso(totals.outstanding ?? 0)} />
+        <Stat icon="fa-peso-sign" label="Received" value={formatPeso(totals.received ?? 0)} />
+        <Stat icon="fa-bullseye" label="Expected Amount" value={formatPeso(totals.expected ?? 0)} />
         <Stat
           icon="fa-list-check"
           label={filtered ? 'Records · matching filters' : 'Records · all bookings'}
