@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '@/lib/apiClient'
 import {
   listMarshalCheckpoints, scanCode, boardDelegate, formatDay, kindMeta, isPostGone, progressPct, readPost, writePost, isBadgeCode,
-  tallyVerb, CAMERA_TROUBLE, GATE_POST, DESK_POST,
+  tallyVerb, isQuickResult, CAMERA_TROUBLE, GATE_POST, DESK_POST,
 } from '@/lib/checkin'
 import { useAuth } from '@/auth/AuthContext'
 import { canManageCheckIn, canWorkGate } from '../dashboardNav'
@@ -13,6 +13,7 @@ import { Loading, ErrorState } from '../components/states'
 import CheckpointPicker from '../components/checkin/CheckpointPicker'
 import QrViewfinder from '../components/checkin/QrViewfinder'
 import ScanResultSheet from '../components/checkin/ScanResultSheet'
+import ScanStrip from '../components/checkin/ScanStrip'
 import ManualSearch from '../components/checkin/ManualSearch'
 import DeskStation from '../components/desk/DeskStation'
 import GateStation from '../components/gate/GateStation'
@@ -30,6 +31,8 @@ import { SCN_CSS } from '../components/checkin/scanShellCss'
  * <p>At a checkpoint, each code goes to the API, which returns a
  * verdict — green, amber or red with a reason — and the result sheet shows it over the camera. At a
  * bus the scan is only a look: the sheet shows their booking and the marshal's Board tap boards them.
+ * At a session door a pass is only a strip under the camera, which reads on — the next badge replaces
+ * it, or it clears after three seconds; meals and buses keep the sheet, which waits for a tap.
  * When a badge won't read, the bar at the bottom opens a search by name. There is no offline mode:
  * a verdict needs the server, and a guard without signal sends people to the Secretariat desk.</p>
  */
@@ -68,6 +71,9 @@ export default function ScanPage() {
   const count = checkpoint ? counts[checkpoint.id] ?? checkpoint.scanCount : 0
   // The headcount comes with the list and holds until the next refresh: it only moves when a booking pays.
   const pct = checkpoint ? progressPct(count, checkpoint.expected) : 0
+  // Only a session door reads on behind a pass. A meal or a bus waits for the guard's tap.
+  const quickPost = checkpoint?.kind === 'Entry'
+  const quick = quickPost && isQuickResult(result)
 
   const pick = (c) => {
     writePost(c.id)
@@ -114,6 +120,7 @@ export default function ScanPage() {
     setSource({ code })
     try {
       show(await scanCode(checkpoint.id, code), checkpoint.id)
+      setBusy(false)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         // The checkpoint was deleted under us. Back to the picker, with a fresh list.
@@ -121,6 +128,7 @@ export default function ScanPage() {
         return
       }
       setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
+      setBusy(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkpoint, show, touch])
@@ -197,10 +205,10 @@ export default function ScanPage() {
             )}
           </div>
         ) : (
-          <QrViewfinder key={cameraKey} ready={!busy && !result} onCode={handleCode} onUnavailable={setCamera} />
+          <QrViewfinder key={cameraKey} ready={!busy && (!result || quick)} onCode={handleCode} onUnavailable={setCamera} />
         )}
         <p className="scn-aim">
-          {trouble ? ' ' : busy && !result ? 'Checking…' : 'Point at the QR code'}
+          {trouble ? ' ' : busy ? 'Checking…' : 'Point at the QR code'}
         </p>
         <div className="scn-tally">
           <p className="scn-count">
@@ -262,14 +270,17 @@ export default function ScanPage() {
         </div>
       )}
 
-      {result && (
+      {result && (quick ? (
+        <ScanStrip response={result} kind={checkpoint.kind} checking={busy} onNext={next} />
+      ) : (
         <ScanResultSheet
           response={result}
           kind={checkpoint?.kind}
           onNext={stale ? change : next}
           onAct={checkpoint?.kind === 'Tour' && source ? board : undefined}
+          swipe={quickPost}
         />
-      )}
+      ))}
 
       <style>{DASH_CSS}</style>
       <style>{SCN_CSS}</style>
