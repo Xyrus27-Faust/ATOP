@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import DelegateFace from './DelegateFace'
 import DietStrip from './DietStrip'
 import {
-  RESULT, GATE_LANE, PENDING_ACTION, resultHeadline, formatVenueTime, paymentLine, sessionLine, busLine, overCapacityLine,
+  RESULT, gateLane, gateSteps, PENDING_ACTION, resultHeadline, formatVenueTime, paymentLine, sessionLine, busLine, overCapacityLine,
 } from '@/lib/checkin'
 
 /**
@@ -18,7 +18,8 @@ import {
  * <p>A {@code pending} result writes nothing yet: it shows who it is and offers the one tap that acts —
  * Check in at the gate, Board at a bus ({@code onAct}). At a bus it says where their booking stands
  * and how full the bus is; moving someone off another bus asks once more, so the marshal says it to
- * them before they sit down. A full bus still boards, with the warning in front of the marshal.</p>
+ * them before they sit down. A full bus still boards, with the warning in front of the marshal.
+ * Someone not yet checked in ({@code checksIn}) is checked in by that same tap, and the button says so.</p>
  *
  * <p>At the main gate the response carries a {@code lane} instead of a checkpoint verdict: Desk A,
  * Desk B, Desk C or Go in, in letters big enough to read from the queue. The gate keeps it lean — face, name,
@@ -37,7 +38,7 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
   const [confirming, setConfirming] = useState(false)
   const [acting, setActing] = useState(false)
   const isError = response.result === 'error'
-  const lane = !isError && response.result === 'ok' ? GATE_LANE[response.lane] : null
+  const lane = !isError && response.result === 'ok' ? gateLane(response) : null
   const meta = lane || (isError ? RESULT.denied : RESULT[response.result] || RESULT.denied)
   const person = response.delegate
   const pay = paymentLine(person?.payment)
@@ -78,6 +79,19 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
         <i className={`fas ${meta.icon}`} aria-hidden="true" />
         <span>{isError ? 'Scan failed' : lane ? lane.headline : resultHeadline(response, kind)}</span>
       </div>
+
+      {/* At the gate: how far through check-in → ID & OR → kit they are. */}
+      {lane && (
+        <ol className="srs-steps" aria-label="Progress">
+          {gateSteps(response.lane).map((step) => (
+            <li key={step.label} className={step.done ? 'is-done' : undefined}>
+              <span aria-hidden="true" />
+              {step.done && <i className="fas fa-check" aria-hidden="true" />} {step.label}
+              <span className="sr-only">{step.done ? ' done' : ' not yet'}</span>
+            </li>
+          ))}
+        </ol>
+      )}
 
       {person?.diet && <DietStrip diet={person.diet} />}
 
@@ -154,7 +168,7 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
           {acting
             ? <i className="fas fa-spinner fa-spin" aria-hidden="true" />
             : <i className={`fas ${action.icon}`} aria-hidden="true" />}
-          {' '}{confirming ? 'Yes, move them here' : action.label}
+          {' '}{confirming ? 'Yes, move them here' : checkInAnd(action.label, response.checksIn)}
         </button>
       )}
 
@@ -165,6 +179,11 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
       <style>{SRS_CSS}</style>
     </div>
   )
+}
+
+/** "Board" becomes "Check in & board" for someone the tap will check in too. */
+function checkInAnd(label, checksIn) {
+  return checksIn ? `Check in & ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label
 }
 
 const SRS_CSS = `
@@ -191,6 +210,17 @@ const SRS_CSS = `
   /* The gate's answer is read from the queue, not just by the guard. */
   .srs-head.is-lane { font-size: 2rem; font-weight: 900; letter-spacing: 0.05em; padding: 16px; }
   .srs-head.is-lane i { font-size: 2rem; }
+
+  /* Done steps are green whatever the lane's colour: green here always means "this part is finished". */
+  .srs-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: -4px 0 14px; list-style: none; padding: 0; }
+  .srs-steps li {
+    display: flex; flex-direction: column; gap: 6px;
+    font-family: var(--font-heading); font-weight: 700; font-size: 0.8rem; color: var(--gray-600);
+  }
+  .srs-steps li > span:first-child { height: 8px; border-radius: 999px; background: var(--gray-200); }
+  .srs-steps li.is-done { color: var(--ok); }
+  .srs-steps li.is-done > span:first-child { background: var(--ok); }
+  .srs-steps li i { font-size: 0.75rem; }
 
   .srs-person { display: flex; align-items: center; gap: 14px; }
   .srs-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
