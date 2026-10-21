@@ -50,7 +50,8 @@ export default function ScanResultSheet({ response, kind, onNext, onAct, swipe =
   const boarding = response.boarding
   const over = boarding ? overCapacityLine(boarding) : null
   const action = response.result === 'pending' && onAct ? PENDING_ACTION[response.reasonCode] : null
-  const calm = meta.tone === 'ok' || meta.tone === 'pend'
+  const tone = (response.result === 'pending' && BUS_TONE[response.reasonCode]) || meta.tone
+  const calm = tone === 'ok' || tone === 'pend' || tone === 'info'
   const { handlers, offset } = useSwipeDown(onNext, swipe && !acting)
   // Per result, not per tone: a tap that turns "pending" into "ok" is a new result in the same calm
   // tone, and it still needs its buzz and the focus moved off the action that just went away.
@@ -80,7 +81,7 @@ export default function ScanResultSheet({ response, kind, onNext, onAct, swipe =
   // reply would land on whoever is scanned next.
   return (
     <div
-      className={`srs tone-${meta.tone}${swipe ? ' is-swipe' : ''}${offset != null ? ' is-dragging' : ''}`}
+      className={`srs tone-${tone}${swipe ? ' is-swipe' : ''}${offset != null ? ' is-dragging' : ''}`}
       style={offset != null ? { '--srs-drag': `${offset}px` } : undefined}
       role="status"
       aria-live="assertive"
@@ -170,6 +171,12 @@ export default function ScanResultSheet({ response, kind, onNext, onAct, swipe =
   )
 }
 
+/**
+ * A bus scan is coloured by where they're booked, so the marshal reads it before the words (ATOP,
+ * 2026-10-22): this bus green, no tour blue, another bus orange. The gate and session taps stay gold.
+ */
+const BUS_TONE = { board_own: 'ok', board_none: 'info', board_other: 'warn' }
+
 /** "Board" becomes "Check in & board" for someone the tap will check in too. */
 function checkInAnd(label, checksIn) {
   return checksIn ? `Check in & ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label
@@ -187,6 +194,7 @@ const SRS_CSS = `
   .srs.tone-warn { --srs-c: var(--warn); --srs-bg: var(--warn-bg); }
   .srs.tone-bad { --srs-c: var(--bad); --srs-bg: var(--bad-bg); }
   .srs.tone-pend { --srs-c: var(--navy); --srs-bg: var(--gold-light); }
+  .srs.tone-info { --srs-c: var(--info); --srs-bg: var(--info-bg); }
   @keyframes srs-up { from { transform: translateY(100%); } to { transform: none; } }
 
   .srs-head {
@@ -228,6 +236,11 @@ const SRS_CSS = `
     border-left: 5px solid var(--warn); font-family: var(--font-body); font-size: 1rem; line-height: 1.5; color: var(--navy);
   }
   .srs-act { width: 100%; min-height: 56px; margin-top: 16px; font-size: 1.05rem; justify-content: center; }
+  /* At a bus the Board button wears the header's colour; the gate's Check in keeps the gold. */
+  .srs:is(.tone-ok, .tone-info, .tone-warn) .dash-btn.srs-act,
+  .srs:is(.tone-ok, .tone-info, .tone-warn) .dash-btn.srs-act:hover {
+    background: var(--srs-c); border-color: var(--srs-c); color: var(--white); box-shadow: none;
+  }
 
   .srs-pay {
     margin-top: 12px; padding: 8px 14px; border-radius: var(--radius-sm); width: fit-content;
