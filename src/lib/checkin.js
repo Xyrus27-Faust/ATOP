@@ -220,6 +220,27 @@ export const GATE_LANE = {
   Done: { tone: 'ok', icon: 'fa-circle-check', headline: 'Go in', line: 'ID and kit already collected. Let them in.' },
 }
 
+// Lane B also holds someone who already paid the cashier and has yet to collect: their ID & OR wait
+// at Desk B, not A. Nothing is owed, so the sheet goes green — still Desk B.
+const GATE_LANE_B_PAID = {
+  tone: 'ok', icon: 'fa-circle-check', headline: 'Desk B', line: 'Already paid. Send them to Desk B for their ID & OR.',
+}
+
+// How far through the gate → ID & OR → kit someone is, read off the lane: a lane exists only once
+// they're checked in, C means the ID & OR is out, Done means the kit is too.
+export function gateSteps(lane) {
+  return [
+    { label: 'Checked in', done: true },
+    { label: 'ID & OR', done: lane === 'C' || lane === 'Done' },
+    { label: 'Kit', done: lane === 'Done' },
+  ]
+}
+
+export function gateLane(response) {
+  if (response.lane === 'B' && response.delegate?.payment?.status === 'paid') return GATE_LANE_B_PAID
+  return GATE_LANE[response.lane]
+}
+
 // ---- Secretariat desk ------------------------------------------------------
 
 // A scan returns the delegate's card. Someone the gate didn't check in comes back 'pending' with the
