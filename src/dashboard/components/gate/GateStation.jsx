@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { gateScan, gateSearch, gateCheckIn, isBadgeCode, CAMERA_TROUBLE } from '@/lib/checkin'
+import { gateScan, gateSearch, gateCheckIn, isBadgeCode, isQuickResult, CAMERA_TROUBLE } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
 import { Loading, ErrorState } from '../states'
 import QrViewfinder from '../checkin/QrViewfinder'
 import ScanResultSheet from '../checkin/ScanResultSheet'
+import ScanStrip from '../checkin/ScanStrip'
 import DeskSearch from '../desk/DeskSearch'
 import SessionBar from '../checkin/SessionBar'
 import { useLiveSession } from '../../useLiveSession'
@@ -19,6 +20,10 @@ import { useLiveSession } from '../../useLiveSession'
  * answers a scan with "pending" and checks in on the second call, so the phone makes both. Someone
  * with no seat (never paid, cancelled, online) is never checked in: the sheet names them and says
  * Desk B.</p>
+ *
+ * <p>A check-in shows as a strip under the camera, which keeps reading: the next badge replaces it,
+ * and it clears itself after three seconds. A refusal or a failed scan stops the camera behind the
+ * full sheet until the marshal swipes or taps it away.</p>
  *
  * <p>While the admin has a session open, every check-in here also counts them there — a balance
  * doesn't stop that, a refusal does. The bar on top says which session, so the marshal knows what
@@ -76,6 +81,7 @@ export default function GateStation({ touch }) {
   }
 
   const next = useCallback(() => setResult(null), [])
+  const quick = isQuickResult(result)
 
   let body
   if (loading && !event) body = <Loading />
@@ -129,9 +135,9 @@ export default function GateStation({ touch }) {
             )}
           </div>
         ) : (
-          <QrViewfinder key={cameraKey} ready={!busy && !result} onCode={handleCode} onUnavailable={setCamera} />
+          <QrViewfinder key={cameraKey} ready={!busy && (!result || quick)} onCode={handleCode} onUnavailable={setCamera} />
         )}
-        <p className="gte-aim">{trouble ? ' ' : busy && !result ? 'Checking…' : 'Point at the QR code'}</p>
+        <p className="gte-aim">{trouble ? ' ' : busy ? 'Checking…' : 'Point at the QR code'}</p>
       </div>
     )
   }
@@ -151,7 +157,9 @@ export default function GateStation({ touch }) {
         </div>
       )}
 
-      {result && <ScanResultSheet response={result} onNext={next} />}
+      {result && (quick
+        ? <ScanStrip response={result} checking={busy} onNext={next} />
+        : <ScanResultSheet response={result} onNext={next} swipe />)}
 
       <style>{GTE_CSS}</style>
     </div>

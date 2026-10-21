@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import DelegateFace from './DelegateFace'
 import DietStrip from './DietStrip'
+import { useSwipeDown } from '../../useSwipeDown'
 import {
-  RESULT, gateLane, gateSteps, PENDING_ACTION, resultHeadline, formatVenueTime, paymentLine, sessionLine, busLine, overCapacityLine,
+  RESULT, PENDING_ACTION, resultHeadline, formatVenueTime, paymentLine, busLine, overCapacityLine,
 } from '@/lib/checkin'
 
 /**
@@ -21,10 +22,10 @@ import {
  * them before they sit down. A full bus still boards, with the warning in front of the marshal.
  * Someone not yet checked in ({@code checksIn}) is checked in by that same tap, and the button says so.</p>
  *
- * <p>At the main gate the response carries a {@code lane} instead of a checkpoint verdict: Desk A,
- * Desk B, Desk C or Go in, in letters big enough to read from the queue. The gate keeps it lean — face, name,
- * LGU — plus the session the check-in counted at. Every result with a delegate on it says what they
- * still owe ("Paid in full", "Balance ₱6,000"), so the marshal can say it before the desk has to.</p>
+ * <p>A pass at the main gate or a session door doesn't come here: it shows as a {@link ScanStrip}
+ * and the camera reads on. What does — a refusal there, a failed scan — can be swiped down as well
+ * as tapped away ({@code swipe}). Every result with a delegate on it says what they still owe
+ * ("Paid in full", "Balance ₱6,000"), so the marshal can say it before the desk has to.</p>
  *
  * <p>The phone buzzes once for green and twice for anything else, so a guard watching the queue
  * rather than the screen still knows. iOS has no vibration API and ignores this silently.</p>
@@ -32,21 +33,20 @@ import {
  * <p>{@code response} is the API's ScanResponse or GateResponse, or {@code { result: 'error', reason }}
  * when the request itself failed — which gets the red treatment and a nudge to search by name.</p>
  */
-export default function ScanResultSheet({ response, kind, onNext, onAct }) {
+export default function ScanResultSheet({ response, kind, onNext, onAct, swipe = false }) {
   const button = useRef(null)
   const actButton = useRef(null)
   const [confirming, setConfirming] = useState(false)
   const [acting, setActing] = useState(false)
   const isError = response.result === 'error'
-  const lane = !isError && response.result === 'ok' ? gateLane(response) : null
-  const meta = lane || (isError ? RESULT.denied : RESULT[response.result] || RESULT.denied)
+  const meta = isError ? RESULT.denied : RESULT[response.result] || RESULT.denied
   const person = response.delegate
   const pay = paymentLine(person?.payment)
-  const session = lane ? sessionLine(response.session) : null
   const boarding = response.boarding
   const over = boarding ? overCapacityLine(boarding) : null
   const action = response.result === 'pending' && onAct ? PENDING_ACTION[response.reasonCode] : null
   const calm = meta.tone === 'ok' || meta.tone === 'pend'
+  const { handlers, offset } = useSwipeDown(onNext, swipe && !acting)
   // Per result, not per tone: a tap that turns "pending" into "ok" is a new result in the same calm
   // tone, and it still needs its buzz and the focus moved off the action that just went away.
   useEffect(() => {
@@ -74,24 +74,19 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
   // While a tap is with the server the sheet stays: closing it would bring the camera back, and the
   // reply would land on whoever is scanned next.
   return (
-    <div className={`srs tone-${meta.tone}`} role="status" aria-live="assertive" onClick={acting ? undefined : onNext}>
-      <div className={`srs-head${lane ? ' is-lane' : ''}`}>
+    <div
+      className={`srs tone-${meta.tone}${swipe ? ' is-swipe' : ''}${offset != null ? ' is-dragging' : ''}`}
+      style={offset != null ? { '--srs-drag': `${offset}px` } : undefined}
+      role="status"
+      aria-live="assertive"
+      onClick={acting ? undefined : onNext}
+      {...handlers}
+    >
+      {swipe && <span className="srs-handle" aria-hidden="true" />}
+      <div className="srs-head">
         <i className={`fas ${meta.icon}`} aria-hidden="true" />
-        <span>{isError ? 'Scan failed' : lane ? lane.headline : resultHeadline(response, kind)}</span>
+        <span>{isError ? 'Scan failed' : resultHeadline(response, kind)}</span>
       </div>
-
-      {/* At the gate: how far through check-in → ID & OR → kit they are. */}
-      {lane && (
-        <ol className="srs-steps" aria-label="Progress">
-          {gateSteps(response.lane).map((step) => (
-            <li key={step.label} className={step.done ? 'is-done' : undefined}>
-              <span aria-hidden="true" />
-              {step.done && <i className="fas fa-check" aria-hidden="true" />} {step.label}
-              <span className="sr-only">{step.done ? ' done' : ' not yet'}</span>
-            </li>
-          ))}
-        </ol>
-      )}
 
       {person?.diet && <DietStrip diet={person.diet} />}
 
@@ -100,7 +95,7 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
           <DelegateFace name={person.fullName} photoUrl={person.photoUrl} />
           <div className="srs-who">
             <strong>{person.fullName}</strong>
-            <span>{(lane ? [person.lgu] : [person.designation, person.lgu]).filter(Boolean).join(' · ')}</span>
+            <span>{[person.designation, person.lgu].filter(Boolean).join(' · ')}</span>
             <span className="srs-shirt">
               <i className="fas fa-shirt" aria-hidden="true" /> {person.shirtSize ? `Shirt ${person.shirtSize}` : 'No shirt size'}
             </span>
@@ -141,20 +136,7 @@ export default function ScanResultSheet({ response, kind, onNext, onAct }) {
         </p>
       )}
 
-      {lane && (
-        <p className="srs-when">
-          <i className="fas fa-clock" aria-hidden="true" />
-          {response.justCheckedIn ? ' Checked in just now' : ` Already checked in at ${formatVenueTime(response.checkedInAt)}`}
-        </p>
-      )}
-
-      {session && (
-        <p className="srs-when">
-          <i className="fas fa-door-open" aria-hidden="true" /> {session}
-        </p>
-      )}
-
-      {lane ? <p className="srs-reason">{lane.line}</p> : response.reason && <p className="srs-reason">{response.reason}</p>}
+      {response.reason && <p className="srs-reason">{response.reason}</p>}
 
       {action && confirming && (
         <p className="srs-confirm" onClick={(e) => e.stopPropagation()}>
@@ -207,20 +189,11 @@ const SRS_CSS = `
     text-transform: uppercase; letter-spacing: 0.03em;
   }
   .srs-head i { font-size: 1.5rem; }
-  /* The gate's answer is read from the queue, not just by the guard. */
-  .srs-head.is-lane { font-size: 2rem; font-weight: 900; letter-spacing: 0.05em; padding: 16px; }
-  .srs-head.is-lane i { font-size: 2rem; }
 
-  /* Done steps are green whatever the lane's colour: green here always means "this part is finished". */
-  .srs-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: -4px 0 14px; list-style: none; padding: 0; }
-  .srs-steps li {
-    display: flex; flex-direction: column; gap: 6px;
-    font-family: var(--font-heading); font-weight: 700; font-size: 0.8rem; color: var(--gray-600);
-  }
-  .srs-steps li > span:first-child { height: 8px; border-radius: 999px; background: var(--gray-200); }
-  .srs-steps li.is-done { color: var(--ok); }
-  .srs-steps li.is-done > span:first-child { background: var(--ok); }
-  .srs-steps li i { font-size: 0.75rem; }
+  /* Swipe down to close: the sheet follows the finger, then springs back or goes. */
+  .srs.is-swipe { touch-action: none; transform: translateY(var(--srs-drag, 0px)); transition: transform 0.18s ease-out; }
+  .srs.is-dragging { transition: none; }
+  .srs-handle { display: block; width: 40px; height: 4px; border-radius: 999px; background: var(--gray-400); margin: -6px auto 12px; }
 
   .srs-person { display: flex; align-items: center; gap: 14px; }
   .srs-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -269,6 +242,7 @@ const SRS_CSS = `
 
   @media (min-width: 640px) {
     .srs { left: 50%; right: auto; width: 480px; transform: translateX(-50%); bottom: 24px; border-radius: 18px; }
+    .srs.is-swipe { transform: translateX(-50%) translateY(var(--srs-drag, 0px)); }
     @keyframes srs-up { from { opacity: 0; } to { opacity: 1; } }
   }
   @media (prefers-reduced-motion: reduce) {
