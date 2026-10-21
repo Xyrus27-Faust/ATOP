@@ -24,6 +24,11 @@ export const SCN_CSS = `
     font-family: var(--font-heading); font-weight: 800; font-size: 1.15rem; text-transform: uppercase;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  /* A bus label is "Package — Bus 3 (AM)": the part that matters is at the end, so it wraps, never cut. */
+  .scn-post-label.is-bus {
+    font-size: 1.3rem; line-height: 1.15; white-space: normal;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
   .scn-bar-btn {
     min-height: 44px; padding: 0 14px; flex-shrink: 0; cursor: pointer;
     background: transparent; color: var(--white); border: 1.5px solid rgba(255,255,255,0.35);
@@ -59,6 +64,16 @@ export const SCN_CSS = `
     font-family: var(--font-heading); font-weight: 700; font-size: 1rem; box-shadow: var(--shadow-lg);
   }
   .scn-search-btn:hover { background: var(--gold-light); }
+  .scn-dock:has(.scn-search-btn + .scn-search-btn) { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .scn-wrongbus {
+    display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; margin: 0 0 4px;
+    background: #FFF7ED; border: 1.5px solid #FED7AA; border-radius: var(--radius-sm); color: #C2410C;
+    font-family: var(--font-body); font-size: 0.95rem; line-height: 1.5; cursor: default;
+  }
+  .scn-wrongbus strong { font-family: var(--font-heading); }
+  .scn-wrongbus .dash-btn { width: 100%; min-height: 52px; justify-content: center; }
+  .scn-wrongbus-hint { font-size: 0.88rem; }
 
   @media (min-width: 640px) {
     .scn-dock { left: 50%; right: auto; width: 480px; transform: translateX(-50%); background: none; bottom: 12px; }

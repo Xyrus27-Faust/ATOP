@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { checkInActivity, formatDay, formatVenueTime, venueDate, csvStamp, fold } from '@/lib/checkin'
+import { checkInActivity, listCheckpoints, formatDay, formatVenueTime, venueDate, csvStamp, fold } from '@/lib/checkin'
 import { formatPeso } from '@/lib/events'
 import { downloadCsv } from '@/lib/csv'
 import { useAsync } from '../../useAsync'
@@ -20,6 +20,13 @@ const ACTIONS = {
   StepUndone: { label: 'Desk step undone', icon: 'fa-rotate-left', group: 'fixes', tone: 'bad' },
 }
 const actionOf = (key) => ACTIONS[key] || { label: key, icon: 'fa-circle', group: 'scans' }
+// A scan at a bus is a boarding (ATOP, 2026-10-22): named so, so a bus row doesn't read like a lunch scan.
+const BOARDED = {
+  Scanned: { label: 'Boarded', icon: 'fa-bus', group: 'scans' },
+  ManualLog: { label: 'Boarded by name', icon: 'fa-bus', group: 'scans' },
+}
+const actionAt = (key, atBus) => (atBus && BOARDED[key]) || actionOf(key)
+const BOARDING = new Set(['Scanned', 'ManualLog', 'MarkedAttended'])
 
 const FILTERS = [
   { key: 'all', label: 'Everything', test: () => true },
@@ -28,6 +35,8 @@ const FILTERS = [
   { key: 'desk', label: 'Desk', test: (r) => actionOf(r.action).group === 'desk' },
   { key: 'scans', label: 'Scans', test: (r) => r.action === 'Scanned' || r.action === 'ManualLog' || r.action === 'MarkedAttended' },
 ]
+// Only on a day with a bus on it: the other days keep the five chips they had.
+const FILTERS_WITH_BUSES = [...FILTERS, { key: 'buses', label: 'Buses', test: (r) => r.atBus }]
 
 /**
  * The admin's audit of check-in: one day's timeline, newest first, of everything staff did — who
@@ -42,13 +51,19 @@ export default function ActivityTab() {
   const { loading, error, data, reload } = useAsync(async () => {
     const event = await fetchCurrentEvent()
     if (!event) return { event: null }
-    return { event, log: await checkInActivity(event.id, picked) }
+    // The buses are picked out by name, from the checkpoint list. Without it the log still reads,
+    // only without the bus chips and the "Boarded" wording.
+    const [log, checkpoints] = await Promise.all([
+      checkInActivity(event.id, picked),
+      listCheckpoints(event.id).catch(() => []),
+    ])
+    return { event, log, buses: new Set(checkpoints.filter((c) => c.kind === 'Tour').map((c) => c.label)) }
   }, [picked])
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
-  const { event, log } = data
+  const { event, log, buses } = data
   if (!event) {
     return (
       <div className="dash-card dash-empty">
@@ -83,7 +98,7 @@ export default function ActivityTab() {
           </button>
         ))}
       </div>
-      <DayLog key={log.day} log={log} loading={loading} reload={reload} />
+      <DayLog key={log.day} log={log} buses={buses} loading={loading} reload={reload} />
     </>
   )
 }
@@ -167,8 +182,9 @@ function staffOf(rows) {
   return [...by.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
 }
 
-function DayLog({ log, loading, reload }) {
+function DayLog({ log, buses, loading, reload }) {
   const [filter, setFilter] = useState('all')
+  const [bus, setBus] = useState(null)
   const [q, setQ] = useState('')
   const [staff, setStaff] = useState(null)
   // Hours the admin opened or closed by hand; the rest follow the default (newest open).
@@ -176,13 +192,21 @@ function DayLog({ log, loading, reload }) {
   const [limits, setLimits] = useState({})
   const [allStaff, setAllStaff] = useState(false)
 
-  const rows = log.rows
-  const test = (FILTERS.find((f) => f.key === filter) || FILTERS[0]).test
+  const rows = useMemo(() => log.rows.map((r) => ({ ...r, atBus: !!r.where && buses.has(r.where) })), [log.rows, buses])
+  const busRows = rows.filter((r) => r.atBus)
+  const filters = busRows.length > 0 ? FILTERS_WITH_BUSES : FILTERS
+  const test = (filters.find((f) => f.key === filter) || filters[0]).test
+  // Each bus that day, with how many boarded it (taken-back boardings don't count).
+  const perBus = [...new Set(busRows.map((r) => r.where))].sort().map((label) => ({
+    label,
+    boarded: busRows.filter((r) => r.where === label && BOARDING.has(r.action) && !r.reversed).length,
+  }))
+  const pick = (key) => { setFilter(key); setBus(null) }
   const term = fold(q.trim())
-  const shown = useMemo(() => rows.filter((r) => test(r) && (!staff || r.by === staff)
+  const shown = useMemo(() => rows.filter((r) => test(r) && (!bus || r.where === bus) && (!staff || r.by === staff)
     && (!term || fold(r.fullName).includes(term) || fold(r.lgu).includes(term)
       || fold(r.by).includes(term) || fold(r.originalBy).includes(term) || fold(r.where).includes(term))),
-  [rows, test, staff, term])
+  [rows, test, bus, staff, term])
   const hours = useMemo(() => hoursOf(visitsOf(shown)), [shown])
   const people = useMemo(() => staffOf(rows), [rows])
   // A narrowed list is short enough to read whole; the full day opens on its latest hour only.
@@ -201,7 +225,7 @@ function DayLog({ log, loading, reload }) {
     ['Time', 'What happened', 'Name', 'LGU / Organisation', 'Where', 'Done by', 'Amount', 'Reason / note',
       'Taken back later', 'Originally done by', 'Originally done at'],
     ...shown.map((r) => [
-      csvStamp(r.at), actionOf(r.action).label + (r.undid ? `: ${actionOf(r.undid).label}` : ''), r.fullName, r.lgu ?? '',
+      csvStamp(r.at), actionAt(r.action, r.atBus).label + (r.undid ? `: ${actionAt(r.undid, r.atBus).label}` : ''), r.fullName, r.lgu ?? '',
       r.where ?? '', r.by, r.amount ?? '', r.note ?? '', r.reversed ? 'Yes' : '', r.originalBy ?? '',
       csvStamp(r.originalAt),
     ]),
@@ -219,7 +243,7 @@ function DayLog({ log, loading, reload }) {
         <button
           type="button"
           className={`act-sum is-button${filter === 'fixes' ? ' is-on' : ''}`}
-          onClick={() => setFilter(filter === 'fixes' ? 'all' : 'fixes')}
+          onClick={() => pick(filter === 'fixes' ? 'all' : 'fixes')}
           aria-pressed={filter === 'fixes'}
         >
           <span className="act-sum-kind">Corrections</span>
@@ -229,7 +253,7 @@ function DayLog({ log, loading, reload }) {
         <button
           type="button"
           className={`act-sum is-button${filter === 'cash' ? ' is-on' : ''}`}
-          onClick={() => setFilter(filter === 'cash' ? 'all' : 'cash')}
+          onClick={() => pick(filter === 'cash' ? 'all' : 'cash')}
           aria-pressed={filter === 'cash'}
         >
           <span className="act-sum-kind">Cash taken at Desk B</span>
@@ -278,19 +302,35 @@ function DayLog({ log, loading, reload }) {
       )}
 
       <div className="act-chips" role="tablist" aria-label="Filter">
-        {FILTERS.map((f) => (
+        {filters.map((f) => (
           <button
             key={f.key}
             type="button"
             role="tab"
             aria-selected={f.key === filter}
             className={`act-chip${f.key === filter ? ' is-on' : ''}`}
-            onClick={() => setFilter(f.key)}
+            onClick={() => pick(f.key)}
           >
-            {f.label} <span>{rows.filter(f.test).length}</span>
+            {f.key === 'buses' && <i className="fas fa-bus" aria-hidden="true" />} {f.label} <span>{rows.filter(f.test).length}</span>
           </button>
         ))}
       </div>
+
+      {filter === 'buses' && perBus.length > 1 && (
+        <div className="act-chips act-buses" role="group" aria-label="One bus">
+          {perBus.map((b) => (
+            <button
+              key={b.label}
+              type="button"
+              aria-pressed={bus === b.label}
+              className={`act-chip${bus === b.label ? ' is-on' : ''}`}
+              onClick={() => setBus(bus === b.label ? null : b.label)}
+            >
+              {b.label} <span>{b.boarded} boarded</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="act-bar">
         <div className="act-search">
@@ -404,7 +444,7 @@ function Visit({ entry: e }) {
 
 /** The action as a coloured pill with its icon, plus "taken back" on one later voided or undone. */
 function What({ row: r }) {
-  const a = actionOf(r.action)
+  const a = actionAt(r.action, r.atBus)
   return (
     <span className={`act-what${r.reversed ? ' is-reversed' : ''}`}>
       <span className={`act-pill${a.tone ? ` is-${a.tone}` : ''}`}>
@@ -433,7 +473,7 @@ function Detail({ steps, time, by }) {
         <span key={i} className="act-fix">
           {r.undid && (
             <span>
-              Took back <b>{actionOf(r.undid).label.toLowerCase()}</b>
+              Took back <b>{actionAt(r.undid, r.atBus).label.toLowerCase()}</b>
               {r.originalBy && <> by {r.originalBy}</>}
               {r.originalAt && <>, {formatDay(venueDate(r.originalAt))} {formatVenueTime(r.originalAt)}</>}
             </span>
@@ -482,6 +522,7 @@ const ACT_CSS = `
   .act-sum-split { font-size: 0.9rem; color: var(--gray-800); overflow-wrap: anywhere; }
 
   .act-chips { margin: 16px 0 4px; }
+  .act-chips.act-buses { margin-top: 4px; }
   .act-chip {
     flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
     border: 1px solid var(--gray-200); background: var(--white); color: var(--navy);
