@@ -50,6 +50,10 @@ export default function DeskListTab() {
   const arrivedDay = useMemo(
     () => new Map((data?.rows ?? []).filter((r) => r.checkIn).map((r) => [r.id, scanningDay(r.checkIn.at)])),
     [data])
+  // The newest of each row's four steps, for Latest first: also once per load, not per keystroke.
+  const lastAt = useMemo(
+    () => new Map((data?.rows ?? []).map((r) => [r.id, newest(r.checkIn?.at, r.payment?.at, r.idRelease?.at, r.kit?.at)])),
+    [data])
 
   if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
@@ -74,7 +78,7 @@ export default function DeskListTab() {
   // Latest first: by the newest of their four steps, so whoever the desk just served is on top —
   // someone back for their kit at 10 isn't buried among the 7:56 arrivals. The download follows suit.
   const shown = sort === 'latest'
-    ? latestFirst(matched, (r) => newest(r.checkIn?.at, r.payment?.at, r.idRelease?.at, r.kit?.at))
+    ? latestFirst(matched, (r) => lastAt.get(r.id) ?? null)
     : matched
   // 50 at a time: the whole convention at once is too much to draw. The boxes and the download stay on the whole list.
   const pageKey = `${missing}|${arrivedOn}|${term}|${sort}`

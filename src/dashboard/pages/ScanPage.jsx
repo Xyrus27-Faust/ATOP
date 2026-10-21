@@ -75,6 +75,9 @@ export default function ScanPage() {
   // Bumped whenever the sheet changes hands — a new scan, Next, Change — so a Board reply that comes
   // back after that is dropped rather than shown over someone else.
   const sheet = useRef(0)
+  // A badge with the server right now. The strip's timer can run out in the same frame the next badge
+  // is read, before `busy` reaches it; while this is set, that timer leaves the screen alone.
+  const inFlight = useRef(false)
   // Consecutive scans here booked on one other bus — { batchId, tour, n } — and the buses the marshal
   // has already said "I'm at the right bus" about, so the question isn't asked again for them.
   const [streak, setStreak] = useState(null)
@@ -103,6 +106,7 @@ export default function ScanPage() {
 
   const change = () => {
     sheet.current += 1
+    inFlight.current = false
     writePost(null)
     setPostId(null)
     setResult(null)
@@ -140,12 +144,20 @@ export default function ScanPage() {
       return
     }
     sheet.current += 1
+    const mine = sheet.current
+    inFlight.current = true
     setBusy(true)
     setSource({ code })
     try {
-      show(await scanCode(checkpoint.id, code), checkpoint.id)
+      const reply = await scanCode(checkpoint.id, code)
+      // Change was tapped while it was out: the reply is for a post no longer open, so it isn't shown or counted.
+      if (mine !== sheet.current) return
+      inFlight.current = false
+      show(reply, checkpoint.id)
       setBusy(false)
     } catch (err) {
+      if (mine !== sheet.current) return
+      inFlight.current = false
       if (err instanceof ApiError && err.status === 404) {
         // The checkpoint was deleted under us. Back to the picker, with a fresh list.
         change()
@@ -162,6 +174,8 @@ export default function ScanPage() {
   const stale = isPostGone(result?.reasonCode)
 
   const next = useCallback(() => {
+    // The next badge is already with the server: its reply takes the screen, so there is nothing to clear.
+    if (inFlight.current) return
     sheet.current += 1
     setResult(null)
     setSource(null)
@@ -170,6 +184,15 @@ export default function ScanPage() {
   }, [])
 
   // The Board tap, with the booking the marshal was shown: if it changed since, the API boards nobody.
+  // The dock's search and bus list close a pass strip first: left up, its timer's Next would send the
+  // marshal back to the camera mid-search. Held while a badge is with the server, a second at most.
+  const open = (to) => {
+    sheet.current += 1
+    setResult(null)
+    setSource(null)
+    setMode(to)
+  }
+
   const board = async () => {
     touch()
     const mine = sheet.current
@@ -312,11 +335,11 @@ export default function ScanPage() {
 
       {checkpoint && mode === 'scan' && (
         <div className="scn-dock">
-          <button type="button" className="scn-search-btn" onClick={() => setMode('search')}>
+          <button type="button" className="scn-search-btn" onClick={() => open('search')} disabled={busy}>
             <i className="fas fa-magnifying-glass" aria-hidden="true" /> Search by name
           </button>
           {checkpoint.kind === 'Tour' && (
-            <button type="button" className="scn-search-btn" onClick={() => setMode('list')}>
+            <button type="button" className="scn-search-btn" onClick={() => open('list')} disabled={busy}>
               <i className="fas fa-list-check" aria-hidden="true" /> Bus list
             </button>
           )}

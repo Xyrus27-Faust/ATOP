@@ -99,7 +99,9 @@ function DayAttendance({ event, day, checkpoints }) {
       if (!seen.has(s.delegateId)) seen.set(s.delegateId, new Map())
       seen.get(s.delegateId).set(log.checkpoint.id, s)
     }))
-    return { roster, seen }
+    // delegateId → their last scan this day, for Latest first: worked out once per load, not per keystroke.
+    const lastAt = new Map([...seen].map(([id, scans]) => [id, newest(...[...scans.values()].map((s) => s.scannedAt))]))
+    return { roster, seen, lastAt }
   }, [])
   const [filter, setFilter] = useState('all')
   const [q, setQ] = useState('')
@@ -110,7 +112,7 @@ function DayAttendance({ event, day, checkpoints }) {
   if (loading && !data) return <Loading />
   if (error) return <ErrorState error={error} onRetry={reload} />
 
-  const { roster, seen } = data
+  const { roster, seen, lastAt } = data
   const scanOf = (r, c) => seen.get(r.id)?.get(c.id)
   const busOf = (r) => buses.find((b) => scanOf(r, b))
   const missedAny = (r) => columns.some((c) => isOver(c) && !scanOf(r, c))
@@ -127,7 +129,7 @@ function DayAttendance({ event, day, checkpoints }) {
   // Latest first: by their last scan this day at any session, meal or bus, so whoever just came
   // through is on top. Those not scanned yet today keep A–Z below them. The download follows suit.
   const shown = sort === 'latest'
-    ? latestFirst(matched, (r) => newest(...[...(seen.get(r.id)?.values() ?? [])].map((s) => s.scannedAt)))
+    ? latestFirst(matched, (r) => lastAt.get(r.id) ?? null)
     : matched
   // 50 at a time: a box per session for 1,000 people is too much to draw at once. The counts and the
   // download stay on the whole list.

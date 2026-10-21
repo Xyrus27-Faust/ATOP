@@ -63,7 +63,8 @@ export const SCN_CSS = `
     background: var(--white); color: var(--navy); border: 0; border-radius: var(--radius-sm); cursor: pointer;
     font-family: var(--font-heading); font-weight: 700; font-size: 1rem; box-shadow: var(--shadow-lg);
   }
-  .scn-search-btn:hover { background: var(--gold-light); }
+  .scn-search-btn:hover:not(:disabled) { background: var(--gold-light); }
+  .scn-search-btn:disabled { opacity: 0.55; cursor: default; }
   .scn-dock:has(.scn-search-btn + .scn-search-btn) { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
   .scn-wrongbus {

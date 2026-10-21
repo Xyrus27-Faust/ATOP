@@ -57,7 +57,8 @@ export default function ActivityTab() {
       checkInActivity(event.id, picked),
       listCheckpoints(event.id).catch(() => []),
     ])
-    return { event, log, buses: new Set(checkpoints.filter((c) => c.kind === 'Tour').map((c) => c.label)) }
+    // That day's buses only: a label is unique within a day (the API's index), not across the event.
+    return { event, log, buses: new Set(checkpoints.filter((c) => c.kind === 'Tour' && c.day === log.day).map((c) => c.label)) }
   }, [picked])
 
   if (loading && !data) return <Loading />
@@ -197,7 +198,8 @@ function DayLog({ log, buses, loading, reload }) {
   const filters = busRows.length > 0 ? FILTERS_WITH_BUSES : FILTERS
   const test = (filters.find((f) => f.key === filter) || filters[0]).test
   // Each bus that day, with how many boarded it (taken-back boardings don't count).
-  const perBus = [...new Set(busRows.map((r) => r.where))].sort().map((label) => ({
+  // Numeric order, so Bus 2 comes before Bus 10.
+  const perBus = [...new Set(busRows.map((r) => r.where))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((label) => ({
     label,
     boarded: busRows.filter((r) => r.where === label && BOARDING.has(r.action) && !r.reversed).length,
   }))
