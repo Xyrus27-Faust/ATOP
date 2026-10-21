@@ -376,16 +376,46 @@ export const tallyVerb = (kind) => ({ Meal: 'claimed', Tour: 'boarded' }[kind] |
 // again for anyone who can't tell green from red in the sun. Only a seat paid in full gets through a
 // checkpoint, so there is no in-between: a balance is a refusal that sends them to Desk B.
 export const RESULT = {
-  ok: { tone: 'ok', icon: 'fa-circle-check', entry: 'Let in', meal: 'Meal claimed', tour: 'Boarded' },
+  // A session scan records attendance — the gate already let them in — so it says what was recorded.
+  ok: { tone: 'ok', icon: 'fa-circle-check', entry: 'Present', meal: 'Meal claimed', tour: 'Boarded' },
   // Not a verdict yet: the scan showed who it is, and a staff tap decides.
   pending: { tone: 'pend', icon: 'fa-hand-pointer', entry: 'Check the face', meal: 'Check the face', tour: 'Check the face' },
-  denied: { tone: 'bad', icon: 'fa-circle-xmark', entry: 'Not let in', meal: 'Not served', tour: 'Not boarded' },
+  denied: { tone: 'bad', icon: 'fa-circle-xmark', entry: 'Not recorded', meal: 'Not served', tour: 'Not boarded' },
+}
+
+/**
+ * A result the scanner shows as a strip and reads past — a clean pass at the gate or a session door.
+ * Anything else (a refusal, an error, a tap still to make) stops the camera until the guard closes it.
+ */
+export const isQuickResult = (response) => response?.result === 'ok'
+
+// A repeat this soon after the first scan is the same badge read twice, not someone coming back.
+const JUST_SCANNED_MS = 60_000
+
+/**
+ * True when a pass is a repeat of a scan under a minute old — a session's re-entry or a gate scan of
+ * someone already in — so the strip says "Just scanned" rather than "Welcome back" (ATOP, 2026-10-21).
+ * The time is the server's first scan, so a colleague's scan at the same door counts too.
+ */
+export function justScanned(response) {
+  const first = response?.reasonCode === 'reentry' ? response.scannedAt
+    : response?.justCheckedIn === false ? response.checkedInAt
+      : null
+  return !!first && Date.now() - new Date(first).getTime() < JUST_SCANNED_MS
+}
+
+/** The diet as one line for the scan strip — { text, allergy } — or null when the API sent none. */
+export function dietSummary(diet) {
+  if (!diet) return null
+  const parts = [...diet.restrictions, diet.notes && `“${diet.notes}”`].filter(Boolean)
+  if (diet.hasAllergy) return { text: ['Food allergy', ...parts].join(' · '), allergy: true }
+  return { text: parts.length > 0 ? parts.join(' · ') : 'No dietary needs', allergy: false }
 }
 
 // A shorter headline for the refusals a guard meets most, so the big line says what happened. A
 // plain string reads the same at every kind of checkpoint.
 const DENIED_HEADLINE = {
-  already_scanned: { entry: 'Already entered', meal: 'Already claimed', tour: 'Already boarded' },
+  already_scanned: { entry: 'Already marked present', meal: 'Already claimed', tour: 'Already boarded' },
   unknown_code: 'Code not recognised',
   cancelled: 'Cancelled',
   online: 'Online attendee',

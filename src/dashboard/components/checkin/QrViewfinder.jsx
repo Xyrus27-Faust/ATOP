@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 // The same badge held in front of the camera decodes several times a second. Once a code has been
-// handled, the same code is ignored for this long after the guard is ready again — otherwise
-// dismissing "Let in" would instantly re-scan the badge still in frame and show "Already entered".
+// handled, the same code is ignored for this long after the guard is ready again. At the gate and a
+// session door the camera keeps reading behind a pass; the guard moves the phone on to the next badge
+// as soon as the result shows (ATOP, 2026-10-21), so the strip's three seconds is enough.
 const SAME_CODE_COOLDOWN_MS = 3000
 
 // A minute with no badge read and no result closed: the camera goes off, which is what heats a phone
