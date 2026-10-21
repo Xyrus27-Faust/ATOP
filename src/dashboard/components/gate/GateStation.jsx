@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { gateScan, gateSearch, gateCheckIn, isBadgeCode, CAMERA_TROUBLE } from '@/lib/checkin'
 import { useAsync } from '../../useAsync'
@@ -12,11 +12,13 @@ import { useLiveSession } from '../../useLiveSession'
 /**
  * The main gate, as one post on the scanner: every delegate's first stop.
  *
- * <p>A badge scanned here shows the delegate — photo, name, LGU, what they still owe — and waits:
- * nobody is checked in until the marshal looks at the face and taps Check in (ATOP, 2026-10-16). The
- * tap answers where to go — Desk A (paid in full), Desk B (a balance to pay) or Go in (ID and kit
- * already collected). Someone already in gets that answer straight from the scan. Someone with no
- * seat (never paid, cancelled, online) is never checked in: the sheet names them and says Desk B.</p>
+ * <p>A badge scanned here checks the delegate in straight away and shows them — photo, name, LGU,
+ * what they still owe — with where to go: Desk A (paid in full), Desk B (a balance to pay) or Go in
+ * (ID and kit already collected). The Check in tap after each scan was dropped to keep the line
+ * moving; the face shows on the result, and a wrong person is taken back at the desk. The API still
+ * answers a scan with "pending" and checks in on the second call, so the phone makes both. Someone
+ * with no seat (never paid, cancelled, online) is never checked in: the sheet names them and says
+ * Desk B.</p>
  *
  * <p>While the admin has a session open, every check-in here also counts them there — a balance
  * doesn't stop that, a refusal does. The bar on top says which session, so the marshal knows what
@@ -39,11 +41,6 @@ export default function GateStation({ touch }) {
   const [result, setResult] = useState(null)
   // A row picked from the search, waiting for the Confirm tap.
   const [picked, setPicked] = useState(null)
-  // The badge behind a pending scan, sent with its Check in tap so the session logs a scan.
-  const [scanned, setScanned] = useState(null)
-  // Bumped on each new scan and on Next, so a Check in reply that comes back after that is dropped
-  // rather than shown over the next delegate.
-  const sheet = useRef(0)
 
   const handleCode = useCallback(async (code) => {
     touch()
@@ -51,11 +48,11 @@ export default function GateStation({ touch }) {
       setResult({ result: 'error', reason: 'That isn’t an ATOP badge. Scan the QR on their pass, or search by name.' })
       return
     }
-    sheet.current += 1
     setBusy(true)
-    setScanned(code)
     try {
-      setResult(await gateScan(event.id, code))
+      const scan = await gateScan(event.id, code)
+      // The code goes with the check-in so the session logs it as a scan, not a manual entry.
+      setResult(scan.result === 'pending' ? await gateCheckIn(event.id, scan.delegate.id, code) : scan)
     } catch (err) {
       setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
     } finally {
@@ -78,23 +75,7 @@ export default function GateStation({ touch }) {
     }
   }
 
-  // The Check in tap on a scanned badge. A failure replaces the sheet, so they can search by name.
-  const checkInScanned = async () => {
-    const mine = sheet.current
-    try {
-      const reply = await gateCheckIn(event.id, result.delegate.id, scanned)
-      if (mine === sheet.current) setResult(reply)
-    } catch (err) {
-      if (mine === sheet.current) setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
-    } finally {
-      refreshSession()
-    }
-  }
-
-  const next = useCallback(() => {
-    sheet.current += 1
-    setResult(null)
-  }, [])
+  const next = useCallback(() => setResult(null), [])
 
   let body
   if (loading && !event) body = <Loading />
@@ -170,7 +151,7 @@ export default function GateStation({ touch }) {
         </div>
       )}
 
-      {result && <ScanResultSheet response={result} onNext={next} onAct={result.result === 'pending' ? checkInScanned : undefined} />}
+      {result && <ScanResultSheet response={result} onNext={next} />}
 
       <style>{GTE_CSS}</style>
     </div>
