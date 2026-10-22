@@ -145,6 +145,8 @@ const REGISTRATIONS = { to: '/dashboard/admin/registrations', label: 'Registrati
 // The counts that get handed to a supplier — shirt sizes and tour fill. Sits with Registrations
 // because it is the same secretariat job, read off the same bookings.
 const TALLIES = { to: '/dashboard/admin/tallies', label: 'Tallies', icon: 'fa-chart-simple' }
+// The post-convention form's answers. Admin only: the comments name people and offices.
+const EVALUATIONS = { to: '/dashboard/admin/evaluations', label: 'Evaluations', icon: 'fa-clipboard-check' }
 // The representative's own page, and the admin's grant/appoint table behind it.
 const MY_REGION = { to: '/dashboard/regional', label: 'My Region', icon: 'fa-map-location-dot' }
 const ALLOCATIONS = { to: '/dashboard/admin/regional', label: 'Regional Allocations', icon: 'fa-users-between-lines' }
@@ -202,7 +204,7 @@ export function navForRoles(roles = []) {
   if (checkIn && !isPureMarshal(roles)) groups.push(checkIn)
 
   if (admin) {
-    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, ALLOCATIONS, DESK_STAFF] })
+    groups.push({ label: 'Administration', items: [ACCESS, ASSESSORS, RESULTS, ADJUDICATORS, ROSTER, WINNERS, REGISTRATIONS, TALLIES, EVALUATIONS, ALLOCATIONS, DESK_STAFF] })
   } else if (canManageRegistrations(roles)) {
     // A Secretariat without the Admin role still works the registration list — and the tallies
     // taken off it, which is the secretariat's job rather than the admin's.
