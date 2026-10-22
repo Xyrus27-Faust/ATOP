@@ -30,10 +30,6 @@ export function clearDraft(eventId) {
   }
 }
 
-/** A saved sign-in still worth using: the server would refuse it a little early anyway. */
-export const tokenUsable = (draft) =>
-  Boolean(draft?.accessToken && draft?.expiresAt && new Date(draft.expiresAt).getTime() - Date.now() > 60_000)
-
 /** The question ids a section still needs before Next — ratings and scales; comments are optional. */
 export const missingIn = (section, answers) =>
   section.questions.filter((q) => q.required && !isAnswered(q, answers[q.id])).map((q) => q.id)
