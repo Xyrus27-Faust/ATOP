@@ -24,6 +24,17 @@ const codeTail = (raw) => {
   return compact
 }
 
+/**
+ * The invite email's link, /evaluation#email=…&code=DLG26-…. The details ride after # because a browser
+ * never sends that part to a server, so they stay out of every access log. Read once, then wiped.
+ */
+const fromLink = () => {
+  const params = new URLSearchParams(window.location.hash.slice(1))
+  const email = params.get('email')?.trim() ?? ''
+  const code = codeTail(params.get('code'))
+  return email || code ? { email, code } : null
+}
+
 /** The API answers with the printed ID's form; delegates know the booking page's. */
 const asCheckInCode = (idNo) => (idNo ?? '').replace(/^ATOP-(\d\d)-/, 'DLG$1-')
 
@@ -73,22 +84,34 @@ export default function EvaluationPage() {
 function Evaluation({ slug, form }) {
   const sections = form.sections
   const [draft] = useState(() => loadDraft(form.eventId))
+  const [link] = useState(fromLink)
   // Checked once already on this device: straight back into the form. Submit checks it all again.
-  const known = draft?.identity?.idNo ? draft.identity : null
+  // Unless an invite link names someone else — a shared office computer — then that person starts here.
+  const linkIsSomeoneElse =
+    link &&
+    (codeTail(draft?.identity?.idNo) !== link.code ||
+      (draft?.identity?.email ?? '').toLowerCase() !== link.email.toLowerCase())
+  const known = draft?.identity?.idNo && !linkIsSomeoneElse ? draft.identity : null
+  // Their half-filled answers stay theirs: a link for someone else starts from a clean form.
+  const foreign = Boolean(draft?.identity?.idNo && linkIsSomeoneElse)
 
   const [phase, setPhase] = useState(known ? 'form' : 'identify')
-  const [email, setEmail] = useState(draft?.email ?? '')
-  const [idNo, setIdNo] = useState(codeTail(draft?.idNo))
+  const [email, setEmail] = useState(link && !known ? link.email : draft?.email ?? '')
+  const [idNo, setIdNo] = useState(link && !known ? link.code : codeTail(draft?.idNo))
   const [identity, setIdentity] = useState(known) // { email, idNo, name } — the name masked by the API
-  const [answers, setAnswers] = useState(draft?.answers ?? {})
-  const [step, setStep] = useState(Math.min(draft?.step ?? 0, sections.length - 1))
+  const [answers, setAnswers] = useState(foreign ? {} : draft?.answers ?? {})
+  const [step, setStep] = useState(foreign ? 0 : Math.min(draft?.step ?? 0, sections.length - 1))
 
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState(null) // { message, fields: { email|idNo: msg } }
   const [notice, setNotice] = useState(
-    !known && draft?.answers && Object.keys(draft.answers).length > 0
-      ? 'Welcome back — your answers are saved on this phone. Enter your email and check-in code again to carry on.'
-      : null,
+    known
+      ? null
+      : link
+        ? 'Your email and check-in code are filled in from your invitation — tap Start the form.'
+        : draft?.answers && Object.keys(draft.answers).length > 0
+          ? 'Welcome back — your answers are saved on this phone. Enter your email and check-in code again to carry on.'
+          : null,
   )
   const [showMissing, setShowMissing] = useState(false)
   const [serverErrors, setServerErrors] = useState({})
@@ -99,6 +122,11 @@ function Evaluation({ slug, form }) {
     for (const s of sections) for (const q of s.questions) map[q.id] = q
     return map
   }, [sections])
+
+  // The link's details are in the fields now; out of the address bar, history and any screenshot.
+  useEffect(() => {
+    if (window.location.hash) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+  }, [])
 
   // Every change goes to the device straight away; nothing is kept once the form is filed.
   useEffect(() => {
