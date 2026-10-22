@@ -25,6 +25,9 @@ export const getDelegate = (checkpointId, delegateId) =>
 export const logManually = (checkpointId, delegateId, note) =>
   api.post(`/marshal/checkpoints/${checkpointId}/manual`, { delegateId, note: note || null }, { auth: true })
 
+// A bus's list for the marshal at its door: everyone booked on it, boardedAt set once they board.
+export const getBusList = (checkpointId) => api.get(`/marshal/checkpoints/${checkpointId}/manifest`, { auth: true })
+
 // At a bus a scan only shows where their booking stands ({@code boarding}); this tap boards them.
 // {@code from} is the bus they were booked on when the marshal saw the sheet (null for none): if the
 // booking changed since, the API boards nobody and says scan again. Boarding someone booked elsewhere

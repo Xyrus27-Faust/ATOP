@@ -15,6 +15,7 @@ import QrViewfinder from '../components/checkin/QrViewfinder'
 import ScanResultSheet from '../components/checkin/ScanResultSheet'
 import ScanStrip from '../components/checkin/ScanStrip'
 import ManualSearch from '../components/checkin/ManualSearch'
+import BusList from '../components/checkin/BusList'
 import DeskStation from '../components/desk/DeskStation'
 import GateStation from '../components/gate/GateStation'
 import { DASH_CSS } from '../DashboardLayout'
@@ -35,7 +36,16 @@ import { SCN_CSS } from '../components/checkin/scanShellCss'
  * it, or it clears after three seconds; meals and buses keep the sheet, which waits for a tap.
  * When a badge won't read, the bar at the bottom opens a search by name. There is no offline mode:
  * a verdict needs the server, and a guard without signal sends people to the Secretariat desk.</p>
+ *
+ * <p>At a bus the dock also opens the bus's list, for a headcount before it leaves (ATOP,
+ * 2026-10-21). And a phone opened on the wrong bus gives itself away: everyone scanned is booked on
+ * the same other one. After {@link WRONG_BUS_STREAK} of those in a row the sheet asks whether the
+ * marshal is at that bus, and offers to switch to it, before anyone is moved off it by mistake.</p>
  */
+// Wrong-bus scans in a row, all booked on one other bus, before the sheet asks whether this is the
+// right bus. Two would catch a couple travelling together; three is a pattern.
+const WRONG_BUS_STREAK = 3
+
 export default function ScanPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -65,6 +75,13 @@ export default function ScanPage() {
   // Bumped whenever the sheet changes hands — a new scan, Next, Change — so a Board reply that comes
   // back after that is dropped rather than shown over someone else.
   const sheet = useRef(0)
+  // A badge with the server right now. The strip's timer can run out in the same frame the next badge
+  // is read, before `busy` reaches it; while this is set, that timer leaves the screen alone.
+  const inFlight = useRef(false)
+  // Consecutive scans here booked on one other bus — { batchId, tour, n } — and the buses the marshal
+  // has already said "I'm at the right bus" about, so the question isn't asked again for them.
+  const [streak, setStreak] = useState(null)
+  const [keptBus, setKeptBus] = useState(() => new Set())
 
   // A remembered checkpoint the secretariat has since closed simply isn't in the list any more.
   const checkpoint = checkpoints?.find((c) => c.id === postId) || null
@@ -79,6 +96,7 @@ export default function ScanPage() {
     writePost(c.id)
     setPostId(c.id)
     setMode('scan')
+    setStreak(null)
   }
 
   const pickPost = (post) => {
@@ -88,10 +106,12 @@ export default function ScanPage() {
 
   const change = () => {
     sheet.current += 1
+    inFlight.current = false
     writePost(null)
     setPostId(null)
     setResult(null)
     setBusy(false)
+    setStreak(null)
     // The fresh list carries every marshal's count; this phone's last number would hide theirs.
     setCounts({})
     reload()
@@ -99,6 +119,14 @@ export default function ScanPage() {
 
   const show = useCallback((response, checkpointId) => {
     setResult(response)
+    // Only a scan's verdict counts towards the streak: someone booked here breaks it, someone booked
+    // on another bus adds to it if it's the same other bus. A Board reply, a refusal or a failure
+    // says nothing about which bus this is.
+    if (response.reasonCode === 'board_own') setStreak(null)
+    else if (response.reasonCode === 'board_other' && response.boarding?.bookedBatchId) {
+      const { bookedBatchId: batchId, bookedTour: tour } = response.boarding
+      setStreak((s) => ({ batchId, tour, n: s?.batchId === batchId ? s.n + 1 : 1 }))
+    }
     if (isPostGone(response.reasonCode)) setGone({ id: checkpointId, list: checkpoints })
     if (typeof response.scanCount === 'number')
       setCounts((c) => ({ ...c, [checkpointId]: response.scanCount }))
@@ -116,12 +144,20 @@ export default function ScanPage() {
       return
     }
     sheet.current += 1
+    const mine = sheet.current
+    inFlight.current = true
     setBusy(true)
     setSource({ code })
     try {
-      show(await scanCode(checkpoint.id, code), checkpoint.id)
+      const reply = await scanCode(checkpoint.id, code)
+      // Change was tapped while it was out: the reply is for a post no longer open, so it isn't shown or counted.
+      if (mine !== sheet.current) return
+      inFlight.current = false
+      show(reply, checkpoint.id)
       setBusy(false)
     } catch (err) {
+      if (mine !== sheet.current) return
+      inFlight.current = false
       if (err instanceof ApiError && err.status === 404) {
         // The checkpoint was deleted under us. Back to the picker, with a fresh list.
         change()
@@ -138,6 +174,8 @@ export default function ScanPage() {
   const stale = isPostGone(result?.reasonCode)
 
   const next = useCallback(() => {
+    // The next badge is already with the server: its reply takes the screen, so there is nothing to clear.
+    if (inFlight.current) return
     sheet.current += 1
     setResult(null)
     setSource(null)
@@ -146,6 +184,15 @@ export default function ScanPage() {
   }, [])
 
   // The Board tap, with the booking the marshal was shown: if it changed since, the API boards nobody.
+  // The dock's search and bus list close a pass strip first: left up, its timer's Next would send the
+  // marshal back to the camera mid-search. Held while a badge is with the server, a second at most.
+  const open = (to) => {
+    sheet.current += 1
+    setResult(null)
+    setSource(null)
+    setMode(to)
+  }
+
   const board = async () => {
     touch()
     const mine = sheet.current
@@ -159,6 +206,29 @@ export default function ScanPage() {
       else setResult({ result: 'error', reason: `${err.message} Scan again, or search by name.` })
     }
   }
+
+  // Asked on the sheet itself, before the marshal reaches for Board here instead.
+  const suspect = checkpoint?.kind === 'Tour' && streak && streak.n >= WRONG_BUS_STREAK
+    && result?.reasonCode === 'board_other' && !keptBus.has(streak.batchId)
+  const rightBus = suspect ? checkpoints?.find((c) => c.kind === 'Tour' && c.tourBatchId === streak.batchId) : null
+  const wrongBus = suspect && (
+    <div className="scn-wrongbus" onClick={(e) => e.stopPropagation()}>
+      <p>
+        <i className="fas fa-triangle-exclamation" aria-hidden="true" />{' '}
+        <strong>{streak.n} in a row are booked on {streak.tour}.</strong> Are you at that bus?
+      </p>
+      {rightBus ? (
+        <button type="button" className="dash-btn is-primary" onClick={() => { next(); pick(rightBus) }}>
+          <i className="fas fa-right-left" aria-hidden="true" /> Switch to {rightBus.label}
+        </button>
+      ) : (
+        <p className="scn-wrongbus-hint">That bus isn&rsquo;t open on this phone. Tap Change and pick it, or ask the admin to open it.</p>
+      )}
+      <button type="button" className="dash-btn is-ghost" onClick={() => { setKeptBus((k) => new Set(k).add(streak.batchId)); setStreak(null) }}>
+        I&rsquo;m at the right bus
+      </button>
+    </div>
+  )
 
   let body
   // Before the checkpoint list: the gate and the desk don't need it, and shouldn't wait on it or fail with it.
@@ -180,6 +250,7 @@ export default function ScanPage() {
       />
     )
   }
+  else if (mode === 'list') body = <BusList checkpoint={checkpoint} onClose={() => setMode('scan')} />
   else if (mode === 'search') {
     body = (
       <ManualSearch
@@ -242,7 +313,7 @@ export default function ScanPage() {
               <span className="scn-post-day">
                 <i className={`fas ${kindMeta(checkpoint.kind).icon}`} aria-hidden="true" /> {formatDay(checkpoint.day)}
               </span>
-              <span className="scn-post-label">{checkpoint.label}</span>
+              <span className={`scn-post-label${checkpoint.kind === 'Tour' ? ' is-bus' : ''}`}>{checkpoint.label}</span>
             </div>
             <button type="button" className="scn-bar-btn" onClick={change}>Change</button>
           </>
@@ -264,9 +335,14 @@ export default function ScanPage() {
 
       {checkpoint && mode === 'scan' && (
         <div className="scn-dock">
-          <button type="button" className="scn-search-btn" onClick={() => setMode('search')}>
+          <button type="button" className="scn-search-btn" onClick={() => open('search')} disabled={busy}>
             <i className="fas fa-magnifying-glass" aria-hidden="true" /> Search by name
           </button>
+          {checkpoint.kind === 'Tour' && (
+            <button type="button" className="scn-search-btn" onClick={() => open('list')} disabled={busy}>
+              <i className="fas fa-list-check" aria-hidden="true" /> Bus list
+            </button>
+          )}
         </div>
       )}
 
@@ -279,6 +355,7 @@ export default function ScanPage() {
           onNext={stale ? change : next}
           onAct={checkpoint?.kind === 'Tour' && source ? board : undefined}
           swipe={quickPost}
+          notice={wrongBus}
         />
       ))}
 

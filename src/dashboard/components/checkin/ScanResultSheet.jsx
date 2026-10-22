@@ -25,7 +25,11 @@ import {
  * <p>A pass at the main gate or a session door doesn't come here: it shows as a {@link ScanStrip}
  * and the camera reads on. What does — a refusal there, a failed scan — can be swiped down as well
  * as tapped away ({@code swipe}). Every result with a delegate on it says what they still owe
- * ("Paid in full", "Balance ₱6,000"), so the marshal can say it before the desk has to.</p>
+ * ("Paid in full", "Balance ₱6,000"), so the marshal can say it before the desk has to — except at
+ * a bus, which boards them either way.</p>
+ *
+ * <p>{@code notice} is something the page needs the guard to read before acting — at a bus, the
+ * question whether this phone is open on the right bus at all. It sits under the headline.</p>
  *
  * <p>The phone buzzes once for green and twice for anything else, so a guard watching the queue
  * rather than the screen still knows. iOS has no vibration API and ignores this silently.</p>
@@ -33,7 +37,7 @@ import {
  * <p>{@code response} is the API's ScanResponse or GateResponse, or {@code { result: 'error', reason }}
  * when the request itself failed — which gets the red treatment and a nudge to search by name.</p>
  */
-export default function ScanResultSheet({ response, kind, onNext, onAct, swipe = false }) {
+export default function ScanResultSheet({ response, kind, onNext, onAct, swipe = false, notice = null }) {
   const button = useRef(null)
   const actButton = useRef(null)
   const [confirming, setConfirming] = useState(false)
@@ -41,11 +45,13 @@ export default function ScanResultSheet({ response, kind, onNext, onAct, swipe =
   const isError = response.result === 'error'
   const meta = isError ? RESULT.denied : RESULT[response.result] || RESULT.denied
   const person = response.delegate
-  const pay = paymentLine(person?.payment)
+  // Not at a bus (ATOP, 2026-10-22): the bus boards whoever owes, so the amount is only noise there.
+  const pay = kind === 'Tour' ? null : paymentLine(person?.payment)
   const boarding = response.boarding
   const over = boarding ? overCapacityLine(boarding) : null
   const action = response.result === 'pending' && onAct ? PENDING_ACTION[response.reasonCode] : null
-  const calm = meta.tone === 'ok' || meta.tone === 'pend'
+  const tone = (response.result === 'pending' && BUS_TONE[response.reasonCode]) || meta.tone
+  const calm = tone === 'ok' || tone === 'pend' || tone === 'info'
   const { handlers, offset } = useSwipeDown(onNext, swipe && !acting)
   // Per result, not per tone: a tap that turns "pending" into "ok" is a new result in the same calm
   // tone, and it still needs its buzz and the focus moved off the action that just went away.
@@ -75,7 +81,7 @@ export default function ScanResultSheet({ response, kind, onNext, onAct, swipe =
   // reply would land on whoever is scanned next.
   return (
     <div
-      className={`srs tone-${meta.tone}${swipe ? ' is-swipe' : ''}${offset != null ? ' is-dragging' : ''}`}
+      className={`srs tone-${tone}${swipe ? ' is-swipe' : ''}${offset != null ? ' is-dragging' : ''}`}
       style={offset != null ? { '--srs-drag': `${offset}px` } : undefined}
       role="status"
       aria-live="assertive"
@@ -87,6 +93,8 @@ export default function ScanResultSheet({ response, kind, onNext, onAct, swipe =
         <i className={`fas ${meta.icon}`} aria-hidden="true" />
         <span>{isError ? 'Scan failed' : resultHeadline(response, kind)}</span>
       </div>
+
+      {notice}
 
       {person?.diet && <DietStrip diet={person.diet} />}
 
@@ -163,6 +171,12 @@ export default function ScanResultSheet({ response, kind, onNext, onAct, swipe =
   )
 }
 
+/**
+ * A bus scan is coloured by where they're booked, so the marshal reads it before the words (ATOP,
+ * 2026-10-22): this bus green, no tour blue, another bus orange. The gate and session taps stay gold.
+ */
+const BUS_TONE = { board_own: 'ok', board_none: 'info', board_other: 'warn' }
+
 /** "Board" becomes "Check in & board" for someone the tap will check in too. */
 function checkInAnd(label, checksIn) {
   return checksIn ? `Check in & ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label
@@ -180,6 +194,7 @@ const SRS_CSS = `
   .srs.tone-warn { --srs-c: var(--warn); --srs-bg: var(--warn-bg); }
   .srs.tone-bad { --srs-c: var(--bad); --srs-bg: var(--bad-bg); }
   .srs.tone-pend { --srs-c: var(--navy); --srs-bg: var(--gold-light); }
+  .srs.tone-info { --srs-c: var(--info); --srs-bg: var(--info-bg); }
   @keyframes srs-up { from { transform: translateY(100%); } to { transform: none; } }
 
   .srs-head {
@@ -221,6 +236,11 @@ const SRS_CSS = `
     border-left: 5px solid var(--warn); font-family: var(--font-body); font-size: 1rem; line-height: 1.5; color: var(--navy);
   }
   .srs-act { width: 100%; min-height: 56px; margin-top: 16px; font-size: 1.05rem; justify-content: center; }
+  /* At a bus the Board button wears the header's colour; the gate's Check in keeps the gold. */
+  .srs:is(.tone-ok, .tone-info, .tone-warn) .dash-btn.srs-act,
+  .srs:is(.tone-ok, .tone-info, .tone-warn) .dash-btn.srs-act:hover {
+    background: var(--srs-c); border-color: var(--srs-c); color: var(--white); box-shadow: none;
+  }
 
   .srs-pay {
     margin-top: 12px; padding: 8px 14px; border-radius: var(--radius-sm); width: fit-content;
