@@ -50,6 +50,8 @@ import { OldCheckpoints, OldCheckpoint, OldStaff } from './dashboard/pages/Check
 import NewCheckpointPage from './dashboard/pages/NewCheckpointPage'
 import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
 import PassPage from './components/pass/PassPage'
+import EvaluationPage from './components/evaluation/EvaluationPage'
+import AdminEvaluationPage from './dashboard/pages/AdminEvaluationPage'
 
 // Auth pages are real routes (the emailed links point at /verify-email and
 // /reset-password). The authenticated dashboard lives under /dashboard, guarded
@@ -67,6 +69,8 @@ export default function AppRoutes() {
 
       {/* A delegate's live pass. Public: delegates have no accounts, and the signed link is the key. */}
       <Route path="/pass/:token" element={<PassPage />} />
+      {/* The post-convention evaluation. Public: the ID NO, an email on the record and a mailed code are the key. */}
+      <Route path="/evaluation" element={<EvaluationPage />} />
 
       <Route element={<ProtectedRoute />}>
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
@@ -163,6 +167,7 @@ export default function AppRoutes() {
             <Route path="admin/checkpoints/marshals" element={<Navigate to="/dashboard/admin/checkin?tab=staff" replace />} />
             <Route path="admin/regional" element={<RegionalAllocationsPage />} />
             <Route path="admin/registration-admins" element={<RegistrationAdminsPage />} />
+            <Route path="admin/evaluations" element={<AdminEvaluationPage />} />
           </Route>
           <Route path="profile" element={<ProfilePage />} />
         </Route>
