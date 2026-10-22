@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAsync } from '@/dashboard/useAsync'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { getEvaluationForm, sendEvaluationCode, submitEvaluation, verifyEvaluationCode } from '@/lib/evaluation'
+import { checkEvaluationIdentity, getEvaluationForm, sendEvaluationCode, submitEvaluation, verifyEvaluationCode } from '@/lib/evaluation'
 import EvaluationSection from './EvaluationSection'
-import { clearDraft, loadDraft, missingIn, saveDraft, tokenUsable, toPayload } from './evaluationDraft'
+import { clearDraft, loadDraft, missingIn, saveDraft, toPayload } from './evaluationDraft'
 
 /** The API's 409 title when the form is shut; the other 409 is "already answered". Mirrors EvaluationEndpoints.ClosedTitle. */
 const CLOSED = 'The evaluation form is closed.'
@@ -13,8 +13,10 @@ const RESEND_SECONDS = 30
  * The post-convention evaluation (ATOP, 2026-10-22). Public: delegates have no accounts.
  *
  * Four screens, each asking one thing: who you are (email + the ID NO on your convention ID), the
- * code we mailed you, the form one part at a time, and a thank-you. The answers live on the device
- * as they're given, so a dropped signal or an expired sign-in never costs anyone their work.
+ * form one part at a time, the code we mail when they tap Submit, and a thank-you. The name shown
+ * while answering is masked: until the code proves the inbox, anyone holding an ID card could type
+ * it in. The answers live on the device as they're given, so a dropped signal never costs anyone
+ * their work.
  */
 export default function EvaluationPage() {
   const { loading, error, data, reload } = useAsync(async () => {
@@ -53,30 +55,28 @@ export default function EvaluationPage() {
 function Evaluation({ slug, form }) {
   const sections = form.sections
   const [draft] = useState(() => loadDraft(form.eventId))
-  const resumable = tokenUsable(draft)
+  // Checked once already on this device: straight back into the form. Submit checks it all again.
+  const known = draft?.identity?.idNo ? draft.identity : null
 
-  const [phase, setPhase] = useState(resumable ? 'form' : 'identify')
+  const [phase, setPhase] = useState(known ? 'form' : 'identify')
   const [email, setEmail] = useState(draft?.email ?? '')
   const [idNo, setIdNo] = useState(draft?.idNo ?? '')
   const [code, setCode] = useState('')
-  const [session, setSession] = useState(
-    resumable ? { accessToken: draft.accessToken, expiresAt: draft.expiresAt, respondent: draft.respondent } : null,
-  )
+  const [identity, setIdentity] = useState(known) // { email, idNo, name } — the name masked by the API
   const [answers, setAnswers] = useState(draft?.answers ?? {})
   const [step, setStep] = useState(Math.min(draft?.step ?? 0, sections.length - 1))
-  const [owner, setOwner] = useState(draft?.respondent?.idNo ?? null)
 
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState(null) // { message, fields: { email|idNo|code: msg } }
   const [notice, setNotice] = useState(
-    !resumable && draft?.answers && Object.keys(draft.answers).length > 0
+    !known && draft?.answers && Object.keys(draft.answers).length > 0
       ? 'Welcome back — your answers are saved on this phone. Enter your email and ID number again to carry on.'
       : null,
   )
   const [cooldown, setCooldown] = useState(0)
   const [showMissing, setShowMissing] = useState(false)
   const [serverErrors, setServerErrors] = useState({})
-  const [done, setDone] = useState(null) // { title, body }
+  const [done, setDone] = useState(null) // { title, body, icon, tone }
 
   const questionById = useMemo(() => {
     const map = {}
@@ -87,16 +87,8 @@ function Evaluation({ slug, form }) {
   // Every change goes to the device straight away; nothing is kept once the form is filed.
   useEffect(() => {
     if (done) return
-    saveDraft(form.eventId, {
-      email,
-      idNo,
-      answers,
-      step,
-      accessToken: session?.accessToken ?? null,
-      expiresAt: session?.expiresAt ?? null,
-      respondent: session?.respondent ?? (owner ? { idNo: owner } : null),
-    })
-  }, [form.eventId, email, idNo, answers, step, session, owner, done])
+    saveDraft(form.eventId, { email, idNo, identity, answers, step })
+  }, [form.eventId, email, idNo, identity, answers, step, done])
 
   useEffect(() => {
     if (cooldown <= 0) return undefined
@@ -111,66 +103,55 @@ function Evaluation({ slug, form }) {
     setProblem({ message: hasField ? null : err?.message || fallback, fields })
   }
 
-  const finishWith = (title, body) => {
+  const finishWith = (title, body, icon = 'fa-circle-check', tone = 'ok') => {
     clearDraft(form.eventId)
-    setDone({ title, body })
+    setDone({ title, body, icon, tone })
     setPhase('done')
   }
 
-  // ---- step 1 and 2: who you are -------------------------------------------------------------
+  // The refusals every step can meet: answered already, or never scanned at the venue.
+  // Not attended keeps the draft — once they're scanned, the same answers can still go in.
+  const refused = (err) => {
+    if (err?.status === 409 && err.message !== CLOSED) {
+      finishWith('Already answered', err.message)
+      return true
+    }
+    if (err?.status === 403) {
+      setDone({ title: 'We can’t open the form for you yet', body: err.message, icon: 'fa-id-card', tone: null })
+      setPhase('done')
+      return true
+    }
+    return false
+  }
 
-  const sendCode = async (e) => {
+  // ---- step 1: who you are (nothing is mailed yet) -------------------------------------------
+
+  const check = async (e) => {
     e?.preventDefault()
     if (busy) return
     setBusy(true)
     setProblem(null)
     try {
-      await sendEvaluationCode(slug, { email: email.trim(), idNo: idNo.trim() })
-      setCode('')
-      setCooldown(RESEND_SECONDS)
-      setPhase('code')
-    } catch (err) {
-      if (err?.status === 409 && err.message !== CLOSED) finishWith('Already answered', err.message)
-      else fail(err, "We couldn't send the code. Check your connection and try again.")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const verify = async (typed) => {
-    if (busy) return
-    setBusy(true)
-    setProblem(null)
-    try {
-      const res = await verifyEvaluationCode(slug, { email: email.trim(), idNo: idNo.trim(), code: typed })
+      const res = await checkEvaluationIdentity(slug, { email: email.trim(), idNo: idNo.trim() })
       // A shared office computer: someone else's half-filled answers must not be filed under this name.
-      if (owner && owner !== res.respondent.idNo) {
+      if (draft?.identity?.idNo && draft.identity.idNo !== res.idNo) {
         setAnswers({})
         setStep(0)
       }
-      setOwner(res.respondent.idNo)
-      setSession({ accessToken: res.accessToken, expiresAt: res.expiresAt, respondent: res.respondent })
+      setIdentity(res)
       setNotice(null)
       setPhase('form')
     } catch (err) {
-      if (err?.status === 409 && err.message !== CLOSED) finishWith('Already answered', err.message)
-      else fail(err, "We couldn't check the code. Check your connection and try again.")
+      if (!refused(err)) fail(err, "We couldn't check your details. Check your connection and try again.")
     } finally {
       setBusy(false)
     }
-  }
-
-  const onCodeChange = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 6)
-    setCode(digits)
-    if (digits.length === 6) verify(digits)
   }
 
   const startOver = () => {
     if (!window.confirm('Start over as someone else? The answers on this device will be cleared.')) return
     clearDraft(form.eventId)
-    setSession(null)
-    setOwner(null)
+    setIdentity(null)
     setAnswers({})
     setStep(0)
     setEmail('')
@@ -181,7 +162,7 @@ function Evaluation({ slug, form }) {
     setPhase('identify')
   }
 
-  // ---- step 3: the form ----------------------------------------------------------------------
+  // ---- step 2: the form ----------------------------------------------------------------------
 
   const onAnswer = (questionId, patch) => {
     setAnswers((a) => ({ ...a, [questionId]: { ...a[questionId], ...patch } }))
@@ -219,11 +200,14 @@ function Evaluation({ slug, form }) {
     goTo(step + 1)
   }
 
-  const submit = async () => {
+  // ---- step 3: Submit mails the code; the code files the answers -----------------------------
+
+  const sendCode = async () => {
     if (busy) return
     // Every part is checked on Next, but a draft from an older visit could still have a gap.
     const gap = sections.findIndex((s) => missingIn(s, answers).length > 0)
     if (gap !== -1) {
+      setPhase('form')
       setStep(gap)
       setShowMissing(true)
       pointAt(missingIn(sections[gap], answers))
@@ -232,20 +216,46 @@ function Evaluation({ slug, form }) {
     setBusy(true)
     setProblem(null)
     try {
+      await sendEvaluationCode(slug, { email: identity.email, idNo: identity.idNo })
+      setCode('')
+      setCooldown(RESEND_SECONDS)
+      setPhase('code')
+    } catch (err) {
+      if (refused(err)) return
+      if (err?.status === 400 && err.fieldErrors) {
+        // The registration changed since the form opened: back to the start, answers kept.
+        setIdentity(null)
+        setPhase('identify')
+      }
+      fail(err, "We couldn't send the code. Check your connection and tap Submit again — nothing is lost.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const finish = async (typed) => {
+    if (busy) return
+    setBusy(true)
+    setProblem(null)
+    let session
+    try {
+      session = await verifyEvaluationCode(slug, { email: identity.email, idNo: identity.idNo, code: typed })
+    } catch (err) {
+      if (!refused(err)) fail(err, "We couldn't check the code. Check your connection and try again.")
+      setBusy(false)
+      return
+    }
+    try {
       await submitEvaluation(slug, { accessToken: session.accessToken, answers: toPayload(sections, answers) })
       const first = session.respondent.name.split(' ')[0]
       finishWith(`Thank you, ${first}!`, 'Your evaluation has been sent. Your answers help us plan the next convention. You can close this page now.')
     } catch (err) {
-      if (err?.status === 401) {
-        setSession(null)
-        setNotice(err.message)
-        setPhase('identify')
-      } else if (err?.status === 409 && err.message !== CLOSED) {
-        finishWith('Already answered', err.message)
-      } else if (err?.status === 400 && err.fieldErrors) {
+      if (refused(err)) return
+      if (err?.status === 400 && err.fieldErrors) {
         const byCode = {}
         for (const [k, msgs] of Object.entries(err.fieldErrors)) byCode[k] = Array.isArray(msgs) ? msgs[0] : msgs
         const at = sections.findIndex((s) => s.questions.some((q) => byCode[q.code]))
+        setPhase('form')
         if (at === -1) {
           setProblem({ message: Object.values(byCode).join(' '), fields: {} })
         } else {
@@ -254,8 +264,11 @@ function Evaluation({ slug, form }) {
           pointAt(sections[at].questions.filter((q) => byCode[q.code]).map((q) => q.id))
         }
       } else {
+        setCode('')
         setProblem({
-          message: err?.message || "We couldn't send your answers. Check your connection and tap Submit again — nothing is lost.",
+          message: err?.status === 401
+            ? 'That took a little long. Tap “Send the code again” and enter the new one.'
+            : err?.message || "We couldn't send your answers. Check your connection and enter the code again — nothing is lost.",
           fields: {},
         })
       }
@@ -264,12 +277,18 @@ function Evaluation({ slug, form }) {
     }
   }
 
+  const onCodeChange = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 6)
+    setCode(digits)
+    if (digits.length === 6) finish(digits)
+  }
+
   // ---- screens -------------------------------------------------------------------------------
 
   if (phase === 'done') {
     return (
       <Shell eventName={form.eventName}>
-        <State icon="fa-circle-check" tone="ok" title={done.title}>{done.body}</State>
+        <State icon={done.icon} tone={done.tone} title={done.title}>{done.body}</State>
       </Shell>
     )
   }
@@ -277,7 +296,7 @@ function Evaluation({ slug, form }) {
   if (phase === 'identify') {
     return (
       <Shell eventName={form.eventName}>
-        <form className="ev-card ev-intro" onSubmit={sendCode} noValidate>
+        <form className="ev-card ev-intro" onSubmit={check} noValidate>
           <p className="ev-kicker">Post-convention evaluation</p>
           <h1 className="ev-h1">Tell us how the convention went</h1>
           <p className="ev-lead">It takes about 10 minutes. First, let&rsquo;s find your registration.</p>
@@ -317,9 +336,9 @@ function Evaluation({ slug, form }) {
 
           {problem?.message && <FieldError>{problem.message}</FieldError>}
           <button type="submit" className="ev-btn is-primary is-block" disabled={busy || !email.trim() || !idNo.trim()}>
-            {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Sending…</> : <>Send me a code <i className="fas fa-arrow-right" aria-hidden="true" /></>}
+            {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Checking…</> : <>Start the form <i className="fas fa-arrow-right" aria-hidden="true" /></>}
           </button>
-          <p className="ev-fine">We&rsquo;ll email you a 6-digit code to make sure it&rsquo;s you.</p>
+          <p className="ev-fine">When you submit, we&rsquo;ll email you a 6-digit code to confirm it&rsquo;s you.</p>
         </form>
       </Shell>
     )
@@ -328,12 +347,12 @@ function Evaluation({ slug, form }) {
   if (phase === 'code') {
     return (
       <Shell eventName={form.eventName}>
-        <form className="ev-card ev-intro" onSubmit={(e) => { e.preventDefault(); verify(code) }} noValidate>
+        <form className="ev-card ev-intro" onSubmit={(e) => { e.preventDefault(); finish(code) }} noValidate>
           <div className="ev-mail-icon" aria-hidden="true"><i className="fas fa-envelope-open-text" /></div>
-          <h1 className="ev-h1">Check your email</h1>
+          <h1 className="ev-h1">One last step: check your email</h1>
           <p className="ev-lead">
-            We sent a 6-digit code to <strong className="ev-break">{email.trim()}</strong>. It can take a minute — check
-            your Spam or Promotions folder too.
+            We sent a 6-digit code to <strong className="ev-break">{identity.email}</strong>. Enter it to send your
+            answers. It can take a minute — check your Spam or Promotions folder too.
           </p>
 
           <label className="ev-label" htmlFor="ev-code">6-digit code</label>
@@ -354,14 +373,14 @@ function Evaluation({ slug, form }) {
           {problem?.message && <FieldError>{problem.message}</FieldError>}
 
           <button type="submit" className="ev-btn is-primary is-block" disabled={busy || code.length !== 6}>
-            {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Checking…</> : 'Continue'}
+            {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Sending your answers…</> : <>Send my answers <i className="fas fa-paper-plane" aria-hidden="true" /></>}
           </button>
           <div className="ev-code-links">
-            <button type="button" className="ev-link" onClick={() => sendCode()} disabled={busy || cooldown > 0}>
+            <button type="button" className="ev-link" onClick={sendCode} disabled={busy || cooldown > 0}>
               {cooldown > 0 ? `Send again in ${cooldown}s` : 'Send the code again'}
             </button>
-            <button type="button" className="ev-link" onClick={() => { setProblem(null); setPhase('identify') }}>
-              Change email or ID
+            <button type="button" className="ev-link" onClick={() => { setProblem(null); setPhase('form') }} disabled={busy}>
+              Back to my answers
             </button>
           </div>
         </form>
@@ -376,8 +395,8 @@ function Evaluation({ slug, form }) {
       <div className="ev-who">
         <i className="fas fa-user-check" aria-hidden="true" />
         <span>
-          Answering as <strong>{session.respondent.name}</strong>
-          <span className="ev-who-id"> · {session.respondent.idNo}</span>
+          Answering as <strong>{identity.name}</strong>
+          <span className="ev-who-id"> · {identity.idNo}</span>
         </span>
         <button type="button" className="ev-link is-small" onClick={startOver}>Not you?</button>
       </div>
@@ -401,7 +420,7 @@ function Evaluation({ slug, form }) {
             <i className="fas fa-arrow-left" aria-hidden="true" /> Back
           </button>
           {last ? (
-            <button type="button" className="ev-btn is-primary" onClick={submit} disabled={busy}>
+            <button type="button" className="ev-btn is-primary" onClick={sendCode} disabled={busy}>
               {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Sending…</> : <>Submit <i className="fas fa-paper-plane" aria-hidden="true" /></>}
             </button>
           ) : (
