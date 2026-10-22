@@ -206,7 +206,7 @@ function Evaluation({ slug, form }) {
     setProblem(null)
     try {
       await submitEvaluation(slug, { email: identity.email, idNo: identity.idNo, answers: toPayload(sections, answers) })
-      finishWith('Thank you!', 'Your evaluation has been sent. Your answers help us plan the next convention. You can close this page now.')
+      finishWith('Thank you!', 'Your evaluation has been sent. A receipt is on its way to your email. You can close this page now.')
     } catch (err) {
       if (refused(err)) return
       const byCode = {}
