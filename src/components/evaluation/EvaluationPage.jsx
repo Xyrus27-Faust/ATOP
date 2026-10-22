@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAsync } from '@/dashboard/useAsync'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { checkEvaluationIdentity, getEvaluationForm, sendEvaluationCode, submitEvaluation, verifyEvaluationCode } from '@/lib/evaluation'
+import { checkEvaluationIdentity, getEvaluationForm, submitEvaluation } from '@/lib/evaluation'
 import EvaluationSection from './EvaluationSection'
 import { clearDraft, loadDraft, missingIn, saveDraft, toPayload } from './evaluationDraft'
 
 /** The API's 409 title when the form is shut; the other 409 is "already answered". Mirrors EvaluationEndpoints.ClosedTitle. */
 const CLOSED = 'The evaluation form is closed.'
-const RESEND_SECONDS = 30
 
 /**
  * The post-convention evaluation (ATOP, 2026-10-22). Public: delegates have no accounts.
  *
- * Four screens, each asking one thing: who you are (email + the ID NO on your convention ID), the
- * form one part at a time, the code we mail when they tap Submit, and a thank-you. The name shown
- * while answering is masked: until the code proves the inbox, anyone holding an ID card could type
- * it in. The answers live on the device as they're given, so a dropped signal never costs anyone
- * their work.
+ * Three screens, each asking one thing: who you are (email + the ID NO on your convention ID), the
+ * form one part at a time, and a thank-you. No code is mailed — the pair is checked when the form
+ * opens and again at Submit. The name shown while answering is masked: anyone holding someone's ID
+ * card and email could type them in. The answers live on the device as they're given, so a dropped
+ * signal never costs anyone their work.
  */
 export default function EvaluationPage() {
   const { loading, error, data, reload } = useAsync(async () => {
@@ -61,19 +60,17 @@ function Evaluation({ slug, form }) {
   const [phase, setPhase] = useState(known ? 'form' : 'identify')
   const [email, setEmail] = useState(draft?.email ?? '')
   const [idNo, setIdNo] = useState(draft?.idNo ?? '')
-  const [code, setCode] = useState('')
   const [identity, setIdentity] = useState(known) // { email, idNo, name } — the name masked by the API
   const [answers, setAnswers] = useState(draft?.answers ?? {})
   const [step, setStep] = useState(Math.min(draft?.step ?? 0, sections.length - 1))
 
   const [busy, setBusy] = useState(false)
-  const [problem, setProblem] = useState(null) // { message, fields: { email|idNo|code: msg } }
+  const [problem, setProblem] = useState(null) // { message, fields: { email|idNo: msg } }
   const [notice, setNotice] = useState(
     !known && draft?.answers && Object.keys(draft.answers).length > 0
       ? 'Welcome back — your answers are saved on this phone. Enter your email and ID number again to carry on.'
       : null,
   )
-  const [cooldown, setCooldown] = useState(0)
   const [showMissing, setShowMissing] = useState(false)
   const [serverErrors, setServerErrors] = useState({})
   const [done, setDone] = useState(null) // { title, body, icon, tone }
@@ -89,12 +86,6 @@ function Evaluation({ slug, form }) {
     if (done) return
     saveDraft(form.eventId, { email, idNo, identity, answers, step })
   }, [form.eventId, email, idNo, identity, answers, step, done])
-
-  useEffect(() => {
-    if (cooldown <= 0) return undefined
-    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
-    return () => clearTimeout(t)
-  }, [cooldown])
 
   const fail = (err, fallback) => {
     const fields = {}
@@ -124,7 +115,7 @@ function Evaluation({ slug, form }) {
     return false
   }
 
-  // ---- step 1: who you are (nothing is mailed yet) -------------------------------------------
+  // ---- step 1: who you are ----------------------------------------------------------
 
   const check = async (e) => {
     e?.preventDefault()
@@ -156,7 +147,6 @@ function Evaluation({ slug, form }) {
     setStep(0)
     setEmail('')
     setIdNo('')
-    setCode('')
     setProblem(null)
     setNotice(null)
     setPhase('identify')
@@ -200,14 +190,13 @@ function Evaluation({ slug, form }) {
     goTo(step + 1)
   }
 
-  // ---- step 3: Submit mails the code; the code files the answers -----------------------------
+  // ---- step 3: Submit checks the pair again and files the answers ----------------------------
 
-  const sendCode = async () => {
+  const submit = async () => {
     if (busy) return
     // Every part is checked on Next, but a draft from an older visit could still have a gap.
     const gap = sections.findIndex((s) => missingIn(s, answers).length > 0)
     if (gap !== -1) {
-      setPhase('form')
       setStep(gap)
       setShowMissing(true)
       pointAt(missingIn(sections[gap], answers))
@@ -216,71 +205,33 @@ function Evaluation({ slug, form }) {
     setBusy(true)
     setProblem(null)
     try {
-      await sendEvaluationCode(slug, { email: identity.email, idNo: identity.idNo })
-      setCode('')
-      setCooldown(RESEND_SECONDS)
-      setPhase('code')
+      await submitEvaluation(slug, { email: identity.email, idNo: identity.idNo, answers: toPayload(sections, answers) })
+      finishWith('Thank you!', 'Your evaluation has been sent. Your answers help us plan the next convention. You can close this page now.')
     } catch (err) {
       if (refused(err)) return
-      if (err?.status === 400 && err.fieldErrors) {
+      const byCode = {}
+      for (const [k, msgs] of Object.entries(err?.fieldErrors ?? {})) byCode[k] = Array.isArray(msgs) ? msgs[0] : msgs
+      if (err?.status === 400 && (byCode.email || byCode.idNo)) {
         // The registration changed since the form opened: back to the start, answers kept.
         setIdentity(null)
         setPhase('identify')
+        fail(err)
+        return
       }
-      fail(err, "We couldn't send the code. Check your connection and tap Submit again — nothing is lost.")
+      const at = sections.findIndex((s) => s.questions.some((q) => byCode[q.code]))
+      if (err?.status === 400 && at !== -1) {
+        setServerErrors(byCode)
+        setStep(at)
+        pointAt(sections[at].questions.filter((q) => byCode[q.code]).map((q) => q.id))
+        return
+      }
+      setProblem({
+        message: err?.message || "We couldn't send your answers. Check your connection and tap Submit again — nothing is lost.",
+        fields: {},
+      })
     } finally {
       setBusy(false)
     }
-  }
-
-  const finish = async (typed) => {
-    if (busy) return
-    setBusy(true)
-    setProblem(null)
-    let session
-    try {
-      session = await verifyEvaluationCode(slug, { email: identity.email, idNo: identity.idNo, code: typed })
-    } catch (err) {
-      if (!refused(err)) fail(err, "We couldn't check the code. Check your connection and try again.")
-      setBusy(false)
-      return
-    }
-    try {
-      await submitEvaluation(slug, { accessToken: session.accessToken, answers: toPayload(sections, answers) })
-      const first = session.respondent.name.split(' ')[0]
-      finishWith(`Thank you, ${first}!`, 'Your evaluation has been sent. Your answers help us plan the next convention. You can close this page now.')
-    } catch (err) {
-      if (refused(err)) return
-      if (err?.status === 400 && err.fieldErrors) {
-        const byCode = {}
-        for (const [k, msgs] of Object.entries(err.fieldErrors)) byCode[k] = Array.isArray(msgs) ? msgs[0] : msgs
-        const at = sections.findIndex((s) => s.questions.some((q) => byCode[q.code]))
-        setPhase('form')
-        if (at === -1) {
-          setProblem({ message: Object.values(byCode).join(' '), fields: {} })
-        } else {
-          setServerErrors(byCode)
-          setStep(at)
-          pointAt(sections[at].questions.filter((q) => byCode[q.code]).map((q) => q.id))
-        }
-      } else {
-        setCode('')
-        setProblem({
-          message: err?.status === 401
-            ? 'That took a little long. Tap “Send the code again” and enter the new one.'
-            : err?.message || "We couldn't send your answers. Check your connection and enter the code again — nothing is lost.",
-          fields: {},
-        })
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const onCodeChange = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 6)
-    setCode(digits)
-    if (digits.length === 6) finish(digits)
   }
 
   // ---- screens -------------------------------------------------------------------------------
@@ -338,51 +289,6 @@ function Evaluation({ slug, form }) {
           <button type="submit" className="ev-btn is-primary is-block" disabled={busy || !email.trim() || !idNo.trim()}>
             {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Checking…</> : <>Start the form <i className="fas fa-arrow-right" aria-hidden="true" /></>}
           </button>
-          <p className="ev-fine">When you submit, we&rsquo;ll email you a 6-digit code to confirm it&rsquo;s you.</p>
-        </form>
-      </Shell>
-    )
-  }
-
-  if (phase === 'code') {
-    return (
-      <Shell eventName={form.eventName}>
-        <form className="ev-card ev-intro" onSubmit={(e) => { e.preventDefault(); finish(code) }} noValidate>
-          <div className="ev-mail-icon" aria-hidden="true"><i className="fas fa-envelope-open-text" /></div>
-          <h1 className="ev-h1">One last step: check your email</h1>
-          <p className="ev-lead">
-            We sent a 6-digit code to <strong className="ev-break">{identity.email}</strong>. Enter it to send your
-            answers. It can take a minute — check your Spam or Promotions folder too.
-          </p>
-
-          <label className="ev-label" htmlFor="ev-code">6-digit code</label>
-          <input
-            id="ev-code"
-            className="ev-input is-big is-otp"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]*"
-            maxLength={7}
-            placeholder="••••••"
-            value={code}
-            onChange={(e) => onCodeChange(e.target.value)}
-            aria-invalid={Boolean(problem?.fields.code || problem?.fields.idNo)}
-            autoFocus
-          />
-          {(problem?.fields.code || problem?.fields.idNo) && <FieldError>{problem.fields.code || problem.fields.idNo}</FieldError>}
-          {problem?.message && <FieldError>{problem.message}</FieldError>}
-
-          <button type="submit" className="ev-btn is-primary is-block" disabled={busy || code.length !== 6}>
-            {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Sending your answers…</> : <>Send my answers <i className="fas fa-paper-plane" aria-hidden="true" /></>}
-          </button>
-          <div className="ev-code-links">
-            <button type="button" className="ev-link" onClick={sendCode} disabled={busy || cooldown > 0}>
-              {cooldown > 0 ? `Send again in ${cooldown}s` : 'Send the code again'}
-            </button>
-            <button type="button" className="ev-link" onClick={() => { setProblem(null); setPhase('form') }} disabled={busy}>
-              Back to my answers
-            </button>
-          </div>
         </form>
       </Shell>
     )
@@ -420,7 +326,7 @@ function Evaluation({ slug, form }) {
             <i className="fas fa-arrow-left" aria-hidden="true" /> Back
           </button>
           {last ? (
-            <button type="button" className="ev-btn is-primary" onClick={sendCode} disabled={busy}>
+            <button type="button" className="ev-btn is-primary" onClick={submit} disabled={busy}>
               {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Sending…</> : <>Submit <i className="fas fa-paper-plane" aria-hidden="true" /></>}
             </button>
           ) : (
@@ -489,7 +395,6 @@ const EVALUATION_CSS = `
     font-size: clamp(1.35rem, 6vw, 1.6rem); line-height: 1.2; outline: none;
   }
   .ev-lead { margin: 8px 0 4px; font-size: 0.98rem; line-height: 1.55; }
-  .ev-break { overflow-wrap: anywhere; }
   .ev-notice {
     margin: 10px 0 0; padding: 12px; border-radius: 12px; background: var(--info-bg); color: var(--navy);
     font-size: 0.9rem; line-height: 1.5; display: flex; gap: 10px;
@@ -498,7 +403,6 @@ const EVALUATION_CSS = `
 
   .ev-label { margin: 18px 0 6px; font-weight: 700; color: var(--navy); font-size: 0.98rem; }
   .ev-hint { margin: 6px 0 0; font-size: 0.84rem; color: var(--gray-600); line-height: 1.45; }
-  .ev-fine { margin: 12px 0 0; font-size: 0.82rem; color: var(--gray-600); text-align: center; }
   .ev-input, .ev-text {
     width: 100%; box-sizing: border-box; border: 2px solid var(--gray-200); border-radius: 12px;
     padding: 12px 14px; font: inherit; font-size: 16px; color: var(--navy); background: var(--white);
@@ -508,7 +412,6 @@ const EVALUATION_CSS = `
   .ev-input.is-big { min-height: 54px; font-size: 1.08rem; }
   .ev-input.is-code { font-family: var(--font-heading); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
   .ev-input.is-code::placeholder { text-transform: none; }
-  .ev-input.is-otp { text-align: center; font-family: var(--font-heading); font-weight: 800; font-size: 1.7rem; letter-spacing: 0.4em; }
   .ev-text { resize: vertical; min-height: 88px; line-height: 1.5; }
   .ev-q .ev-input, .ev-q .ev-text { margin-top: 8px; }
 
@@ -528,11 +431,6 @@ const EVALUATION_CSS = `
   }
   .ev-link:disabled { color: var(--gray-400); text-decoration: none; cursor: default; }
   .ev-link.is-small { padding: 4px; font-size: 0.82rem; margin-left: auto; flex-shrink: 0; }
-  .ev-code-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-  .ev-mail-icon {
-    width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; margin-bottom: 8px;
-    background: var(--navy); color: var(--gold-light); font-size: 1.4rem;
-  }
 
   .ev-error {
     margin: 8px 0 0; display: flex; gap: 8px; align-items: flex-start; font-size: 0.9rem; font-weight: 600;
@@ -556,12 +454,6 @@ const EVALUATION_CSS = `
   .ev-legend {
     margin: 14px 0 0; padding: 12px; border-radius: 12px; background: var(--off-white); font-size: 0.9rem; line-height: 1.5;
   }
-  .ev-skip {
-    margin-top: 10px; width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px;
-    border: 2px dashed var(--gray-200); border-radius: 12px; background: var(--white); color: var(--gray-600);
-    font: inherit; font-weight: 700; font-size: 0.92rem; cursor: pointer;
-  }
-  .ev-skip.is-on { border-style: solid; border-color: var(--navy-light); color: var(--navy); }
 
   .ev-questions { list-style: none; margin: 8px 0 0; padding: 0; }
   .ev-q { padding: 18px 0; border-bottom: 1px solid var(--gray-100); scroll-margin: 90px; }

@@ -9,8 +9,7 @@ const RATINGS = [5, 4, 3, 2, 1]
  * keyboard except the comment boxes, and those are optional.
  */
 export default function EvaluationSection({ section, index, total, answers, onAnswer, missing, serverErrors }) {
-  const ratings = section.questions.filter((q) => q.kind === 'Rating')
-  const allNa = ratings.length > 0 && ratings.every((q) => answers[q.id]?.na)
+  const hasRatings = section.questions.some((q) => q.kind === 'Rating')
   const headingRef = useRef(null)
 
   // A new part starts at its heading — for a screen reader as much as for the scroll position.
@@ -18,10 +17,6 @@ export default function EvaluationSection({ section, index, total, answers, onAn
     window.scrollTo({ top: 0 })
     headingRef.current?.focus({ preventScroll: true })
   }, [section.id])
-
-  const markAllNa = () => {
-    for (const q of ratings) onAnswer(q.id, allNa ? { na: false, value: null } : { na: true, value: null })
-  }
 
   return (
     <section className="ev-section" aria-labelledby={`sec-${section.code}`}>
@@ -33,17 +28,11 @@ export default function EvaluationSection({ section, index, total, answers, onAn
       {section.schedule && <p className="ev-schedule"><i className="far fa-calendar" aria-hidden="true" /> {section.schedule}</p>}
       {section.note && <p className="ev-note">{section.note}</p>}
 
-      {ratings.length > 0 && (
-        <>
-          <p className="ev-legend">
-            Tap a number: <strong>5</strong> is the best, <strong>1</strong> the lowest.
-            Tap <strong>N/A</strong> for anything you didn&rsquo;t take part in.
-          </p>
-          <button type="button" className={`ev-skip${allNa ? ' is-on' : ''}`} onClick={markAllNa} aria-pressed={allNa}>
-            <i className={`fas ${allNa ? 'fa-rotate-left' : 'fa-forward'}`} aria-hidden="true" />
-            {allNa ? 'Undo — I did attend this part' : 'I didn’t attend this part'}
-          </button>
-        </>
+      {hasRatings && (
+        <p className="ev-legend">
+          Tap a number: <strong>5</strong> is the best, <strong>1</strong> the lowest.
+          Tap <strong>N/A</strong> for anything you didn&rsquo;t take part in.
+        </p>
       )}
 
       <ol className="ev-questions">
