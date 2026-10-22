@@ -26,6 +26,8 @@ const navItems = [
     children: ['Downloads', 'Tourism Data', 'Publications', 'Links'],
   },
   { label: 'Contact Us', id: 'contact' },
+  // A real route, not a section of this page: the post-event form lives at /evaluation.
+  { label: 'Evaluation', id: 'evaluation', to: '/evaluation' },
 ];
 
 export default function Header({ scrolled, currentPage, setCurrentPage }) {
@@ -137,6 +139,7 @@ export default function Header({ scrolled, currentPage, setCurrentPage }) {
                     className={`nav-link ${currentPage === item.id ? 'active' : ''}`}
                     id={`nav-${item.id}`}
                     onClick={() => {
+                      if (item.to) return navigate(item.to);
                       setCurrentPage(item.id);
                       window.scrollTo(0, 0);
                     }}
@@ -171,8 +174,9 @@ export default function Header({ scrolled, currentPage, setCurrentPage }) {
                 className={`mobile-menu-link ${currentPage === item.id ? 'active' : ''}`} 
                 onClick={(e) => {
                   e.preventDefault();
-                  setCurrentPage(item.id);
                   setMobileOpen(false);
+                  if (item.to) return navigate(item.to);
+                  setCurrentPage(item.id);
                   window.scrollTo(0, 0);
                 }}
               >

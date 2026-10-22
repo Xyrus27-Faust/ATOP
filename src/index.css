@@ -1381,8 +1381,8 @@ button {
   }
 }
 
-/* The 8-item nav needs ~1020px; collapse to the hamburger before it overflows. */
-@media (max-width: 1100px) {
+/* The 9-item nav needs ~1240px; collapse to the hamburger before it overflows. */
+@media (max-width: 1260px) {
   .nav-links { display: none; }
   .hamburger { display: flex; }
 }
