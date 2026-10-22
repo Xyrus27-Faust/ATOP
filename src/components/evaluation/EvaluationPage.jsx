@@ -8,10 +8,29 @@ import { clearDraft, loadDraft, missingIn, saveDraft, toPayload } from './evalua
 /** The API's 409 title when the form is shut; the other 409 is "already answered". Mirrors EvaluationEndpoints.ClosedTitle. */
 const CLOSED = 'The evaluation form is closed.'
 
+/** Every delegate's check-in code starts with this; the field shows it fixed, so only the last five are typed. */
+const CODE_PREFIX = 'DLG26-'
+
+/**
+ * The five characters after DLG26-, from whatever was typed or pasted: "wexfc", "DLG26-WEXFC", or the
+ * printed ID's "ATOP-26-WEXFC" all give "WEXFC". Neither prefix can be part of a real code — the code
+ * alphabet has no L or O — so stripping them never eats a real character.
+ */
+const codeTail = (raw) => {
+  let compact = (raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (compact.startsWith('ATOP')) compact = compact.slice(4)
+  else if (compact.startsWith('DLG')) compact = compact.slice(3)
+  if (compact.length > 5 && compact.startsWith('26')) compact = compact.slice(2)
+  return compact
+}
+
+/** The API answers with the printed ID's form; delegates know the booking page's. */
+const asCheckInCode = (idNo) => (idNo ?? '').replace(/^ATOP-(\d\d)-/, 'DLG$1-')
+
 /**
  * The post-convention evaluation (ATOP, 2026-10-22). Public: delegates have no accounts.
  *
- * Three screens, each asking one thing: who you are (email + the ID NO on your convention ID), the
+ * Three screens, each asking one thing: who you are (email + check-in code DLG26-…, or the printed ID's ATOP-26-…), the
  * form one part at a time, and a thank-you. No code is mailed — the pair is checked when the form
  * opens and again at Submit. The name shown while answering is masked: anyone holding someone's ID
  * card and email could type them in. The answers live on the device as they're given, so a dropped
@@ -59,7 +78,7 @@ function Evaluation({ slug, form }) {
 
   const [phase, setPhase] = useState(known ? 'form' : 'identify')
   const [email, setEmail] = useState(draft?.email ?? '')
-  const [idNo, setIdNo] = useState(draft?.idNo ?? '')
+  const [idNo, setIdNo] = useState(codeTail(draft?.idNo))
   const [identity, setIdentity] = useState(known) // { email, idNo, name } — the name masked by the API
   const [answers, setAnswers] = useState(draft?.answers ?? {})
   const [step, setStep] = useState(Math.min(draft?.step ?? 0, sections.length - 1))
@@ -68,7 +87,7 @@ function Evaluation({ slug, form }) {
   const [problem, setProblem] = useState(null) // { message, fields: { email|idNo: msg } }
   const [notice, setNotice] = useState(
     !known && draft?.answers && Object.keys(draft.answers).length > 0
-      ? 'Welcome back — your answers are saved on this phone. Enter your email and ID number again to carry on.'
+      ? 'Welcome back — your answers are saved on this phone. Enter your email and check-in code again to carry on.'
       : null,
   )
   const [showMissing, setShowMissing] = useState(false)
@@ -123,7 +142,7 @@ function Evaluation({ slug, form }) {
     setBusy(true)
     setProblem(null)
     try {
-      const res = await checkEvaluationIdentity(slug, { email: email.trim(), idNo: idNo.trim() })
+      const res = await checkEvaluationIdentity(slug, { email: email.trim(), idNo: CODE_PREFIX + idNo })
       // A shared office computer: someone else's half-filled answers must not be filed under this name.
       if (draft?.identity?.idNo && draft.identity.idNo !== res.idNo) {
         setAnswers({})
@@ -270,23 +289,30 @@ function Evaluation({ slug, form }) {
           {problem?.fields.email && <FieldError>{problem.fields.email}</FieldError>}
           <p className="ev-hint">The one you registered with, or your office&rsquo;s registration email.</p>
 
-          <label className="ev-label" htmlFor="ev-idno">ID number on your convention ID</label>
-          <input
-            id="ev-idno"
-            className="ev-input is-big is-code"
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            placeholder="ATOP-26-00F5C"
-            value={idNo}
-            onChange={(e) => setIdNo(e.target.value)}
-            aria-invalid={Boolean(problem?.fields.idNo)}
-          />
+          <label className="ev-label" htmlFor="ev-idno">Your check-in code</label>
+          <div className="ev-code" data-invalid={Boolean(problem?.fields.idNo)}>
+            <span className="ev-code-prefix" aria-hidden="true">{CODE_PREFIX}</span>
+            <input
+              id="ev-idno"
+              className="ev-code-input"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              placeholder="00F5C"
+              value={idNo}
+              onChange={(e) => setIdNo(codeTail(e.target.value))}
+              aria-label={`Your check-in code, after ${CODE_PREFIX}`}
+              aria-invalid={Boolean(problem?.fields.idNo)}
+            />
+          </div>
           {problem?.fields.idNo && <FieldError>{problem.fields.idNo}</FieldError>}
-          <p className="ev-hint">Printed on your ID as <strong>ID NO</strong> — it starts with ATOP-26.</p>
+          <p className="ev-hint">
+            Under your name on your booking page, your confirmation email and your live pass — just type the last 5 characters.
+            <span className="ev-hint-alt"> Have your printed ID? Its <strong>ID NO</strong> (ATOP-26-…) ends with the same 5, and you can paste either.</span>
+          </p>
 
           {problem?.message && <FieldError>{problem.message}</FieldError>}
-          <button type="submit" className="ev-btn is-primary is-block" disabled={busy || !email.trim() || !idNo.trim()}>
+          <button type="submit" className="ev-btn is-primary is-block" disabled={busy || !email.trim() || !idNo}>
             {busy ? <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> Checking…</> : <>Start the form <i className="fas fa-arrow-right" aria-hidden="true" /></>}
           </button>
         </form>
@@ -302,7 +328,7 @@ function Evaluation({ slug, form }) {
         <i className="fas fa-user-check" aria-hidden="true" />
         <span>
           Answering as <strong>{identity.name}</strong>
-          <span className="ev-who-id"> · {identity.idNo}</span>
+          <span className="ev-who-id"> · {asCheckInCode(identity.idNo)}</span>
         </span>
         <button type="button" className="ev-link is-small" onClick={startOver}>Not you?</button>
       </div>
@@ -410,8 +436,22 @@ const EVALUATION_CSS = `
   .ev-input:focus, .ev-text:focus { outline: none; border-color: var(--navy-light); box-shadow: 0 0 0 3px rgba(200, 168, 75, 0.35); }
   .ev-input[aria-invalid='true'] { border-color: var(--bad); }
   .ev-input.is-big { min-height: 54px; font-size: 1.08rem; }
-  .ev-input.is-code { font-family: var(--font-heading); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-  .ev-input.is-code::placeholder { text-transform: none; }
+  .ev-code {
+    display: flex; align-items: center; min-height: 54px; box-sizing: border-box;
+    border: 2px solid var(--gray-200); border-radius: 12px; background: var(--white); overflow: hidden;
+  }
+  .ev-code:focus-within { border-color: var(--navy-light); box-shadow: 0 0 0 3px rgba(200, 168, 75, 0.35); }
+  .ev-code[data-invalid='true'] { border-color: var(--bad); }
+  .ev-code-prefix {
+    align-self: stretch; display: flex; align-items: center; padding: 0 4px 0 14px; background: var(--gray-100);
+    font-family: var(--font-heading); font-weight: 700; font-size: 1.08rem; letter-spacing: 0.06em; color: var(--gray-600);
+  }
+  .ev-code-input {
+    flex: 1; min-width: 0; border: 0; outline: none; padding: 12px 14px 12px 4px; background: transparent;
+    font-family: var(--font-heading); font-weight: 700; font-size: 1.08rem; letter-spacing: 0.06em; color: var(--navy);
+  }
+  .ev-code-input::placeholder { color: var(--gray-400); font-weight: 600; }
+  .ev-hint-alt { display: block; margin-top: 4px; }
   .ev-text { resize: vertical; min-height: 88px; line-height: 1.5; }
   .ev-q .ev-input, .ev-q .ev-text { margin-top: 8px; }
 
