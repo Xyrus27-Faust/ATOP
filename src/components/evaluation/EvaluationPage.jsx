@@ -8,11 +8,24 @@ import { clearDraft, loadDraft, missingIn, saveDraft, toPayload } from './evalua
 /** The API's 409 title when the form is shut; the other 409 is "already answered". Mirrors EvaluationEndpoints.ClosedTitle. */
 const CLOSED = 'The evaluation form is closed.'
 
-/** Every delegate's check-in code starts with this; the field shows it fixed, so only the last five are typed. */
-const CODE_PREFIX = 'DLG26-'
+/**
+ * The ID NO printed on every delegate's convention ID starts with this; the field shows it fixed, so only
+ * the last five are typed. The booking page and live pass show the same five after DLG26- — the API reads
+ * both prefixes as the same delegate.
+ */
+const CODE_PREFIX = 'ATOP-26-'
 
 /**
- * The five characters after DLG26-, from whatever was typed or pasted: "wexfc", "DLG26-WEXFC", or the
+ * The form's own words when the API turns the ID NO down (ATOP, 2026-10-24). The API's say "DLG26-…",
+ * which delegates holding a printed "ATOP-26-…" ID read as a different number. Shown in place of any
+ * ID NO field error: a full five characters means the pair didn't match, anything shorter is a typo.
+ */
+const ID_NO_NO_MATCH =
+  "That email and ID NO don't match our records. Use the ID NO on your convention ID (ATOP-26-…) and the email you registered with, or your office's registration email."
+const ID_NO_INCOMPLETE = 'Enter the 5 characters after ATOP-26- on your convention ID.'
+
+/**
+ * The five characters after ATOP-26- (or DLG26-), from whatever was typed or pasted: "wexfc", "DLG26-WEXFC", or the
  * printed ID's "ATOP-26-WEXFC" all give "WEXFC". Neither prefix can be part of a real code — the code
  * alphabet has no L or O — so stripping them never eats a real character.
  */
@@ -35,13 +48,10 @@ const fromLink = () => {
   return email || code ? { email, code } : null
 }
 
-/** The API answers with the printed ID's form; delegates know the booking page's. */
-const asCheckInCode = (idNo) => (idNo ?? '').replace(/^ATOP-(\d\d)-/, 'DLG$1-')
-
 /**
  * The post-convention evaluation (ATOP, 2026-10-22). Public: delegates have no accounts.
  *
- * Three screens, each asking one thing: who you are (email + check-in code DLG26-…, or the printed ID's ATOP-26-…), the
+ * Three screens, each asking one thing: who you are (email + the printed ID's ID NO ATOP-26-…, or the booking page's DLG26-…), the
  * form one part at a time, and a thank-you. No code is mailed — the pair is checked when the form
  * opens and again at Submit. The name shown while answering is masked: anyone holding someone's ID
  * card and email could type them in. The answers live on the device as they're given, so a dropped
@@ -108,9 +118,9 @@ function Evaluation({ slug, form }) {
     known
       ? null
       : link
-        ? 'Your email and check-in code are filled in from your invitation — tap Start the form.'
+        ? 'Your email and ID NO are filled in from your invitation — tap Start the form.'
         : draft?.answers && Object.keys(draft.answers).length > 0
-          ? 'Welcome back — your answers are saved on this phone. Enter your email and check-in code again to carry on.'
+          ? 'Welcome back — your answers are saved on this phone. Enter your email and ID NO again to carry on.'
           : null,
   )
   const [showMissing, setShowMissing] = useState(false)
@@ -137,6 +147,7 @@ function Evaluation({ slug, form }) {
   const fail = (err, fallback) => {
     const fields = {}
     for (const [k, msgs] of Object.entries(err?.fieldErrors ?? {})) fields[k] = Array.isArray(msgs) ? msgs[0] : msgs
+    if (fields.idNo) fields.idNo = idNo.length === 5 ? ID_NO_NO_MATCH : ID_NO_INCOMPLETE
     const hasField = Object.keys(fields).length > 0
     setProblem({ message: hasField ? null : err?.message || fallback, fields })
   }
@@ -317,7 +328,7 @@ function Evaluation({ slug, form }) {
           {problem?.fields.email && <FieldError>{problem.fields.email}</FieldError>}
           <p className="ev-hint">The one you registered with, or your office&rsquo;s registration email.</p>
 
-          <label className="ev-label" htmlFor="ev-idno">Your check-in code</label>
+          <label className="ev-label" htmlFor="ev-idno">Your ID NO</label>
           <div className="ev-code" data-invalid={Boolean(problem?.fields.idNo)}>
             <span className="ev-code-prefix" aria-hidden="true">{CODE_PREFIX}</span>
             <input
@@ -329,14 +340,14 @@ function Evaluation({ slug, form }) {
               placeholder="00F5C"
               value={idNo}
               onChange={(e) => setIdNo(codeTail(e.target.value))}
-              aria-label={`Your check-in code, after ${CODE_PREFIX}`}
+              aria-label={`Your ID NO, after ${CODE_PREFIX}`}
               aria-invalid={Boolean(problem?.fields.idNo)}
             />
           </div>
           {problem?.fields.idNo && <FieldError>{problem.fields.idNo}</FieldError>}
           <p className="ev-hint">
-            Under your name on your booking page, your confirmation email and your live pass — just type the last 5 characters.
-            <span className="ev-hint-alt"> Have your printed ID? Its <strong>ID NO</strong> (ATOP-26-…) ends with the same 5, and you can paste either.</span>
+            The last 5 characters of the <strong>ID NO</strong> on your convention ID.
+            <span className="ev-hint-alt"> No ID with you? Your booking page and live pass show the same 5 after DLG26-.</span>
           </p>
 
           {problem?.message && <FieldError>{problem.message}</FieldError>}
@@ -356,7 +367,7 @@ function Evaluation({ slug, form }) {
         <i className="fas fa-user-check" aria-hidden="true" />
         <span>
           Answering as <strong>{identity.name}</strong>
-          <span className="ev-who-id"> · {asCheckInCode(identity.idNo)}</span>
+          <span className="ev-who-id"> · {identity.idNo}</span>
         </span>
         <button type="button" className="ev-link is-small" onClick={startOver}>Not you?</button>
       </div>
