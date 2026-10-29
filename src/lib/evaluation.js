@@ -31,3 +31,8 @@ export const sendEvaluationCertificates = (eventId, { send = false, take = 40 } 
     auth: true,
     timeoutMs: 90_000,
   })
+
+// The certificate record: every response, and when its certificate was last mailed (null while due).
+// The API mails due ones on its own every 10 minutes; this only reads.
+export const getEvaluationCertificates = (eventId) =>
+  api.get(`/admin/events/${eventId}/evaluation/certificates`, { auth: true })

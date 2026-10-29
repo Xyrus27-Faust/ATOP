@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { getEvaluationResponses, getEvaluationSummary, sendEvaluationCertificates } from '@/lib/evaluation'
+import { getEvaluationCertificates, getEvaluationResponses, getEvaluationSummary, sendEvaluationCertificates } from '@/lib/evaluation'
 import { datedFilename, downloadCsv } from '@/lib/csv'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -67,6 +67,8 @@ export default function AdminEvaluationPage() {
         <Stat icon="fa-star" label="Overall rating (1–10)" value={fixed(overall?.average)} />
         <Stat icon="fa-bullhorn" label="Would recommend (NPS)" value={recommend?.nps != null ? signed(recommend.nps) : '—'} />
       </div>
+
+      {summary.responses > 0 && <CertificateRecord eventId={event.id} />}
 
       {summary.responses === 0 ? (
         <div className="dash-card dash-empty">
@@ -284,6 +286,57 @@ function CertificatesButton({ eventId, disabled }) {
 }
 
 /**
+ * Who has been given a Certificate of Appearance, and when (ATOP, 2026-10-29). The API mails any
+ * still due by itself every 10 minutes, so "waiting" should only ever be the last few minutes'
+ * answers; the Send certificates button above is there to push them out now. The CSV is the record.
+ */
+function CertificateRecord({ eventId }) {
+  const { loading, error, data, reload } = useAsync(() => getEvaluationCertificates(eventId), [eventId])
+
+  const download = () => {
+    const header = ['Submitted at', 'ID NO', 'Name', 'Email', 'Certificate sent at']
+    const body = data.rows.map((r) => [
+      when(r.submittedAt),
+      r.idNo,
+      r.delegateName,
+      r.email,
+      r.certificateSentAt ? when(r.certificateSentAt) : 'Not yet',
+    ])
+    downloadCsv(datedFilename('atop-certificates-sent'), [header, ...body].map((row) => row.map(spreadsheetSafe)))
+  }
+
+  return (
+    <section className="dash-card evr-section evr-cert">
+      <div className="evr-cert-head">
+        <div>
+          <h2 className="evr-sec-title">Certificates of Appearance</h2>
+          {loading ? (
+            <p className="evr-muted">Loading…</p>
+          ) : error ? (
+            <p className="evr-csv-error" role="alert">
+              Couldn&rsquo;t load the record. <button className="evr-link" onClick={reload}>Try again</button>
+            </p>
+          ) : (
+            <p className="evr-muted">
+              <strong>{data.sent}</strong> of {data.responses} sent
+              {data.due > 0 ? ` · ${data.due} waiting — they go out automatically within 10 minutes.` : ' · everyone who answered has theirs.'}
+            </p>
+          )}
+        </div>
+        <span className="evr-actions">
+          <button className="dash-btn is-ghost" onClick={reload} disabled={loading}>
+            <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
+          </button>
+          <button className="dash-btn" onClick={download} disabled={!data || data.rows.length === 0}>
+            <i className="fas fa-file-csv" aria-hidden="true" /> Certificate record (CSV)
+          </button>
+        </span>
+      </div>
+    </section>
+  )
+}
+
+/**
  * A comment that starts with = + - or @ is a formula to Excel and Sheets: "=HYPERLINK(...)" typed
  * into the form would run on the admin's machine when the file opens. A leading apostrophe makes the
  * cell plain text. The shared csv.js has no such guard; its other callers export staff-entered data.
@@ -312,6 +365,9 @@ const ADMIN_CSS = `
   .evr-csv { display: inline-flex; flex-direction: column; gap: 4px; }
   .evr-csv-error { font-size: 0.8rem; color: var(--bad); max-width: 240px; }
   .evr-csv > .evr-muted { max-width: 240px; }
+  .evr-cert-head { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+  .evr-cert .evr-muted { margin: 6px 0 0; }
+  .evr-link { border: 0; background: none; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
   .evr-confirm { display: inline-flex; gap: 8px; flex-wrap: wrap; }
   .evr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .evr-section { margin-bottom: 16px; }
