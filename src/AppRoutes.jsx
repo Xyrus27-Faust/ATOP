@@ -52,6 +52,7 @@ import CheckpointDetailPage from './dashboard/pages/CheckpointDetailPage'
 import PassPage from './components/pass/PassPage'
 import EvaluationPage from './components/evaluation/EvaluationPage'
 import AdminEvaluationPage from './dashboard/pages/AdminEvaluationPage'
+import RosterPage from './components/roster/RosterPage'
 
 // Auth pages are real routes (the emailed links point at /verify-email and
 // /reset-password). The authenticated dashboard lives under /dashboard, guarded
@@ -71,6 +72,8 @@ export default function AppRoutes() {
       <Route path="/pass/:token" element={<PassPage />} />
       {/* The post-convention evaluation. Public: the ID NO, an email on the record and a mailed code are the key. */}
       <Route path="/evaluation" element={<EvaluationPage />} />
+      {/* The convention roster — the Certificate of Appearance's QR opens it. Public: names and LGUs only. */}
+      <Route path="/roster" element={<RosterPage />} />
 
       <Route element={<ProtectedRoute />}>
         {/* Scoring an entry is a focused, full-screen task (its own shell, no dashboard
