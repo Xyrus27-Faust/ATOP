@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAsync } from '@/dashboard/useAsync'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { checkEvaluationIdentity, getEvaluationForm, submitEvaluation } from '@/lib/evaluation'
+import { checkEvaluationIdentity, evaluationCertificateUrl, getEvaluationForm, submitEvaluation } from '@/lib/evaluation'
 import EvaluationSection from './EvaluationSection'
 import { clearDraft, loadDraft, missingIn, saveDraft, toPayload } from './evaluationDraft'
 
@@ -125,7 +125,7 @@ function Evaluation({ slug, form }) {
   )
   const [showMissing, setShowMissing] = useState(false)
   const [serverErrors, setServerErrors] = useState({})
-  const [done, setDone] = useState(null) // { title, body, icon, tone }
+  const [done, setDone] = useState(null) // { title, body, icon, tone, certificateUrl }
 
   const questionById = useMemo(() => {
     const map = {}
@@ -152,9 +152,9 @@ function Evaluation({ slug, form }) {
     setProblem({ message: hasField ? null : err?.message || fallback, fields })
   }
 
-  const finishWith = (title, body, icon = 'fa-circle-check', tone = 'ok') => {
+  const finishWith = (title, body, icon = 'fa-circle-check', tone = 'ok', certificateUrl = null) => {
     clearDraft(form.eventId)
-    setDone({ title, body, icon, tone })
+    setDone({ title, body, icon, tone, certificateUrl })
     setPhase('done')
   }
 
@@ -263,8 +263,14 @@ function Evaluation({ slug, form }) {
     setBusy(true)
     setProblem(null)
     try {
-      await submitEvaluation(slug, { email: identity.email, idNo: identity.idNo, answers: toPayload(sections, answers) })
-      finishWith('Thank you!', 'Your evaluation has been sent. A receipt is on its way to your email. You can close this page now.')
+      const filed = await submitEvaluation(slug, { email: identity.email, idNo: identity.idNo, answers: toPayload(sections, answers) })
+      finishWith(
+        'Thank you!',
+        'Your evaluation has been sent. Your Certificate of Appearance is on its way to your email with the receipt — or download it now.',
+        undefined,
+        undefined,
+        evaluationCertificateUrl(slug, filed.id),
+      )
     } catch (err) {
       if (refused(err)) return
       const byCode = {}
@@ -297,7 +303,14 @@ function Evaluation({ slug, form }) {
   if (phase === 'done') {
     return (
       <Shell eventName={form.eventName}>
-        <State icon={done.icon} tone={done.tone} title={done.title}>{done.body}</State>
+        <State icon={done.icon} tone={done.tone} title={done.title}>
+          {done.body}
+          {done.certificateUrl && (
+            <a className="ev-btn is-primary ev-state-btn" href={done.certificateUrl} download>
+              <i className="fas fa-file-arrow-down" aria-hidden="true" /> Download certificate
+            </a>
+          )}
+        </State>
       </Shell>
     )
   }
@@ -574,7 +587,7 @@ const EVALUATION_CSS = `
   .ev-state-icon.is-ok { background: var(--ok-bg); color: var(--ok); }
   .ev-state-title { margin: 4px 0 0; font-family: var(--font-heading); font-size: 1.35rem; font-weight: 800; color: var(--navy); }
   .ev-state-body { margin: 10px auto 0; max-width: 34ch; font-size: 0.96rem; line-height: 1.55; display: flex; flex-direction: column; gap: 16px; align-items: center; }
-  .ev-state-btn { min-width: 180px; }
+  .ev-state-btn { min-width: 180px; text-decoration: none; }
 
   @media (prefers-reduced-motion: reduce) {
     .ev-progress span, .ev-pick, .ev-btn { transition: none; }

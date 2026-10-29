@@ -199,6 +199,12 @@ async function request(path, { method = 'GET', body, auth = false, blob, timeout
   }
 }
 
+/**
+ * The API's own URL for a path — for a plain link the browser follows itself, where no token is
+ * involved (a public file download on a phone, which a blob URL handles badly).
+ */
+export const apiUrl = (path) => `${BASE}${path}`
+
 export const api = {
   get: (path, opts) => request(path, { ...opts, method: 'GET' }),
   post: (path, body, opts) => request(path, { ...opts, method: 'POST', body }),

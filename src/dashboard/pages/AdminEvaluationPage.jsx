@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
-import { getEvaluationResponses, getEvaluationSummary } from '@/lib/evaluation'
+import { getEvaluationResponses, getEvaluationSummary, sendEvaluationCertificates } from '@/lib/evaluation'
 import { datedFilename, downloadCsv } from '@/lib/csv'
 import { useAsync } from '../useAsync'
 import { Loading, ErrorState } from '../components/states'
@@ -57,6 +57,7 @@ export default function AdminEvaluationPage() {
             <i className="fas fa-rotate-right" aria-hidden="true" /> Refresh
           </button>
           <CsvButton eventId={event.id} disabled={summary.responses === 0} />
+          <CertificatesButton eventId={event.id} disabled={summary.responses === 0} />
         </div>
       </div>
 
@@ -210,6 +211,79 @@ function CsvButton({ eventId, disabled }) {
 }
 
 /**
+ * The Certificate of Appearance (ATOP, 2026-10-29) goes out with each receipt; this sends it to
+ * whoever answered before that, or whose mail failed. Asks first — a dry run says how many — then
+ * sends in batches of 40 (the API stops a request at 60 s) until none are left or a batch fails.
+ */
+function CertificatesButton({ eventId, disabled }) {
+  const [state, setState] = useState({ phase: 'idle' }) // idle | checking | confirm | sending | done
+  const [error, setError] = useState(null)
+
+  const check = async () => {
+    setError(null)
+    setState({ phase: 'checking' })
+    try {
+      const dry = await sendEvaluationCertificates(eventId)
+      setState(dry.due === 0 ? { phase: 'done', sent: 0, failed: 0 } : { phase: 'confirm', due: dry.due })
+    } catch (err) {
+      setError(err?.message || 'Could not check. Try again.')
+      setState({ phase: 'idle' })
+    }
+  }
+
+  const send = async () => {
+    setError(null)
+    let sent = 0
+    let failed = 0
+    setState({ phase: 'sending', sent, due: state.due })
+    try {
+      for (;;) {
+        const run = await sendEvaluationCertificates(eventId, { send: true })
+        sent += run.sent
+        failed += run.failed
+        setState({ phase: 'sending', sent, due: state.due })
+        // A batch that failed outright would fail again: stop and say so rather than loop.
+        if (run.remaining === 0 || run.failed > 0 || run.sent === 0) break
+      }
+      setState({ phase: 'done', sent, failed })
+    } catch (err) {
+      setError(`${err?.message || 'Sending stopped.'} ${sent} sent so far — run it again to continue.`)
+      setState({ phase: 'idle' })
+    }
+  }
+
+  const { phase } = state
+  return (
+    <span className="evr-csv">
+      {phase === 'confirm' ? (
+        <span className="evr-confirm">
+          <button className="dash-btn" onClick={send}>
+            <i className="fas fa-paper-plane" aria-hidden="true" /> Send {state.due} certificate{state.due === 1 ? '' : 's'}
+          </button>
+          <button className="dash-btn is-ghost" onClick={() => setState({ phase: 'idle' })}>Cancel</button>
+        </span>
+      ) : (
+        <button className="dash-btn" onClick={check} disabled={disabled || phase === 'checking' || phase === 'sending'}>
+          <i className={`fas ${phase === 'checking' || phase === 'sending' ? 'fa-spinner fa-spin' : 'fa-award'}`} aria-hidden="true" />{' '}
+          {phase === 'sending' ? `Sending… ${state.sent} of ${state.due}` : 'Send certificates'}
+        </button>
+      )}
+      {phase === 'confirm' && (
+        <span className="evr-muted">{state.due} answered without getting a certificate. Each gets one email with the PDF.</span>
+      )}
+      {phase === 'done' && (
+        <span className="evr-muted" role="status">
+          {state.sent === 0 && state.failed === 0
+            ? 'Everyone who answered has their certificate.'
+            : `${state.sent} sent${state.failed > 0 ? `, ${state.failed} failed — run it again to retry` : ''}.`}
+        </span>
+      )}
+      {error && <span className="evr-csv-error" role="alert">{error}</span>}
+    </span>
+  )
+}
+
+/**
  * A comment that starts with = + - or @ is a formula to Excel and Sheets: "=HYPERLINK(...)" typed
  * into the form would run on the admin's machine when the file opens. A leading apostrophe makes the
  * cell plain text. The shared csv.js has no such guard; its other callers export staff-entered data.
@@ -237,6 +311,8 @@ const ADMIN_CSS = `
   .evr-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
   .evr-csv { display: inline-flex; flex-direction: column; gap: 4px; }
   .evr-csv-error { font-size: 0.8rem; color: var(--bad); max-width: 240px; }
+  .evr-csv > .evr-muted { max-width: 240px; }
+  .evr-confirm { display: inline-flex; gap: 8px; flex-wrap: wrap; }
   .evr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .evr-section { margin-bottom: 16px; }
   .evr-sec-title { margin: 0; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); display: flex; gap: 10px; align-items: baseline; }
