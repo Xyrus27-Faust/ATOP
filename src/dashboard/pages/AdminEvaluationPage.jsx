@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchCurrentEvent } from '@/lib/eventInfo'
 import { getEvaluationCertificates, getEvaluationResponses, getEvaluationSummary, sendEvaluationCertificates } from '@/lib/evaluation'
 import { datedFilename, downloadCsv } from '@/lib/csv'
@@ -78,11 +78,7 @@ export default function AdminEvaluationPage() {
           <p>Share the form link with delegates. Answers show here as soon as they&rsquo;re sent.</p>
         </div>
       ) : (
-        <>
-          <Highlights sections={summary.sections} />
-          <SectionNav sections={summary.sections} />
-          {summary.sections.map((section) => <SectionCard key={section.code} section={section} />)}
-        </>
+        <Sections sections={summary.sections} />
       )}
 
       <style>{ADMIN_CSS}</style>
@@ -91,14 +87,54 @@ export default function AdminEvaluationPage() {
 }
 
 const sectionAnchor = (code) => `evr-sec-${code}`
-const jumpTo = (code) => document.getElementById(sectionAnchor(code))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+/**
+ * Every part starts as a closed tile, two to a row on a wide screen, so the whole form fits on one
+ * screen before anyone drills in. An open part takes the full width: at half width the question rows
+ * would wrap to three or four lines. The chip bar and the highlights open a part before scrolling to it,
+ * so a tap never lands on a closed tile. Nothing is remembered: Refresh or a reload starts all closed.
+ */
+function Sections({ sections }) {
+  const [open, setOpen] = useState(() => new Set())
+  const [jump, setJump] = useState(null)
+
+  const toggle = (code) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      return next
+    })
+
+  const openAndJump = (code) => {
+    setOpen((prev) => (prev.has(code) ? prev : new Set(prev).add(code)))
+    setJump({ code })
+  }
+
+  // Scroll after the part has rendered open, or the page would scroll to where the closed tile was.
+  useEffect(() => {
+    if (jump) document.getElementById(sectionAnchor(jump.code))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [jump])
+
+  return (
+    <>
+      <Highlights sections={sections} onJump={openAndJump} />
+      <SectionNav sections={sections} onJump={openAndJump} />
+      <div className="evr-tiles">
+        {sections.map((section) => (
+          <SectionCard key={section.code} section={section} open={open.has(section.code)} onToggle={() => toggle(section.code)} />
+        ))}
+      </div>
+    </>
+  )
+}
 
 /**
  * The three weakest and three strongest rated questions, so the takeaway is on screen before the
  * 80-odd rows. Ratings (1–5) and scales (1–10) are compared as a share of their top mark. Each one
  * jumps to its part of the form.
  */
-function Highlights({ sections }) {
+function Highlights({ sections, onJump }) {
   const rated = sections.flatMap((s) =>
     s.questions
       .filter((q) => (q.kind === 'Rating' || q.kind === 'Scale') && q.average != null)
@@ -122,7 +158,7 @@ function Highlights({ sections }) {
           <ul className="evr-hl-list">
             {list.items.map((q) => (
               <li key={q.id}>
-                <button className="evr-hl-item" onClick={() => jumpTo(q.section)}>
+                <button className="evr-hl-item" onClick={() => onJump(q.section)}>
                   <span className="evr-prompt">{q.code}. {q.prompt}</span>
                   <span className={`evr-hl-score ${tone(q.average, q.max)}`}>
                     {fixed(q.average)}<span className="evr-muted"> / {q.max}</span>
@@ -138,11 +174,11 @@ function Highlights({ sections }) {
 }
 
 /** A row of the form's parts that stays under the top bar: a phone would otherwise scroll for minutes. */
-function SectionNav({ sections }) {
+function SectionNav({ sections, onJump }) {
   return (
     <nav className="evr-nav" aria-label="Parts of the form">
       {sections.map((s) => (
-        <button key={s.code} className="evr-nav-chip" onClick={() => jumpTo(s.code)}>
+        <button key={s.code} className="evr-nav-chip" onClick={() => onJump(s.code)}>
           <span className="evr-nav-code">{s.code}</span> {s.title}
         </button>
       ))}
@@ -150,16 +186,36 @@ function SectionNav({ sections }) {
   )
 }
 
-function SectionCard({ section }) {
+function SectionCard({ section, open, onToggle }) {
+  // The tile's score is the 1–5 ratings only. The 1–10 overall and recommend have their own tiles up
+  // top, and folding them in would mix two scales into one number.
+  const ratings = section.questions.filter((q) => q.kind === 'Rating' && q.average != null)
+  const average = ratings.length > 0 ? ratings.reduce((sum, q) => sum + q.average, 0) / ratings.length : null
+  const count = section.questions.length
+  const rows = `evr-rows-${section.code}`
   return (
-    <section id={sectionAnchor(section.code)} className="dash-card dash-card-pad evr-section">
-      <h2 className="evr-sec-title">
-        <span className="evr-sec-code">{section.code}</span> {section.title}
+    <section id={sectionAnchor(section.code)} className={`dash-card dash-card-pad evr-tile${open ? ' is-open' : ''}`}>
+      <h2 className="evr-tile-h">
+        <button className="evr-tile-head" onClick={onToggle} aria-expanded={open} aria-controls={rows}>
+          <span className="evr-sec-code">{section.code}</span>
+          <span className="evr-tile-text">
+            <span className="evr-tile-title">{section.title}</span>
+            {section.schedule && <span className="evr-tile-when">{section.schedule}</span>}
+            <span className="evr-tile-meta">
+              {count} question{count === 1 ? '' : 's'}
+              {average != null && (
+                <> · <strong className={tone(average, 5)}>{fixed(average)}</strong> / 5 average</>
+              )}
+            </span>
+          </span>
+          <i className="fas fa-chevron-down evr-tile-chev" aria-hidden="true" />
+        </button>
       </h2>
-      {section.schedule && <p className="evr-sec-when">{section.schedule}</p>}
-      <div className="evr-rows">
-        {section.questions.map((q) => <QuestionRow key={q.id} question={q} />)}
-      </div>
+      {open && (
+        <div className="evr-rows" id={rows}>
+          {section.questions.map((q) => <QuestionRow key={q.id} question={q} />)}
+        </div>
+      )}
     </section>
   )
 }
@@ -546,12 +602,33 @@ const ADMIN_CSS = `
   .evr-bar.is-mid > span { background: var(--gold); }
   .evr-bar.is-ok > span { background: var(--ok); }
   .evr-section { margin-bottom: 16px; }
+  .evr-tiles { display: grid; gap: 16px; margin-bottom: 16px; }
+  @media (min-width: 768px) {
+    .evr-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .evr-tile.is-open { grid-column: 1 / -1; }
+  }
+  .evr-tile-h { margin: 0; font-size: inherit; }
+  .evr-tile { min-width: 0; scroll-margin-top: 128px; }
+  .evr-tile-head {
+    width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left;
+    border: 0; padding: 0; background: none; cursor: pointer; font: inherit; color: inherit;
+  }
+  .evr-tile-head .evr-sec-code { margin-top: 1px; }
+  .evr-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .evr-tile-title { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); line-height: 1.3; }
+  .evr-tile-when { font-size: 0.82rem; color: var(--gray-600); }
+  .evr-tile-meta { font-size: 0.85rem; color: var(--gray-600); }
+  .evr-tile-meta .is-bad { color: var(--bad); }
+  .evr-tile-meta .is-mid { color: var(--gold-dark); }
+  .evr-tile-meta .is-ok { color: var(--ok); }
+  .evr-tile-chev { margin-top: 6px; color: var(--gray-600); transition: transform 0.15s; }
+  .evr-tile.is-open .evr-tile-chev { transform: rotate(180deg); }
+  .evr-tile-head:hover .evr-tile-title { color: var(--gold-dark); }
   .evr-sec-title { margin: 0; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 800; color: var(--navy); display: flex; gap: 10px; align-items: baseline; }
   .evr-sec-code {
     flex-shrink: 0; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
     background: var(--navy); color: var(--gold-light); font-size: 0.85rem;
   }
-  .evr-sec-when { margin: 4px 0 0 38px; font-size: 0.82rem; color: var(--gray-600); }
   .evr-rows { margin-top: 12px; display: flex; flex-direction: column; }
   .evr-row { padding: 12px 0; border-top: 1px solid var(--gray-100); margin: 0; }
   .evr-row > summary {
