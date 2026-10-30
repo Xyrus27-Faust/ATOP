@@ -7,6 +7,7 @@ import { Loading, ErrorState } from '../components/states'
 import Stat from '../components/Stat'
 
 const RATING_ORDER = ['5', '4', '3', '2', '1', 'N/A']
+const COMMENTS_PER_PAGE = 10
 
 /**
  * What delegates said after the convention (ATOP, 2026-10-22). Admin only: the comments name
@@ -151,24 +152,76 @@ function QuestionRow({ question: q }) {
   )
 }
 
+/**
+ * A question's comments, a page at a time: some have hundreds. The search runs over the comment and
+ * the name before paging, so a match on page 9 still comes up first. Closing the question starts it
+ * over, so whoever opens it next does not land on someone else's page 4 of a search.
+ */
 function Comments({ question: q }) {
+  const [term, setTerm] = useState('')
+  const [page, setPage] = useState(0)
+
   if (q.comments.length === 0) {
     return <p className="evr-row evr-muted">{q.prompt} — no comments.</p>
   }
+
+  const needle = term.trim().toLowerCase()
+  const matches = needle
+    ? q.comments.filter((c) => c.text.toLowerCase().includes(needle) || c.name?.toLowerCase().includes(needle))
+    : q.comments
+  const pages = Math.max(1, Math.ceil(matches.length / COMMENTS_PER_PAGE))
+  const current = Math.min(page, pages - 1)
+  const shown = matches.slice(current * COMMENTS_PER_PAGE, (current + 1) * COMMENTS_PER_PAGE)
+
+  const reset = (e) => {
+    if (e.currentTarget.open) return
+    setTerm('')
+    setPage(0)
+  }
+
   return (
-    <details className="evr-row">
+    <details className="evr-row" onToggle={reset}>
       <summary>
         <span className="evr-prompt"><i className="far fa-comment" aria-hidden="true" /> {q.prompt}</span>
         <span className="evr-muted evr-count">{q.comments.length} comment{q.comments.length === 1 ? '' : 's'}</span>
       </summary>
+      {q.comments.length > COMMENTS_PER_PAGE && (
+        <input
+          type="search"
+          className="dash-input evr-search"
+          placeholder="Search comments or names"
+          aria-label={`Search comments: ${q.prompt}`}
+          value={term}
+          onChange={(e) => {
+            setTerm(e.target.value)
+            setPage(0)
+          }}
+        />
+      )}
+      {needle && (
+        <p className="evr-muted evr-found" role="status">
+          {matches.length} of {q.comments.length} match &ldquo;{term.trim()}&rdquo;
+        </p>
+      )}
       <ul className="evr-comments">
-        {q.comments.map((c, i) => (
-          <li key={`${c.responseId}-${i}`}>
+        {shown.map((c) => (
+          <li key={`${c.responseId}-${q.comments.indexOf(c)}`}>
             <p>{c.text}</p>
             {c.name && <span className="evr-muted">— {c.name}</span>}
           </li>
         ))}
       </ul>
+      {pages > 1 && (
+        <nav className="evr-pager" aria-label="Comment pages">
+          <button className="dash-btn is-ghost" onClick={() => setPage(current - 1)} disabled={current === 0}>
+            <i className="fas fa-chevron-left" aria-hidden="true" /> Prev
+          </button>
+          <span className="evr-muted">Page {current + 1} of {pages}</span>
+          <button className="dash-btn is-ghost" onClick={() => setPage(current + 1)} disabled={current === pages - 1}>
+            Next <i className="fas fa-chevron-right" aria-hidden="true" />
+          </button>
+        </nav>
+      )}
     </details>
   )
 }
@@ -405,4 +458,8 @@ const ADMIN_CSS = `
   .evr-comments { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .evr-comments li { padding: 10px 12px; border-radius: 10px; background: var(--off-white); font-size: 0.88rem; }
   .evr-comments p { margin: 0 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .evr-search { display: block; width: 100%; max-width: 360px; margin-top: 10px; }
+  .evr-found { margin: 8px 0 0; }
+  .evr-pager { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 10px; }
+  @media (min-width: 768px) { .evr-pager { justify-content: flex-start; } }
 `
