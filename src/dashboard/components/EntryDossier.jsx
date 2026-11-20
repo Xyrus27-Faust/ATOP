@@ -25,9 +25,20 @@
 // Scoring composes the sections itself rather than rendering the layout, but shows the same
 // reference block in the same place. See the note on that component.
 
-import { formatDate, labelFor, COVERAGE_OPTIONS, videoEmbed, looksLikeVideo } from '@/lib/pearlAwards'
+import { formatDate, labelFor, COVERAGE_OPTIONS, videoEmbed, looksLikeVideo, isWebLink } from '@/lib/pearlAwards'
+import { EntryFilesContext, useFileErrorFor } from '@/lib/entryFiles'
 
 // The role-scoped file accessor lives in lib/entryFiles.js — pages pass the result in as `files`.
+
+/** A failed open, shown under the button that caused it. */
+function FileError({ message }) {
+  if (!message) return null
+  return (
+    <p className="ed-file-error" role="alert">
+      <i className="fas fa-circle-exclamation" aria-hidden="true" /> {message}
+    </p>
+  )
+}
 
 const emptyBidbook = { executiveSummary: '', narratives: [], supportingDocuments: [], evidence: [] }
 
@@ -91,6 +102,7 @@ export function DossierGrid({ items }) {
  * something failed to load? A reviewer reading the full dossier doesn't need the noise.
  */
 export function EvidenceRow({ files, onViewEvidence, showEmpty = false }) {
+  const errorFor = useFileErrorFor()
   if (!files?.length) {
     if (!showEmpty) return null
     return (
@@ -108,6 +120,7 @@ export function EvidenceRow({ files, onViewEvidence, showEmpty = false }) {
           <i className="fas fa-file-lines" aria-hidden="true" /> {f.fileName || 'View file'}
         </button>
       ))}
+      <FileError message={files.map((f) => errorFor(`evidence:${f.fileKey}`)).find(Boolean)} />
     </div>
   )
 }
@@ -177,8 +190,12 @@ export function NarrativesSection({ entry, criteria, onViewEvidence, showEmptyEv
  * a video but can't be previewed says so rather than failing silently.
  */
 function DocumentItem({ doc, kind, onViewDoc }) {
-  const embed = !doc.fileKey ? videoEmbed(doc.link) : null
-  const brokenVideo = !doc.fileKey && !embed && (kind === 'VideoLink' || looksLikeVideo(doc.link))
+  const errorFor = useFileErrorFor()
+  // The editor only saves a row that has a file or a link, so a row with neither is one whose link
+  // the API withheld as unsafe (SafeLink.Sanitize) — or one this check refuses to make clickable.
+  const removed = !doc.fileKey && !isWebLink(doc.link)
+  const embed = !doc.fileKey && !removed ? videoEmbed(doc.link) : null
+  const brokenVideo = !doc.fileKey && !removed && !embed && (kind === 'VideoLink' || looksLikeVideo(doc.link))
 
   return (
     <div className="ed-doc-item">
@@ -190,6 +207,11 @@ function DocumentItem({ doc, kind, onViewDoc }) {
             <i className="fas fa-up-right-from-square" aria-hidden="true" />
             <span className="ed-doc-action-text">Open in {embed.provider}</span>
           </a>
+        ) : removed ? (
+          <span className="ed-doc-action ed-doc-removed" title="The entrant’s link wasn’t a normal web address, so it was removed for safety.">
+            <i className="fas fa-link-slash" aria-hidden="true" />
+            <span className="ed-doc-action-text">Link removed</span>
+          </span>
         ) : (
           <button type="button" className="dash-btn is-ghost is-sm ed-doc-action" onClick={() => onViewDoc(doc.label)}
                   title={doc.fileName || (doc.fileKey ? 'View file' : 'Open link')}>
@@ -198,6 +220,7 @@ function DocumentItem({ doc, kind, onViewDoc }) {
           </button>
         )}
       </div>
+      <FileError message={errorFor(`doc:${doc.label}`)} />
       {embed && (
         <div className="ed-video">
           <iframe
@@ -315,6 +338,7 @@ export function DeclarationSection({ entry }) {
 }
 
 export function EndorsementSection({ entry, onViewEndorsement }) {
+  const errorFor = useFileErrorFor()
   const e = entry.lceEndorsement
   return (
     <DossierSection icon="fa-stamp" title="LCE endorsement">
@@ -334,6 +358,7 @@ export function EndorsementSection({ entry, onViewEndorsement }) {
               </button>
             </div>
           )}
+          <FileError message={errorFor('endorsement')} />
         </>
       ) : <p className="ed-empty">Not endorsed.</p>}
     </DossierSection>
@@ -358,10 +383,7 @@ export function EntryFacts({ entry, category }) {
 export default function EntryDossier({ entry, category, criteria, files, layout = 'full' }) {
   const judging = layout === 'judging'
   return (
-    <>
-      {files.fileError && (
-        <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{files.fileError}</span></div>
-      )}
+    <EntryFilesContext.Provider value={files}>
       <div className="ed-stack">
         {judging && <VideoSection entry={entry} category={category} onViewDoc={files.viewDoc} />}
         <NominatorSection entry={entry} />
@@ -378,7 +400,7 @@ export default function EntryDossier({ entry, category, criteria, files, layout 
         <EndorsementSection entry={entry} onViewEndorsement={files.viewEndorsement} />
       </div>
       <style>{DOSSIER_CSS}</style>
-    </>
+    </EntryFilesContext.Provider>
   )
 }
 
@@ -419,6 +441,10 @@ export const DOSSIER_CSS = `
      attribute is for. */
   .ed-doc-action { flex: 0 0 184px; min-width: 0; }
   .ed-doc-action-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Same column and type as the buttons beside it, so a withheld link reads as a state of the row
+     rather than a missing control. Not a button: there is nothing to do with it. */
+  .ed-doc-removed { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 0 14px; font-family: var(--font-heading); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-400); cursor: default; }
+  .ed-file-error { margin-top: 8px; display: flex; align-items: center; gap: 8px; color: #B91C1C; font-size: 0.84rem; }
   .ed-doc-item { padding: 12px 0; border-top: 1px solid var(--gray-100); }
   .ed-doc-item:first-of-type { border-top: none; padding-top: 0; }
 
