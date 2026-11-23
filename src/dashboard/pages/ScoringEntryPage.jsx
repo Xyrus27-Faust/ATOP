@@ -10,7 +10,7 @@ import {
   EvidenceRow, ExecutiveSummarySection, VideoSection, DocumentsReferenceSection,
   DeclarationSection, EndorsementSection, DOSSIER_CSS,
 } from '../components/EntryDossier'
-import { useEntryFiles } from '@/lib/entryFiles'
+import { useEntryFiles, EntryFilesContext } from '@/lib/entryFiles'
 import {
   labelFor, COVERAGE_OPTIONS,
   RATING_MIN, RATING_MAX, RATING_STEP, RATING_BANDS,
@@ -192,14 +192,17 @@ function FeedbackSection({ value, onChange, disabled }) {
 
 // Focused full-screen shell (no dashboard chrome). Injects the shared dash-* system like
 // SubmissionLayout so the cards/buttons/badges style correctly outside the dashboard.
-function Shell({ children }) {
+// `files` (from useEntryFiles) lets the dossier rows show a failed open under their own button.
+function Shell({ files = null, children }) {
   return (
-    <div className="scf">
-      {children}
-      <style>{DASH_CSS}</style>
-      <style>{DOSSIER_CSS}</style>
-      <style>{SCF_CSS}</style>
-    </div>
+    <EntryFilesContext.Provider value={files}>
+      <div className="scf">
+        {children}
+        <style>{DASH_CSS}</style>
+        <style>{DOSSIER_CSS}</style>
+        <style>{SCF_CSS}</style>
+      </div>
+    </EntryFilesContext.Provider>
   )
 }
 
@@ -365,7 +368,7 @@ export default function ScoringEntryPage() {
   )
 
   return (
-    <Shell>
+    <Shell files={files}>
       <header className="scf-top">
         <div className="scf-id">
           <span className="scf-cat">#{entry.categoryNumber}</span>
@@ -394,10 +397,6 @@ export default function ScoringEntryPage() {
             <div className="dash-banner tone-info"><i className="fas fa-circle-info" aria-hidden="true" /> <span>Scoring for this entry is closed.</span></div>
           )}
           {banner && <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{banner}</span></div>}
-
-          {files.fileError && (
-            <div className="dash-banner tone-error"><i className="fas fa-circle-exclamation" aria-hidden="true" /> <span>{files.fileError}</span></div>
-          )}
 
           {/* Video first: it's the closest an assessor gets to seeing the work itself, so it leads
               the scoresheet rather than sitting under the criteria they've already rated. */}

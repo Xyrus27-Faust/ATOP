@@ -174,6 +174,14 @@ export function videoEmbed(link) {
   return null
 }
 
+// True for an absolute http(s) link with a host — the only kind that may become an href. The API
+// already drops anything else before it reaches us (SafeLink.Sanitize); this is the second layer,
+// so a `javascript:` link from some future read path still can't become clickable.
+export function isWebLink(link) {
+  const url = parseUrl(link)
+  return !!url && (url.protocol === 'http:' || url.protocol === 'https:') && !!url.hostname
+}
+
 // True when a link is meant to be a video but may not be previewable inline —
 // a known video host or a direct video file we have no inline player for.
 export function looksLikeVideo(link) {
